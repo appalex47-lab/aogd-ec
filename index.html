@@ -159,8 +159,11 @@
 
                 <!-- Sub-tabs: Vista Herramientas -->
                 <nav id="subnav-herramientas" class="hidden items-center gap-1.5 py-2 overflow-x-auto no-scrollbar" role="tablist" aria-label="Herramientas">
-                    <button type="button" id="tool-tab-tablero" class="shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-800 text-white shadow-xs transition flex items-center gap-1.5">
-                        <span>Tablero de Control - Revisión Diaria</span>
+                    <button type="button" onclick="setHerramienta('tablero')" id="tool-tab-tablero" class="tool-tab-btn shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-800 text-white shadow-xs transition flex items-center gap-1.5">
+                        <span>Salud del Negocio • Revisión Diaria</span>
+                    </button>
+                    <button type="button" onclick="setHerramienta('trafico')" id="tool-tab-trafico" class="tool-tab-btn shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-white transition flex items-center gap-1.5">
+                        <span>Tráfico y Conversión</span>
                     </button>
                 </nav>
             </div>
@@ -1105,12 +1108,12 @@
         <!-- VISTA 3: HERRAMIENTAS (enlaza al Tablero de Control sin modificarlo)      -->
         <!-- ========================================================================= -->
         <main id="view-herramientas" class="hidden">
-            <section class="fade-in">
+            <section id="tool-panel-tablero" class="tool-panel fade-in">
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-5">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div>
-                            <h2 class="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900">Tablero de Control - Revisión Diaria</h2>
-                            <p class="text-sm text-slate-600 mt-1">Herramienta operativa de revisión diaria omnicanal. Se muestra tal cual, sin modificaciones.</p>
+                            <h2 class="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900">Salud del Negocio • Revisión Diaria</h2>
+                            <p class="text-sm text-slate-600 mt-1">Ritmo de venta vs. meta por canal, pacing, pronóstico de cierre y registro de acciones. Uso diario.</p>
                         </div>
                         <a href="herramientas/Tablero_de_Control_-_Revision_Diaria.html" target="_blank" rel="noopener"
                            class="shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm transition">
@@ -1119,7 +1122,26 @@
                         </a>
                     </div>
                     <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                        <iframe id="tablero-frame" title="Tablero de Control - Revisión Diaria" data-src="herramientas/Tablero_de_Control_-_Revision_Diaria.html"
+                        <iframe id="tablero-frame" title="Salud del Negocio - Revisión Diaria" data-src="herramientas/Tablero_de_Control_-_Revision_Diaria.html"
+                                class="w-full block border-0" style="height: 78vh; min-height: 520px;" loading="lazy"></iframe>
+                    </div>
+                </div>
+            </section>
+            <section id="tool-panel-trafico" class="tool-panel hidden fade-in">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-5">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900">Tráfico y Conversión</h2>
+                            <p class="text-sm text-slate-600 mt-1">Calidad de fuentes de tráfico, funnel PDP → Carrito → Checkout → Pedido y dispositivo, contra benchmark propio. Uso recurrente.</p>
+                        </div>
+                        <a href="herramientas/Trafico_y_Conversion.html" target="_blank" rel="noopener"
+                           class="shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm transition">
+                            <span>Abrir en otra pestaña</span>
+                            <span aria-hidden="true">↗</span>
+                        </a>
+                    </div>
+                    <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                        <iframe id="trafico-frame" title="Tráfico y Conversión" data-src="herramientas/Trafico_y_Conversion.html"
                                 class="w-full block border-0" style="height: 78vh; min-height: 520px;" loading="lazy"></iframe>
                     </div>
                 </div>
@@ -1197,12 +1219,21 @@
                 if (d) d.className = 'px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ' + (active ? cfg[r].on + ' shadow-sm' : 'text-slate-600 hover:text-slate-900');
                 if (m) m.className = 'py-1.5 px-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ' + (active ? cfg[r].mob + ' shadow-sm' : 'text-slate-600 hover:text-slate-900');
             });
-            // Carga diferida del tablero (solo la primera vez que se abre la pestaña)
-            if (role === 'herramientas') {
-                const fr = document.getElementById('tablero-frame');
-                if (fr && !fr.getAttribute('src')) fr.setAttribute('src', fr.dataset.src);
-            }
+            // Carga diferida de la herramienta activa (solo la primera vez que se abre)
+            if (role === 'herramientas') setHerramienta(window.herramientaActiva || 'tablero', true);
             window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function setHerramienta(id, sinScroll) {
+            window.herramientaActiva = id;
+            ['tablero', 'trafico'].forEach(t => {
+                document.getElementById('tool-panel-' + t).classList.toggle('hidden', t !== id);
+                document.getElementById('tool-tab-' + t).className = 'tool-tab-btn shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ' +
+                    (t === id ? 'bg-slate-800 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-white');
+            });
+            const fr = document.getElementById(id + '-frame');
+            if (fr && !fr.getAttribute('src')) fr.setAttribute('src', fr.dataset.src);
+            if (!sinScroll) window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         function setManagerTab(tabId) {
@@ -2679,7 +2710,13 @@
                         href: 'herramientas/Tablero_de_Control_-_Revision_Diaria.html',
                         linkLabel: 'Abrir tablero en otra pestaña'
                     },
-                    { name: 'Tráfico y Conversión', detail: 'Fuentes de tráfico y funnel completo PDP → Carrito → Checkout (Quincenal).' },
+                    {
+                        name: 'Tráfico y Conversión',
+                        detail: 'Calidad de fuentes de tráfico (calidad vs. baja intención), funnel PDP → Carrito → Checkout → Pedido y conversión por dispositivo, siempre contra el benchmark propio de los 28 días previos, con alertas y registro de acciones (uso recurrente). Tablero propio con carga por CSV diario exportado de GA4.',
+                        tag: 'Tablero propio',
+                        href: 'herramientas/Trafico_y_Conversion.html',
+                        linkLabel: 'Abrir tablero en otra pestaña'
+                    },
                     { name: 'Checkout', detail: 'Abandono de carrito detallado por dispositivo, navegador y canal (Semanal).' },
                     { name: 'Comercial', detail: 'Ventas por categoría/SKU, estrella vs. ancla, alto tráfico/bajo CR y contribución (Semanal / Mensual).' },
                     { name: 'Demanda', detail: 'Variación de demanda por canal propio y alertas tempranas (Quincenal).' }
@@ -2739,7 +2776,7 @@
                     <p class="text-xs sm:text-sm text-slate-600 mt-1 mb-5 max-w-3xl leading-relaxed">${tool.desc}</p>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                         ${tool.items.map(it => `
-                            <div class="p-3.5 rounded-2xl bg-slate-50 border ${it.href ? 'border-teal-300 md:col-span-2' : 'border-slate-200/80'}">
+                            <div class="p-3.5 rounded-2xl bg-slate-50 border ${it.href ? 'border-teal-300' : 'border-slate-200/80'}">
                                 ${it.tag ? `<span class="inline-block mb-1.5 px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 text-[10px] font-bold">${it.tag}</span>` : ''}
                                 <h4 class="text-xs sm:text-sm font-bold text-slate-900 mb-1">${it.name}</h4>
                                 <p class="text-xs text-slate-600 leading-relaxed">${it.detail}</p>
