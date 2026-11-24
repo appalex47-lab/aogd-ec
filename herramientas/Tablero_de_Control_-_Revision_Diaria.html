@@ -15,7 +15,7 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Descarga de PDF: captura de pantalla completa -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <!-- Supabase (sincronización en la nube) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
@@ -37,6 +37,29 @@
             -ms-overflow-style: none;
             scrollbar-width: none;
         }
+        /* ===== Modo PDF: se activa solo durante la captura ===== */
+        .pdf-modo #btn-descargar-pdf,
+        .pdf-modo #data-menu-wrapper,
+        .pdf-modo [onclick*="abrirModalCaptura"]:not(tr),
+        .pdf-modo [onclick*="copiarResumenEjecutivo"],
+        .pdf-modo [onclick*="abrirModalAccion"],
+        .pdf-modo [onclick*="toggleSimuladorWhatIf"],
+        .pdf-modo [onclick*="cambiarModoGraficoPrincipal"],
+        .pdf-modo [onclick*="cambiarVista"],
+        .pdf-modo [onclick*="editarAccionOperativa"],
+        .pdf-modo [onclick*="eliminarAccionOperativa"],
+        .pdf-modo #diagnostic-filter-chips,
+        .pdf-modo #nube-estado,
+        .pdf-modo #toast-notification,
+        .pdf-modo #daily-table-body td:last-child,
+        .pdf-modo table:has(#daily-table-body) thead th:last-child,
+        .pdf-modo [data-pdf-ocultar] { display: none !important; }
+        .pdf-modo div:has(> [onclick*="cambiarVista"]) { display: none !important; }
+        /* La bitácora se muestra completa (sin scroll interno) y los textos sin recortar */
+        .pdf-modo .overflow-x-auto { overflow: visible !important; max-height: none !important; }
+        .pdf-modo .truncate { overflow: visible !important; text-overflow: clip !important; white-space: normal !important; }
+        .pdf-modo header { position: static !important; }
+        .pdf-modo * { animation: none !important; transition: none !important; }
         input[type="range"] {
             accent-color: #2563eb;
         }
@@ -2829,7 +2852,7 @@
                     : renderizarCeldaMetrica(fmtCR(r.crReal), fmtCR(r.crPlan), r.pctCR || 0, r.esSinCaptura || r.crReal === null, etiquetaVacia, r.esParcial);
 
                 return `
-                    <tr onclick="abrirModalCaptura('${r.fecha}')" class="hover:bg-blue-50/50 even:bg-slate-50/30 transition cursor-pointer group ${rowAccent}">
+                    <tr data-fecha="${r.fecha}" data-con-datos="${(!r.esSinCaptura && !r.esFuturo) ? 1 : 0}" onclick="abrirModalCaptura('${r.fecha}')" class="hover:bg-blue-50/50 even:bg-slate-50/30 transition cursor-pointer group ${rowAccent}">
                         <td class="py-3 px-4 whitespace-nowrap sticky left-0 z-10 bg-white group-hover:bg-blue-50/90 border-r border-slate-100">
                             <div class="flex items-center justify-between gap-2">
                                 <div>
@@ -4346,28 +4369,36 @@
         async function descargarPDF() {
             const btn = document.getElementById('btn-descargar-pdf');
             const label = document.getElementById('btn-descargar-pdf-label');
-            if (!window.html2canvas || !window.jspdf) {
+            if (!window.htmlToImage || !window.jspdf) {
                 mostrarNotificacion('⚠️ No se pudieron cargar las librerías del PDF. Revisa tu conexión e inténtalo de nuevo.');
                 return;
             }
             btn.disabled = true;
             label.textContent = 'Generando…';
+            const filasOcultas = [];
             try {
-                cerrarDataMenu && cerrarDataMenu();
+                cerrarDataMenu();
                 window.scrollTo(0, 0);
+                // Bitácora: se incluyen todas las filas hasta el último día con datos; lo posterior se omite.
+                const filas = Array.from(document.querySelectorAll('#daily-table-body tr[data-fecha]'));
+                const conDatos = filas.filter(tr => tr.dataset.conDatos === '1').map(tr => tr.dataset.fecha);
+                const ultimaConDatos = conDatos.length ? conDatos.sort().pop() : null;
+                if (ultimaConDatos) {
+                    filas.forEach(tr => {
+                        if (tr.dataset.fecha > ultimaConDatos) { tr.style.display = 'none'; filasOcultas.push(tr); }
+                    });
+                }
+                document.body.classList.add('pdf-modo');
+                await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
                 const el = document.body;
                 const ancho = Math.max(el.scrollWidth, document.documentElement.clientWidth);
                 const alto = el.scrollHeight;
                 // Los navegadores limitan el tamaño del canvas (~16,000 px por lado): se ajusta la escala.
                 const escala = Math.min(2, 15000 / alto, 15000 / ancho);
-                const canvas = await html2canvas(el, {
-                    scale: escala, useCORS: true, backgroundColor: '#f8fafc', logging: false,
-                    width: ancho, height: alto, windowWidth: ancho, windowHeight: alto, scrollX: 0, scrollY: 0,
-                    ignoreElements: (n) => n.id === 'nube-overlay' || n.id === 'nube-estado' || n.id === 'toast-notification',
-                    onclone: (doc) => {
-                        // El encabezado fijo se muestra una sola vez, al inicio de la captura.
-                        doc.querySelectorAll('header').forEach(h => { h.style.position = 'static'; });
-                    }
+                const canvas = await window.htmlToImage.toCanvas(el, {
+                    pixelRatio: escala, backgroundColor: '#f8fafc', width: ancho, height: alto,
+                    filter: (n) => !(n.id === 'nube-overlay' || n.id === 'toast-notification' || n.id === 'nube-estado')
                 });
                 const { jsPDF } = window.jspdf;
                 const pdf = new jsPDF({ orientation: ancho > alto ? 'landscape' : 'portrait', unit: 'px', format: [ancho, alto], compress: true });
@@ -4379,6 +4410,8 @@
                 console.error(e);
                 mostrarNotificacion('❌ No se pudo generar el PDF.');
             } finally {
+                document.body.classList.remove('pdf-modo');
+                filasOcultas.forEach(tr => { tr.style.display = ''; });
                 btn.disabled = false;
                 label.textContent = 'Descargar PDF';
             }
