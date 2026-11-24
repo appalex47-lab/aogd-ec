@@ -3631,9 +3631,10 @@
         function normalizarClaveCanal(texto) {
             const t = String(texto || '').toLowerCase().trim();
             if (t.includes('ecom')) return 'ecommerce';
+            // WhatsApp debe evaluarse antes que App: "whatsapp" contiene la cadena "app".
+            if (t.includes('whats') || t === 'wa' || t.includes('mensaj')) return 'whatsapp';
             if (t.includes('app')) return 'app';
             if (t.includes('llam') || t.includes('tele') || t.includes('call')) return 'llamadas';
-            if (t.includes('whats') || t.includes('wa') || t.includes('mensaj')) return 'whatsapp';
             return null;
         }
 
