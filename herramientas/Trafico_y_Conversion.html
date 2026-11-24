@@ -200,10 +200,11 @@
         { k: 'chk', de: 'car', n: 'Carrito → Checkout' },
         { k: 'ped', de: 'chk', n: 'Checkout → Pedido' }
     ];
-    const DISPOSITIVOS = ['Móvil', 'Escritorio', 'Tablet'];
-    const CANALES = ['Total', 'Web', 'App', 'iOS', 'Android'];
-const ETIQ_CANAL = { Total: 'Consolidado', Web: 'Web', App: 'App (iOS + Android)', iOS: 'App iOS', Android: 'App Android' };
-const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? (c === 'iOS' || c === 'Android') : c === S.canal);
+    const DISPOSITIVOS = ['Móvil', 'Escritorio', 'Tablet', 'Smart TV']; // Smart TV pertenece siempre a Web
+    const CANALES = ['Total', 'Web', 'App'];
+const ETIQ_CANAL = { Total: 'Consolidado', Web: 'Web', App: 'App' };
+const esApp = c => c === 'iOS' || c === 'Android';
+const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c) : c === S.canal);
     const VISTAS = [
         { id: 'resumen', n: 'Resumen' }, { id: 'fuentes', n: 'Fuentes de tráfico' }, { id: 'funnel', n: 'Funnel' },
         { id: 'dispositivo', n: 'Dispositivo' }, { id: 'acciones', n: 'Alertas y acciones' }
@@ -297,6 +298,16 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? (c === 
         return 'ok';
     }
 
+    function gruposDispositivo() {
+        const grupos = [];
+        if (S.canal !== 'App') DISPOSITIVOS.forEach(d => grupos.push({ etiqueta: S.canal === 'Total' ? `Web · ${d}` : d, test: r => r.c === 'Web' && r.d === d }));
+        if (S.canal !== 'Web') ['iOS', 'Android'].forEach(os => {
+            grupos.push({ etiqueta: `App ${os}`, subtotal: true, test: r => r.c === os });
+            ['Móvil', 'Tablet'].forEach(d => grupos.push({ etiqueta: `App ${os} · ${d}`, test: r => r.c === os && r.d === d }));
+        });
+        return grupos;
+    }
+
     function analisis() {
         const V = ventanas();
         const total = evaluarGrupo(V.rows, V.bRows, V);
@@ -308,10 +319,10 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? (c === 
             if (g.volumenOk && ratio !== null) clase = ratio >= 1 ? 'Calidad' : (ratio >= 0.5 ? 'Regular' : 'Baja intención');
             return { fuente, grupo: grupoFuente(fuente), ...g, mix: div(g.t.ses, total.t.ses), ratio, clase, estado: estadoDelta(g.delta) };
         }).sort((a, b) => b.t.ses - a.t.ses);
-        // Dispositivos
-        const porDisp = DISPOSITIVOS.map(d => {
-            const g = evaluarGrupo(V.rows.filter(r => r.d === d), V.bRows.filter(r => r.d === d), V);
-            return { dispositivo: d, ...g, mix: div(g.t.ses, total.t.ses), pasos: tasasPaso(g.t), pasosB: tasasPaso(g.b), estado: estadoDelta(g.delta) };
+        // Dispositivos: Web = móvil / escritorio / tablet; App = sistema operativo (iOS / Android) y móvil / tablet
+        const porDisp = gruposDispositivo().map(gr => {
+            const g = evaluarGrupo(V.rows.filter(gr.test), V.bRows.filter(gr.test), V);
+            return { dispositivo: gr.etiqueta, subtotal: gr.subtotal, ...g, mix: div(g.t.ses, total.t.ses), pasos: tasasPaso(g.t), pasosB: tasasPaso(g.b), estado: estadoDelta(g.delta) };
         }).filter(x => x.t.ses > 0);
         // Funnel
         const pasos = tasasPaso(total.t), pasosB = tasasPaso(total.b);
@@ -324,7 +335,7 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? (c === 
         const alertas = [];
         porFuente.forEach(f => { if (f.estado === 'alerta' || f.estado === 'alta') alertas.push({ tipo: 'Fuente', sev: f.estado, titulo: f.fuente, detalle: `CR ${fmtP(f.cr)} vs benchmark ${fmtP(f.crB)} (${fmtP(f.delta, 1)}). ${fmtN(f.t.ses)} sesiones.` }); });
         detPasos.forEach(p => { if (p.estado === 'alerta' || p.estado === 'alta') alertas.push({ tipo: 'Funnel', sev: p.estado, titulo: p.n, detalle: `${fmtPaso(p, p.act)} vs benchmark ${fmtPaso(p, p.base)} (${fmtP(p.delta, 1)}).` }); });
-        porDisp.forEach(d => { if (d.estado === 'alerta' || d.estado === 'alta') alertas.push({ tipo: 'Dispositivo', sev: d.estado, titulo: d.dispositivo, detalle: `CR ${fmtP(d.cr)} vs benchmark ${fmtP(d.crB)} (${fmtP(d.delta, 1)}).` }); });
+        porDisp.forEach(d => { if (!d.subtotal && (d.estado === 'alerta' || d.estado === 'alta')) alertas.push({ tipo: 'Dispositivo', sev: d.estado, titulo: d.dispositivo, detalle: `CR ${fmtP(d.cr)} vs benchmark ${fmtP(d.crB)} (${fmtP(d.delta, 1)}).` }); });
         alertas.sort((a, b) => (a.sev === 'alta' ? 0 : 1) - (b.sev === 'alta' ? 0 : 1));
         const bajaIntencion = porFuente.filter(f => f.clase === 'Baja intención');
         const sesBaja = bajaIntencion.reduce((s, f) => s + f.t.ses, 0);
@@ -461,11 +472,12 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? (c === 
                 <td class="px-3 py-2.5 text-right">${(p.estado === 'alerta' || p.estado === 'alta') ? botonAccion('Funnel', p.n, `${fmtPaso(p, p.act)} vs benchmark ${fmtPaso(p, p.base)} (${fmtP(p.delta, 1)}).`) : ''}</td></tr>`).join('');
         let porCanal = '';
         if (S.canal === 'Total') {
-            porCanal = ['Web', 'iOS', 'Android'].map(c => {
-                const t = sumar(A.V.rows.filter(r => r.c === c)), tb = sumar(A.V.bRows.filter(r => r.c === c));
+            porCanal = ['Web', 'App'].map(c => {
+                const en = r => c === 'Web' ? r.c === 'Web' : esApp(r.c);
+                const t = sumar(A.V.rows.filter(en)), tb = sumar(A.V.bRows.filter(en));
                 if (!t.ses) return '';
                 const p = tasasPaso(t), pb = tasasPaso(tb);
-                return `<div class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm"><h4 class="text-sm font-extrabold mb-2">${c === 'Web' ? 'Web' : 'App ' + c} <span class="text-slate-400 font-semibold text-xs">CR ${fmtP(crDe(t))} · bench ${fmtP(crDe(tb))}</span></h4>
+                return `<div class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm"><h4 class="text-sm font-extrabold mb-2">${c} <span class="text-slate-400 font-semibold text-xs">CR ${fmtP(crDe(t))} · bench ${fmtP(crDe(tb))}</span></h4>
                     <table class="w-full text-xs"><tbody class="divide-y divide-slate-100">${PASOS.map(s => `<tr><td class="py-1.5 text-slate-600">${s.n}</td><td class="py-1.5 text-right num-tabular font-bold">${fmtPaso(s, p[s.k])}</td><td class="py-1.5 text-right">${chipDelta(deltaRel(p[s.k], pb[s.k]))}</td></tr>`).join('')}</tbody></table></div>`;
             }).join('');
         }
@@ -477,24 +489,24 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? (c === 
                 <p class="text-[11px] text-slate-500">${A.fuga ? `Mayor fuga contra su benchmark: <strong>${A.fuga.n}</strong> (${fmtP(A.fuga.delta, 1)}).` : 'Ninguna etapa cae por debajo del umbral contra su benchmark (o falta base suficiente).'}</p></div>
                 <div class="overflow-x-auto"><table class="w-full text-left text-xs sm:text-sm"><thead class="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500"><tr><th class="px-3 py-2">Paso</th><th class="px-3 py-2 text-right">Volumen</th><th class="px-3 py-2 text-right">Tasa</th><th class="px-3 py-2 text-right">Benchmark</th><th class="px-3 py-2 text-right">Δ</th><th class="px-3 py-2"></th></tr></thead><tbody class="divide-y divide-slate-100">${filasP}</tbody></table></div>
             </div>
-            ${porCanal ? `<div class="grid grid-cols-1 md:grid-cols-3 gap-3">${porCanal}</div>` : ''}`;
+            ${porCanal ? `<div class="grid grid-cols-1 md:grid-cols-2 gap-3">${porCanal}</div>` : ''}`;
     }
 
     function renderDispositivo(A) {
         const filas = A.porDisp.map(d => `
-            <tr><td class="px-3 py-2.5 font-bold text-xs sm:text-sm">${d.dispositivo}</td>
+            <tr class="${d.subtotal ? 'bg-slate-50' : ''}"><td class="px-3 py-2.5 ${d.subtotal ? 'font-extrabold' : 'font-semibold pl-6'} text-xs sm:text-sm">${d.dispositivo}</td>
                 <td class="px-3 py-2.5 text-right num-tabular">${fmtN(d.t.ses)}</td><td class="px-3 py-2.5 text-right num-tabular text-slate-500">${fmtP(d.mix, 1)}</td>
                 ${PASOS.map(p => `<td class="px-3 py-2.5 text-right num-tabular">${fmtPaso(p, d.pasos[p.k], 1)}<div class="text-[10px] text-slate-400">bench ${fmtPaso(p, d.pasosB[p.k], 1)}</div></td>`).join('')}
                 <td class="px-3 py-2.5 text-right num-tabular font-bold">${fmtP(d.cr)}</td><td class="px-3 py-2.5 text-right num-tabular text-slate-500">${fmtP(d.crB)}</td>
                 <td class="px-3 py-2.5 text-right">${chipDelta(d.delta)}</td>
-                <td class="px-3 py-2.5 text-right">${(d.estado === 'alerta' || d.estado === 'alta') ? botonAccion('Dispositivo', d.dispositivo, `CR ${fmtP(d.cr)} vs benchmark ${fmtP(d.crB)} (${fmtP(d.delta, 1)}).`) : ''}</td></tr>`).join('');
+                <td class="px-3 py-2.5 text-right">${(!d.subtotal && (d.estado === 'alerta' || d.estado === 'alta')) ? botonAccion('Dispositivo', d.dispositivo, `CR ${fmtP(d.cr)} vs benchmark ${fmtP(d.crB)} (${fmtP(d.delta, 1)}).`) : ''}</td></tr>`).join('');
         document.getElementById('panel-dispositivo').innerHTML = `
             <p class="text-[11px] text-slate-500">${textoVentana(A.V)} · Canal: <strong>${ETIQ_CANAL[S.canal]}</strong></p>
             <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
                 <div class="px-4 sm:px-5 py-3 border-b border-slate-200"><h3 class="text-sm font-extrabold text-slate-900">Conversión por dispositivo</h3>
-                <p class="text-[11px] text-slate-500">Tasa por etapa y CR global de cada dispositivo contra su propio benchmark. Para bugs técnicos por navegador revisa la pestaña Checkout del Master Dashboard.</p></div>
+                <p class="text-[11px] text-slate-500">Web: móvil, escritorio, tablet y Smart TV. App: sistema operativo (iOS / Android) y, dentro de cada uno, móvil y tablet. Tasa por etapa y CR de cada grupo contra su propio benchmark. Para bugs técnicos por navegador revisa la pestaña Checkout del Master Dashboard.</p></div>
                 <div class="overflow-x-auto"><table class="w-full text-left text-xs sm:text-sm"><thead class="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500"><tr>
-                    <th class="px-3 py-2">Dispositivo</th><th class="px-3 py-2 text-right">Sesiones</th><th class="px-3 py-2 text-right">% mix</th>
+                    <th class="px-3 py-2">Plataforma / dispositivo</th><th class="px-3 py-2 text-right">Sesiones</th><th class="px-3 py-2 text-right">% mix</th>
                     ${PASOS.map(p => `<th class="px-3 py-2 text-right">${p.n}</th>`).join('')}<th class="px-3 py-2 text-right">CR</th><th class="px-3 py-2 text-right">CR bench</th><th class="px-3 py-2 text-right">Δ</th><th class="px-3 py-2"></th></tr></thead>
                     <tbody class="divide-y divide-slate-100">${filas || '<tr><td colspan="11" class="px-3 py-8 text-center text-slate-500">Sin datos en esta ventana.</td></tr>'}</tbody></table></div>
             </div>`;
@@ -647,10 +659,10 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? (c === 
     };
     // Canales: Web, iOS y Android. "App" sin sistema operativo es ambiguo y se rechaza para no mezclar plataformas.
     function normCanal(t) { const x = sinAcentos(t); if (!x) return null; if (/android/.test(x)) return 'Android'; if (/ios|iphone|ipad/.test(x)) return 'iOS'; if (/web|sitio|ecom|pagina/.test(x)) return 'Web'; return null; }
-    function normDisp(t) { const x = sinAcentos(t); if (/mobile|movil|smartphone|celular/.test(x)) return 'Móvil'; if (/desktop|escritorio|computadora|pc|laptop/.test(x)) return 'Escritorio'; if (/tablet/.test(x)) return 'Tablet'; return null; }
+    function normDisp(t) { const x = sinAcentos(t); if (/mobile|movil|smartphone|celular/.test(x)) return 'Móvil'; if (/desktop|escritorio|computadora|pc|laptop/.test(x)) return 'Escritorio'; if (/tablet/.test(x)) return 'Tablet'; if (/smarttv|televis|^tv$|googletv|appletv|firetv/.test(x)) return 'Smart TV'; return null; }
 
     function parsearLibro(wb) {
-        const advertencias = []; const mapa = new Map(); let omitidas = 0, filasTotales = 0, sinFunnel = false, fueraDeOrden = 0;
+        const advertencias = []; const mapa = new Map(); let omitidas = 0, filasTotales = 0, sinFunnel = false, fueraDeOrden = 0, tvReasignadas = 0;
         const filasPorHoja = wb.SheetNames.map(n => XLSX.utils.sheet_to_json(wb.Sheets[n], { defval: '' }));
         const fechaTextos = [];
         filasPorHoja.forEach(filas => filas.forEach(r => { const k = Object.keys(r).find(c => COLS.fecha.some(p => sinAcentos(c).includes(p))); if (k) fechaTextos.push(r[k]); }));
@@ -668,8 +680,9 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? (c === 
                 filasTotales++;
                 const n = i + 2;
                 const f = normalizarFecha(r[idx.fecha], orden); if (!f) { advertencias.push(`Fila ${n}: fecha inválida. Omitida.`); omitidas++; return; }
-                const c = idx.canal ? normCanal(r[idx.canal]) : 'Web'; if (!c) { advertencias.push(/^\s*app\s*$/i.test(String(r[idx.canal])) ? `Fila ${n}: el canal "App" no indica el sistema operativo. Usa "iOS" o "Android". Omitida.` : `Fila ${n}: canal no reconocido ("${r[idx.canal]}"). Omitida.`); omitidas++; return; }
+                let c = idx.canal ? normCanal(r[idx.canal]) : 'Web'; if (!c) { advertencias.push(/^\s*app\s*$/i.test(String(r[idx.canal])) ? `Fila ${n}: el canal "App" no indica el sistema operativo. Usa "iOS" o "Android". Omitida.` : `Fila ${n}: canal no reconocido ("${r[idx.canal]}"). Omitida.`); omitidas++; return; }
                 const d = normDisp(r[idx.dispositivo]); if (!d) { advertencias.push(`Fila ${n}: dispositivo no reconocido ("${r[idx.dispositivo]}"). Omitida.`); omitidas++; return; }
+                if (d === 'Smart TV' && c !== 'Web') { c = 'Web'; tvReasignadas++; }
                 const s = String(r[idx.fuente]).trim().slice(0, 120); if (!s) { advertencias.push(`Fila ${n}: fuente vacía. Omitida.`); omitidas++; return; }
                 const v = { ses: limpiarEntero(r[idx.ses]), usr: idx.usr ? limpiarEntero(r[idx.usr]) : null, pdp: idx.pdp ? limpiarEntero(r[idx.pdp]) : 0, car: idx.car ? limpiarEntero(r[idx.car]) : 0, chk: idx.chk ? limpiarEntero(r[idx.chk]) : 0, ped: limpiarEntero(r[idx.ped]) };
                 if (v.ses === null || v.ped === null) { advertencias.push(`Fila ${n}: sesiones o pedidos vacíos. Omitida.`); omitidas++; return; }
@@ -683,6 +696,7 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? (c === 
         });
         const rep = [...mapa.values()].filter(x => x.repetidas > 0);
         if (rep.length) advertencias.push(`${rep.length} combinación(es) de fecha, canal, fuente y dispositivo aparecían más de una vez; sus valores se sumaron (p. ej. campañas distintas de la misma fuente).`);
+        if (tvReasignadas) advertencias.push(`${fmtN(tvReasignadas)} fila(s) de Smart TV venían con canal App y se asignaron a Web (Smart TV pertenece siempre a Web).`);
         if (fueraDeOrden) advertencias.push(`${fmtN(fueraDeOrden)} fila(s) tienen un evento mayor que el anterior (p. ej. más checkouts que carritos). Es normal con eventos de GA4 (un usuario puede entrar al checkout sin pasar por el carrito, o repetir eventos); se importan tal cual.`);
         if (sinFunnel) advertencias.push('El archivo no trae todas las columnas del funnel (PDP, Carrito, Checkout): esas etapas quedarán en 0.');
         return { registros: [...mapa.values()].map(({ repetidas, ...r }) => r), advertencias, omitidas, filasTotales };
