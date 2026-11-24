@@ -817,15 +817,10 @@
             return { estado: 'INCOMPLETA', tieneVenta: true, camposCompletos: false };
         }
 
+        // Los meses nuevos nacen SIN plan (0): las metas reales se cargan por CSV o captura manual.
         function generarPlantillaMesVacia(claveMes) {
             const [anio, mes] = claveMes.split('-').map(Number);
             const diasEnMes = new Date(anio, mes, 0).getDate();
-            const perfiles = {
-                ecommerce: { ventaBase: 365000, ticket: 1850, cr: 0.0235 },
-                app: { ventaBase: 215000, ticket: 1620, cr: 0.0340 },
-                llamadas: { ventaBase: 145000, ticket: 2450, cr: 0.1650 },
-                whatsapp: { ventaBase: 95000, ticket: 1720, cr: 0.1180 }
-            };
             const resultado = { ecommerce: [], app: [], llamadas: [], whatsapp: [] };
             const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
@@ -834,23 +829,18 @@
                 const dt = new Date(anio, mes - 1, d);
                 const diaNombre = diasSemana[dt.getDay()];
                 const tipoDia = diaNombre === 'Sábado' ? 'Sábado' : (diaNombre === 'Domingo' ? 'Domingo' : 'L-V');
-                const multDia = tipoDia === 'Sábado' ? 1.12 : (tipoDia === 'Domingo' ? 0.92 : 1.0);
 
-                Object.keys(perfiles).forEach(cKey => {
-                    const p = perfiles[cKey];
-                    const ventaPlan = Math.round(p.ventaBase * multDia);
-                    const pedidosPlan = Math.max(1, Math.round(ventaPlan / p.ticket));
-                    const sesionesPlan = Math.max(10, Math.round(pedidosPlan / p.cr));
+                Object.keys(resultado).forEach(cKey => {
                     resultado[cKey].push({
                         fecha: fechaISO,
                         diaNombre,
                         tipoDia,
                         ventaReal: null,
-                        ventaPlan,
+                        ventaPlan: 0,
                         pedidosReal: null,
-                        pedidosPlan,
+                        pedidosPlan: 0,
                         sesionesReal: null,
-                        sesionesPlan
+                        sesionesPlan: 0
                     });
                 });
             }
@@ -1662,6 +1652,15 @@
         }
 
         function diagnosticarDesempeno(reg, etiquetaTrafico = 'tráfico', esConsolidado = false) {
+            if (reg && esNumeroValidoNoNegativo(reg.ventaReal) && !reg.ventaPlan) {
+                return {
+                    senal: 'Sin plan cargado',
+                    explicacionCuantitativa: 'Hay venta capturada, pero este día no tiene meta (plan) para compararla.',
+                    hipotesisOperativa: 'Importa el plan del mes por CSV o captúralo manualmente para habilitar el análisis.',
+                    tituloCorto: 'Sin plan',
+                    badgeClass: 'bg-slate-100 text-slate-500 border-slate-200'
+                };
+            }
             if (!reg || !esNumeroValidoNoNegativo(reg.ventaReal) || !reg.ventaPlan) {
                 return {
                     senal: 'Sin datos reales capturados',
