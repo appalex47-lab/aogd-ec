@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tráfico y Conversión - Revisión Recurrente</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background-color: #f8fafc; color: #0f172a; }
+        .num-tabular { font-variant-numeric: tabular-nums; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        /* ===== Modo PDF: se activa solo durante la captura ===== */
+        .pdf-modo [data-pdf-ocultar], .pdf-modo #nube-estado, .pdf-modo #toast { display: none !important; }
+        .pdf-modo .panel-vista { display: block !important; margin-bottom: 1.5rem; }
+        .pdf-modo .panel-acciones { display: none !important; }
+        .pdf-modo .overflow-x-auto { overflow: visible !important; }
+        .pdf-modo header { position: static !important; }
+        .pdf-modo * { animation: none !important; transition: none !important; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-blue-100 selection:text-blue-900">
+
+    <!-- ENCABEZADO -->
+    <header class="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center shrink-0 text-base" aria-hidden="true">📈</div>
+                    <div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <h1 class="text-base sm:text-lg font-extrabold tracking-tight text-slate-900">Tráfico y Conversión</h1>
+                            <div class="inline-flex items-center gap-1 bg-blue-50 border border-blue-200/80 rounded-lg px-2 py-0.5">
+                                <select id="sel-mes" onchange="cambiarMes(this.value)" class="bg-transparent text-[11px] font-bold text-blue-800 focus:outline-none cursor-pointer" title="Mes"></select>
+                            </div>
+                            <div class="inline-flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-lg px-2 py-0.5" title="Fecha de corte del análisis">
+                                <span class="text-[10px] font-bold uppercase text-slate-500">Corte:</span>
+                                <input type="date" id="sel-corte" onchange="cambiarCorte(this.value)" class="bg-transparent text-[11px] font-bold text-slate-800 focus:outline-none cursor-pointer num-tabular">
+                            </div>
+                        </div>
+                        <p class="text-[11px] sm:text-xs text-slate-500 hidden sm:block">Fuentes de tráfico, funnel PDP → Carrito → Checkout → Pedido y dispositivo, contra benchmark propio (28 días previos)</p>
+                    </div>
+                </div>
+                <div class="flex flex-wrap items-center gap-2" data-pdf-ocultar="true">
+                    <button type="button" id="btn-pdf" onclick="descargarPDF()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs sm:text-sm font-semibold transition">
+                        <span aria-hidden="true">📄</span><span id="btn-pdf-label">Descargar PDF</span>
+                    </button>
+                    <label for="file-upload" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold shadow-sm transition cursor-pointer">
+                        <span aria-hidden="true">⬆️</span><span>Cargar CSV</span>
+                        <input id="file-upload" type="file" accept=".csv,.xlsx,.xls" class="hidden" onchange="procesarArchivo(event)">
+                    </label>
+                    <button type="button" onclick="descargarMachote()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs sm:text-sm font-semibold transition">
+                        <span aria-hidden="true">🧾</span><span>Machote CSV</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-1.5" id="pills-canal"></div>
+                <div class="flex flex-wrap items-center gap-2 text-xs">
+                    <label class="text-[11px] font-bold uppercase text-slate-500">Ventana</label>
+                    <select id="sel-ventana" onchange="cambiarVentana(this.value)" class="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold">
+                        <option value="1">Día de corte</option>
+                        <option value="7" selected>Últimos 7 días</option>
+                        <option value="14">Últimos 14 días</option>
+                        <option value="mtd">Mes a la fecha</option>
+                    </select>
+                    <details class="relative" data-pdf-ocultar="true">
+                        <summary class="list-none cursor-pointer px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-700">⚙️ Alertas</summary>
+                        <div class="absolute right-0 mt-2 w-72 rounded-2xl bg-white border border-slate-200 shadow-xl p-4 z-40 space-y-3">
+                            <div>
+                                <label class="text-[11px] font-bold text-slate-600">Caída que dispara alerta (%)</label>
+                                <input id="cfg-umbral" type="number" min="1" max="90" step="1" value="10" onchange="guardarConfig()" class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1 text-sm">
+                                <p class="text-[10px] text-slate-400 mt-1">Cuando una fuente, etapa o dispositivo cae este % o más contra su benchmark.</p>
+                            </div>
+                            <div>
+                                <label class="text-[11px] font-bold text-slate-600">Sesiones mínimas por día</label>
+                                <input id="cfg-minses" type="number" min="1" step="1" value="30" onchange="guardarConfig()" class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1 text-sm">
+                                <p class="text-[10px] text-slate-400 mt-1">Por debajo se marca "Poco volumen" y no genera alerta.</p>
+                            </div>
+                        </div>
+                    </details>
+                </div>
+            </div>
+
+            <nav class="flex items-center gap-1.5 overflow-x-auto no-scrollbar" id="tabs-vista" data-pdf-ocultar="true"></nav>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-5">
+        <div id="banner-demo" class="hidden rounded-2xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-xs text-amber-900 flex items-center justify-between gap-3">
+            <span><strong>Modo demostración:</strong> datos de ejemplo generados al azar. No se guardan ni se mezclan con tus datos reales.</span>
+            <button type="button" onclick="salirDemo()" class="shrink-0 px-3 py-1 rounded-lg bg-amber-200 hover:bg-amber-300 font-bold" data-pdf-ocultar="true">Salir</button>
+        </div>
+
+        <div id="vacio" class="hidden rounded-3xl border border-dashed border-slate-300 bg-white p-8 sm:p-12 text-center space-y-4">
+            <div class="text-4xl" aria-hidden="true">📭</div>
+            <h2 class="text-lg font-extrabold text-slate-900">Todavía no hay datos de tráfico</h2>
+            <p class="text-sm text-slate-600 max-w-xl mx-auto">Carga un CSV diario exportado de GA4 (una fila por fecha, canal, fuente/medio y dispositivo). Descarga el machote para ver las columnas esperadas.</p>
+            <div class="flex flex-wrap justify-center gap-2.5">
+                <button type="button" onclick="descargarMachote()" class="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold">Descargar machote CSV</button>
+                <button type="button" onclick="entrarDemo()" class="px-4 py-2 rounded-xl bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-bold">Ver demostración</button>
+            </div>
+        </div>
+
+        <section id="panel-resumen" class="panel-vista space-y-5"></section>
+        <section id="panel-fuentes" class="panel-vista hidden space-y-5"></section>
+        <section id="panel-funnel" class="panel-vista hidden space-y-5"></section>
+        <section id="panel-dispositivo" class="panel-vista hidden space-y-5"></section>
+        <section id="panel-acciones" class="panel-vista panel-acciones hidden space-y-5"></section>
+    </main>
+
+    <!-- MODAL: VISTA PREVIA DE IMPORTACIÓN -->
+    <div id="modal-import" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 p-4 overflow-y-auto">
+        <div class="w-full max-w-3xl bg-white rounded-3xl shadow-2xl overflow-hidden my-6">
+            <div class="bg-slate-900 text-white px-6 py-4">
+                <h3 class="text-base font-extrabold">Validación y vista previa de importación</h3>
+                <p id="imp-sub" class="text-xs text-slate-300 mt-1"></p>
+            </div>
+            <div class="p-6 space-y-4">
+                <div class="grid grid-cols-3 gap-3 text-center">
+                    <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-3"><div class="text-[10px] font-bold uppercase text-emerald-700">Registros válidos</div><div id="imp-validos" class="text-2xl font-extrabold text-emerald-900 num-tabular">0</div></div>
+                    <div class="rounded-2xl border border-amber-200 bg-amber-50 p-3"><div class="text-[10px] font-bold uppercase text-amber-700">Advertencias</div><div id="imp-adv" class="text-2xl font-extrabold text-amber-900 num-tabular">0</div></div>
+                    <div class="rounded-2xl border border-rose-200 bg-rose-50 p-3"><div class="text-[10px] font-bold uppercase text-rose-700">Filas omitidas</div><div id="imp-omit" class="text-2xl font-extrabold text-rose-900 num-tabular">0</div></div>
+                </div>
+                <div id="imp-warn" class="hidden rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 max-h-40 overflow-y-auto space-y-1"></div>
+                <div class="border border-slate-200 rounded-xl overflow-hidden max-h-56 overflow-y-auto">
+                    <table class="w-full text-left text-xs num-tabular">
+                        <thead class="bg-slate-50 text-[10px] uppercase text-slate-500"><tr><th class="px-3 py-2">Fecha</th><th class="px-3 py-2">Canal</th><th class="px-3 py-2">Fuente / medio</th><th class="px-3 py-2">Disp.</th><th class="px-3 py-2 text-right">Sesiones</th><th class="px-3 py-2 text-right">Pedidos</th></tr></thead>
+                        <tbody id="imp-tbody" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+                <p class="text-[11px] text-slate-500">Si una fecha, canal, fuente y dispositivo ya existe, sus valores se reemplazan (el valor anterior se conserva 60 días en el historial).</p>
+            </div>
+            <div class="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2.5">
+                <button type="button" onclick="cerrarImport()" class="px-4 py-2 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-700">Cancelar</button>
+                <button type="button" id="imp-confirmar" onclick="confirmarImport()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold">Confirmar e importar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: ACCIÓN -->
+    <div id="modal-accion" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 p-4 overflow-y-auto">
+        <form id="form-accion" class="w-full max-w-lg bg-white rounded-3xl shadow-2xl p-6 space-y-4 my-6" onsubmit="guardarAccion(event)">
+            <h3 class="text-base font-extrabold text-slate-900">Registrar acción</h3>
+            <div><label class="text-[11px] font-bold text-slate-600">Acción</label>
+                <input id="acc-titulo" required maxlength="140" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></div>
+            <div><label class="text-[11px] font-bold text-slate-600">Origen / detalle</label>
+                <textarea id="acc-detalle" rows="3" maxlength="600" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></textarea></div>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="text-[11px] font-bold text-slate-600">Responsable</label>
+                    <input id="acc-resp" maxlength="80" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></div>
+                <div><label class="text-[11px] font-bold text-slate-600">Estatus</label>
+                    <select id="acc-estatus" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"><option>Pendiente</option><option>En proceso</option><option>Completada</option></select></div>
+            </div>
+            <div class="flex justify-end gap-2.5 pt-1">
+                <button type="button" onclick="cerrarAccion()" class="px-4 py-2 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-700">Cancelar</button>
+                <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold">Guardar</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- ACCESO CON CLAVE COMPARTIDA -->
+    <div id="nube-overlay" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900 p-4">
+        <form id="nube-form" class="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6 space-y-4" autocomplete="off">
+            <div>
+                <h2 class="text-lg font-extrabold text-slate-900">Acceso</h2>
+                <p class="text-xs text-slate-500 mt-1">Escribe la clave de acceso compartida (es la misma del tablero de Revisión Diaria).</p>
+            </div>
+            <input id="nube-clave" type="password" required placeholder="Clave de acceso" autocomplete="current-password" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <p id="nube-error" class="hidden text-xs font-semibold text-rose-600"></p>
+            <button id="nube-boton" type="submit" class="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold transition">Entrar</button>
+        </form>
+    </div>
+    <div id="nube-estado" class="fixed bottom-5 left-5 z-40 hidden px-2.5 py-1 rounded-lg bg-white/90 border border-slate-200 text-[11px] font-semibold text-slate-600 shadow-sm"></div>
+    <div id="toast" class="fixed bottom-5 right-5 z-50 hidden max-w-sm bg-slate-900 text-white text-xs sm:text-sm font-medium px-4 py-3 rounded-xl shadow-xl border border-slate-700"></div>
+
+    <script>
+    // =====================================================================
+    // 1. CONSTANTES, ESTADO Y UTILIDADES
+    // =====================================================================
+    const ETAPAS = [
+        { k: 'ses', n: 'Sesiones' },
+        { k: 'pdp', n: 'Vista de producto (PDP)' },
+        { k: 'car', n: 'Carrito' },
+        { k: 'chk', n: 'Checkout' },
+        { k: 'ped', n: 'Pedido' }
+    ];
+    const PASOS = [
+        { k: 'pdp', de: 'ses', n: 'Sesión → PDP' },
+        { k: 'car', de: 'pdp', n: 'PDP → Carrito' },
+        { k: 'chk', de: 'car', n: 'Carrito → Checkout' },
+        { k: 'ped', de: 'chk', n: 'Checkout → Pedido' }
+    ];
+    const DISPOSITIVOS = ['Móvil', 'Escritorio', 'Tablet'];
+    const CANALES = ['Total', 'Web', 'App'];
+    const VISTAS = [
+        { id: 'resumen', n: 'Resumen' }, { id: 'fuentes', n: 'Fuentes de tráfico' }, { id: 'funnel', n: 'Funnel' },
+        { id: 'dispositivo', n: 'Dispositivo' }, { id: 'acciones', n: 'Alertas y acciones' }
+    ];
+    const CACHE_KEY = 'trafico_cache_v1';
+
+    const S = {
+        registros: [], acciones: [], config: { umbral: 10, minSesDia: 30 },
+        mes: null, corte: null, canal: 'Total', ventana: 7, vista: 'resumen',
+        demo: false, rangoMin: null, rangoMax: null, chart: null, accionPrefill: null
+    };
+
+    const fmtN = v => (v === null || v === undefined || isNaN(v)) ? '—' : new Intl.NumberFormat('es-MX', { maximumFractionDigits: 0 }).format(Math.round(v));
+    const fmtP = (v, d = 2) => (v === null || v === undefined || isNaN(v)) ? '—' : `${v.toFixed(d)}%`;
+    const esc = t => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const div = (a, b) => (b > 0 ? (a / b) * 100 : null);
+
+    function toast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg; t.classList.remove('hidden');
+        clearTimeout(window._tt); window._tt = setTimeout(() => t.classList.add('hidden'), 4500);
+    }
+    function addDias(iso, n) {
+        const [y, m, d] = iso.split('-').map(Number);
+        const dt = new Date(Date.UTC(y, m - 1, d + n));
+        return dt.toISOString().slice(0, 10);
+    }
+    function hoyISO() { const h = new Date(); return `${h.getFullYear()}-${String(h.getMonth() + 1).padStart(2, '0')}-${String(h.getDate()).padStart(2, '0')}`; }
+    function finMes(mes) { const [y, m] = mes.split('-').map(Number); return `${mes}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`; }
+    const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    function etiquetaMes(k) { const [y, m] = k.split('-').map(Number); return `${MESES[m - 1]} ${y}`; }
+    function fechaCorta(iso) { const [y, m, d] = iso.split('-'); return `${d}/${m}`; }
+
+    // Agrupa la fuente en un tipo de tráfico a partir del medio (GA4: "fuente / medio")
+    function grupoFuente(fuente) {
+        const t = String(fuente).toLowerCase();
+        const medio = t.includes('/') ? t.split('/').pop().trim() : t;
+        if (/(^|[^a-z])(cpc|ppc|paid|display|cpm|sem|shopping|retargeting)/.test(medio) || /paid|ads/.test(t)) return 'Pagado';
+        if (/organic|orgánico|organico|seo/.test(medio)) return 'Orgánico';
+        if (/direct|\(none\)|directo/.test(t)) return 'Directo';
+        if (/email|correo|mail|crm|newsletter|sms|whatsapp/.test(t)) return 'Correo / CRM';
+        if (/social|facebook|instagram|tiktok|twitter|linkedin|youtube/.test(t)) return 'Social';
+        if (/referral|referido/.test(t)) return 'Referido';
+        return 'Otros';
+    }
+
+    // =====================================================================
+    // 2. CÁLCULOS (puros)
+    // =====================================================================
+    function sumar(rows) {
+        const t = { ses: 0, usr: 0, pdp: 0, car: 0, chk: 0, ped: 0 };
+        for (const r of rows) { t.ses += r.ses; t.usr += r.usr || 0; t.pdp += r.pdp; t.car += r.car; t.chk += r.chk; t.ped += r.ped; }
+        return t;
+    }
+    const crDe = t => div(t.ped, t.ses);
+    function tasasPaso(t) { const o = {}; PASOS.forEach(p => { o[p.k] = div(t[p.k], t[p.de]); }); return o; }
+    function agrupar(rows, keyFn) {
+        const m = new Map();
+        for (const r of rows) { const k = keyFn(r); if (!m.has(k)) m.set(k, []); m.get(k).push(r); }
+        return m;
+    }
+    const diasConDatos = rows => new Set(rows.map(r => r.f)).size;
+    const deltaRel = (act, base) => (act === null || base === null || base === 0) ? null : ((act - base) / base) * 100;
+
+    function ventanas() {
+        const ini = S.ventana === 'mtd' ? `${S.mes}-01` : addDias(S.corte, -(S.ventana - 1));
+        const fin = S.corte;
+        const bFin = addDias(ini, -1), bIni = addDias(ini, -28);
+        const okCanal = r => S.canal === 'Total' || r.c === S.canal;
+        const rows = S.registros.filter(r => r.f >= ini && r.f <= fin && okCanal(r));
+        const bRows = S.registros.filter(r => r.f >= bIni && r.f <= bFin && okCanal(r));
+        return { ini, fin, bIni, bFin, rows, bRows, dias: Math.max(1, diasConDatos(rows)), bDias: Math.max(1, diasConDatos(bRows)) };
+    }
+
+    function evaluarGrupo(rows, bRows, V) {
+        const t = sumar(rows), b = sumar(bRows);
+        const cr = crDe(t), crB = crDe(b);
+        const minAct = S.config.minSesDia * V.dias;
+        const minBase = S.config.minSesDia * V.bDias * 0.5;
+        const volumenOk = t.ses >= minAct;
+        const baseOk = b.ses >= minBase;
+        const delta = (volumenOk && baseOk) ? deltaRel(cr, crB) : null;
+        return { t, b, cr, crB, delta, volumenOk, baseOk, sesDia: t.ses / V.dias, sesDiaB: b.ses / V.bDias };
+    }
+    function estadoDelta(delta) {
+        if (delta === null) return 'sin';
+        if (delta <= -S.config.umbral * 2) return 'alta';
+        if (delta <= -S.config.umbral) return 'alerta';
+        return 'ok';
+    }
+
+    function analisis() {
+        const V = ventanas();
+        const total = evaluarGrupo(V.rows, V.bRows, V);
+        // Fuentes
+        const porFuente = [...agrupar(V.rows, r => r.s)].map(([fuente, rows]) => {
+            const g = evaluarGrupo(rows, V.bRows.filter(r => r.s === fuente), V);
+            const ratio = (g.cr !== null && total.cr) ? g.cr / total.cr : null;
+            let clase = 'Poco volumen';
+            if (g.volumenOk && ratio !== null) clase = ratio >= 1 ? 'Calidad' : (ratio >= 0.5 ? 'Regular' : 'Baja intención');
+            return { fuente, grupo: grupoFuente(fuente), ...g, mix: div(g.t.ses, total.t.ses), ratio, clase, estado: estadoDelta(g.delta) };
+        }).sort((a, b) => b.t.ses - a.t.ses);
+        // Dispositivos
+        const porDisp = DISPOSITIVOS.map(d => {
+            const g = evaluarGrupo(V.rows.filter(r => r.d === d), V.bRows.filter(r => r.d === d), V);
+            return { dispositivo: d, ...g, mix: div(g.t.ses, total.t.ses), pasos: tasasPaso(g.t), pasosB: tasasPaso(g.b), estado: estadoDelta(g.delta) };
+        }).filter(x => x.t.ses > 0);
+        // Funnel
+        const pasos = tasasPaso(total.t), pasosB = tasasPaso(total.b);
+        const detPasos = PASOS.map(p => {
+            const delta = (total.volumenOk && total.baseOk) ? deltaRel(pasos[p.k], pasosB[p.k]) : null;
+            return { ...p, act: pasos[p.k], base: pasosB[p.k], delta, estado: estadoDelta(delta), de: total.t[p.de], a: total.t[p.k] };
+        });
+        const fuga = detPasos.filter(p => p.delta !== null && p.delta <= -S.config.umbral).sort((a, b) => a.delta - b.delta)[0] || null;
+        // Alertas
+        const alertas = [];
+        porFuente.forEach(f => { if (f.estado === 'alerta' || f.estado === 'alta') alertas.push({ tipo: 'Fuente', sev: f.estado, titulo: f.fuente, detalle: `CR ${fmtP(f.cr)} vs benchmark ${fmtP(f.crB)} (${fmtP(f.delta, 1)}). ${fmtN(f.t.ses)} sesiones.` }); });
+        detPasos.forEach(p => { if (p.estado === 'alerta' || p.estado === 'alta') alertas.push({ tipo: 'Funnel', sev: p.estado, titulo: p.n, detalle: `${fmtP(p.act)} vs benchmark ${fmtP(p.base)} (${fmtP(p.delta, 1)}).` }); });
+        porDisp.forEach(d => { if (d.estado === 'alerta' || d.estado === 'alta') alertas.push({ tipo: 'Dispositivo', sev: d.estado, titulo: d.dispositivo, detalle: `CR ${fmtP(d.cr)} vs benchmark ${fmtP(d.crB)} (${fmtP(d.delta, 1)}).` }); });
+        alertas.sort((a, b) => (a.sev === 'alta' ? 0 : 1) - (b.sev === 'alta' ? 0 : 1));
+        const bajaIntencion = porFuente.filter(f => f.clase === 'Baja intención');
+        const sesBaja = bajaIntencion.reduce((s, f) => s + f.t.ses, 0);
+        return { V, total, porFuente, porDisp, pasos, pasosB, detPasos, fuga, alertas, bajaIntencion, pctBaja: div(sesBaja, total.t.ses) };
+    }
+
+    // =====================================================================
+    // 3. RENDER
+    // =====================================================================
+    function chipDelta(delta, invertido = false) {
+        if (delta === null) return '<span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[11px] font-bold">Sin base</span>';
+        const est = estadoDelta(delta);
+        const cls = est === 'alta' ? 'bg-rose-100 text-rose-800 border-rose-200' : est === 'alerta' ? 'bg-amber-100 text-amber-800 border-amber-200' : (delta < 0 ? 'bg-slate-100 text-slate-700 border-slate-200' : 'bg-emerald-100 text-emerald-800 border-emerald-200');
+        return `<span class="inline-block px-2 py-0.5 rounded-full border text-[11px] font-bold num-tabular ${cls}">${delta >= 0 ? '▲' : '▼'} ${Math.abs(delta).toFixed(1)}%</span>`;
+    }
+    function chipClase(clase) {
+        const m = { 'Calidad': 'bg-emerald-100 text-emerald-800', 'Regular': 'bg-sky-100 text-sky-800', 'Baja intención': 'bg-rose-100 text-rose-800', 'Poco volumen': 'bg-slate-100 text-slate-500' };
+        return `<span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-bold ${m[clase]}">${clase}</span>`;
+    }
+    function tarjeta(titulo, valor, sub, delta, extra = '') {
+        return `<div class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm">
+            <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">${titulo}</div>
+            <div class="mt-1 flex items-end justify-between gap-2"><div class="text-2xl font-extrabold text-slate-900 num-tabular">${valor}</div>${delta !== undefined ? chipDelta(delta) : ''}</div>
+            <div class="mt-1 text-[11px] text-slate-500">${sub}</div>${extra}</div>`;
+    }
+    function botonAccion(tipo, titulo, detalle) {
+        return `<button type="button" data-pdf-ocultar="true" onclick="abrirAccion(${esc(JSON.stringify(JSON.stringify({ titulo: `Revisar ${tipo.toLowerCase()}: ${titulo}`, detalle })))})" class="px-2.5 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-[11px] font-bold text-slate-700">+ Acción</button>`;
+    }
+    function textoVentana(V) {
+        const n = S.ventana === 'mtd' ? 'Mes a la fecha' : S.ventana === 1 || S.ventana === '1' ? 'Día de corte' : `Últimos ${S.ventana} días`;
+        return `${n}: ${fechaCorta(V.ini)} – ${fechaCorta(V.fin)} · Benchmark propio: ${fechaCorta(V.bIni)} – ${fechaCorta(V.bFin)}`;
+    }
+
+    function renderResumen(A) {
+        const { V, total, alertas, fuga } = A;
+        const deltaSes = deltaRel(total.sesDia, total.sesDiaB);
+        const cards = [
+            tarjeta('Sesiones', fmtN(total.t.ses), `${fmtN(total.sesDia)} / día · bench ${fmtN(total.sesDiaB)} / día`, total.baseOk ? deltaSes : null),
+            tarjeta('CR sesión → pedido', fmtP(total.cr), `Benchmark propio ${fmtP(total.crB)}`, total.delta),
+            tarjeta('Pedidos', fmtN(total.t.ped), `${fmtN(total.t.chk)} checkouts · ${fmtN(total.t.car)} carritos`),
+            tarjeta('Tráfico de baja intención', fmtP(A.pctBaja, 1), A.bajaIntencion.length ? `${A.bajaIntencion.length} fuente(s) con CR < 50% del global` : 'Ninguna fuente bajo 50% del CR global'),
+            tarjeta('Mayor fuga vs benchmark', fuga ? fuga.n : 'Sin fuga relevante', fuga ? `${fmtP(fuga.act)} vs ${fmtP(fuga.base)}` : `Ninguna etapa cae ${S.config.umbral}% o más contra su benchmark`, fuga ? fuga.delta : undefined)
+        ].join('');
+        const lista = alertas.length ? alertas.slice(0, 6).map(a => `
+            <li class="flex items-start justify-between gap-3 p-3 rounded-xl border ${a.sev === 'alta' ? 'border-rose-200 bg-rose-50/60' : 'border-amber-200 bg-amber-50/60'}">
+                <div><div class="text-xs font-extrabold text-slate-900"><span class="text-[10px] uppercase text-slate-500 mr-1.5">${a.tipo}</span>${esc(a.titulo)}</div><div class="text-xs text-slate-600 mt-0.5">${esc(a.detalle)}</div></div>
+                ${botonAccion(a.tipo, a.titulo, a.detalle)}
+            </li>`).join('') : '<li class="p-4 text-xs text-slate-500 rounded-xl bg-emerald-50 border border-emerald-200">Sin alertas: ninguna fuente, etapa o dispositivo cae por debajo del umbral contra su benchmark.</li>';
+        document.getElementById('panel-resumen').innerHTML = `
+            <p class="text-[11px] text-slate-500">${textoVentana(V)} · Canal: <strong>${S.canal}</strong></p>
+            <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">${cards}</div>
+            <div class="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-sm">
+                <h3 class="text-sm font-extrabold text-slate-900">Comportamiento diario del mes</h3>
+                <p class="text-[11px] text-slate-500 mb-3">Sesiones (barras) y CR sesión → pedido (línea) hasta el corte</p>
+                <div class="relative h-64"><canvas id="chart-diario"></canvas></div>
+            </div>
+            <div class="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-sm">
+                <h3 class="text-sm font-extrabold text-slate-900 mb-3">Alertas activas <span class="text-slate-400 font-semibold">(${alertas.length})</span></h3>
+                <ul class="space-y-2">${lista}</ul>
+            </div>`;
+        dibujarGraficoDiario();
+    }
+
+    function dibujarGraficoDiario() {
+        const cv = document.getElementById('chart-diario');
+        if (!cv || !window.Chart) return;
+        if (S.chart) { S.chart.destroy(); S.chart = null; }
+        const ini = `${S.mes}-01`, fin = S.corte < finMes(S.mes) ? S.corte : finMes(S.mes);
+        const okCanal = r => S.canal === 'Total' || r.c === S.canal;
+        const porDia = agrupar(S.registros.filter(r => r.f >= ini && r.f <= fin && okCanal(r)), r => r.f);
+        const dias = [...porDia.keys()].sort();
+        const ses = dias.map(d => sumar(porDia.get(d)).ses);
+        const crs = dias.map(d => { const t = sumar(porDia.get(d)); return crDe(t); });
+        S.chart = new Chart(cv, {
+            data: { labels: dias.map(fechaCorta), datasets: [
+                { type: 'bar', label: 'Sesiones', data: ses, backgroundColor: '#93c5fd', yAxisID: 'y', borderRadius: 4 },
+                { type: 'line', label: 'CR %', data: crs, borderColor: '#0f172a', backgroundColor: '#0f172a', yAxisID: 'y1', tension: 0.3, pointRadius: 2 }
+            ] },
+            options: { responsive: true, maintainAspectRatio: false, animation: false,
+                scales: { y: { beginAtZero: true, title: { display: true, text: 'Sesiones' } }, y1: { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, title: { display: true, text: 'CR %' } } },
+                plugins: { legend: { position: 'bottom' } } }
+        });
+    }
+
+    function renderFuentes(A) {
+        const grupos = [...agrupar(A.V.rows, r => grupoFuente(r.s))].map(([g, rows]) => ({ g, t: sumar(rows) })).sort((a, b) => b.t.ses - a.t.ses);
+        const tarjetasG = grupos.map(x => `<div class="rounded-2xl bg-white border border-slate-200 p-3 shadow-sm"><div class="text-[11px] font-bold uppercase text-slate-500">${x.g}</div><div class="text-lg font-extrabold num-tabular">${fmtN(x.t.ses)}</div><div class="text-[11px] text-slate-500">${fmtP(div(x.t.ses, A.total.t.ses), 1)} del tráfico · CR ${fmtP(crDe(x.t))}</div></div>`).join('');
+        const filas = A.porFuente.map(f => `
+            <tr class="hover:bg-slate-50/70">
+                <td class="px-3 py-2.5"><div class="font-bold text-slate-900 text-xs sm:text-sm">${esc(f.fuente)}</div><div class="text-[10px] text-slate-400">${f.grupo}</div></td>
+                <td class="px-3 py-2.5 text-right num-tabular">${fmtN(f.t.ses)}</td>
+                <td class="px-3 py-2.5 text-right num-tabular text-slate-500">${fmtP(f.mix, 1)}</td>
+                <td class="px-3 py-2.5 text-right num-tabular">${fmtN(f.t.ped)}</td>
+                <td class="px-3 py-2.5 text-right num-tabular font-bold">${fmtP(f.cr)}</td>
+                <td class="px-3 py-2.5 text-right num-tabular text-slate-500">${fmtP(f.crB)}</td>
+                <td class="px-3 py-2.5 text-right">${chipDelta(f.delta)}</td>
+                <td class="px-3 py-2.5">${chipClase(f.clase)}</td>
+                <td class="px-3 py-2.5 text-right">${(f.estado === 'alerta' || f.estado === 'alta') ? botonAccion('Fuente', f.fuente, `CR ${fmtP(f.cr)} vs benchmark ${fmtP(f.crB)} (${fmtP(f.delta, 1)}).`) : ''}</td>
+            </tr>`).join('');
+        document.getElementById('panel-fuentes').innerHTML = `
+            <p class="text-[11px] text-slate-500">${textoVentana(A.V)} · Canal: <strong>${S.canal}</strong></p>
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">${tarjetasG}</div>
+            <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+                <div class="px-4 sm:px-5 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
+                    <div><h3 class="text-sm font-extrabold text-slate-900">Calidad de fuentes: ¿tráfico con intención de compra?</h3>
+                    <p class="text-[11px] text-slate-500">Calidad: CR ≥ CR global · Regular: 50–100% del global · Baja intención: &lt; 50% del global. Δ compara contra el CR de la propia fuente en los 28 días previos.</p></div>
+                    <div class="text-xs font-bold ${A.pctBaja > 20 ? 'text-rose-700' : 'text-slate-600'}">Baja intención: ${fmtP(A.pctBaja, 1)} de las sesiones</div>
+                </div>
+                <div class="overflow-x-auto"><table class="w-full text-left text-xs sm:text-sm">
+                    <thead class="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500"><tr>
+                        <th class="px-3 py-2">Fuente / medio</th><th class="px-3 py-2 text-right">Sesiones</th><th class="px-3 py-2 text-right">% mix</th><th class="px-3 py-2 text-right">Pedidos</th>
+                        <th class="px-3 py-2 text-right">CR</th><th class="px-3 py-2 text-right">CR benchmark</th><th class="px-3 py-2 text-right">Δ vs bench</th><th class="px-3 py-2">Calidad</th><th class="px-3 py-2"></th></tr></thead>
+                    <tbody class="divide-y divide-slate-100">${filas || '<tr><td colspan="9" class="px-3 py-8 text-center text-slate-500">Sin datos en esta ventana.</td></tr>'}</tbody>
+                </table></div>
+            </div>`;
+    }
+
+    function renderFunnel(A) {
+        const etapas = ETAPAS.map((e, i) => {
+            const v = A.total.t[e.k], ancho = A.total.t.ses > 0 ? Math.max(4, (v / A.total.t.ses) * 100) : 0;
+            return `<div class="flex items-center gap-3"><div class="w-40 shrink-0 text-xs font-bold text-slate-700">${e.n}</div>
+                <div class="flex-1 bg-slate-100 rounded-lg h-8 overflow-hidden"><div class="h-8 rounded-lg bg-blue-500/80 flex items-center px-2.5 text-xs font-bold text-white num-tabular" style="width:${ancho}%">${fmtN(v)}</div></div>
+                <div class="w-16 text-right text-[11px] text-slate-500 num-tabular">${i === 0 ? '100%' : fmtP(div(v, A.total.t.ses), 1)}</div></div>`;
+        }).join('');
+        const filasP = A.detPasos.map(p => `
+            <tr><td class="px-3 py-2.5 font-bold text-xs sm:text-sm">${p.n}</td>
+                <td class="px-3 py-2.5 text-right num-tabular">${fmtN(p.de)} → ${fmtN(p.a)}</td>
+                <td class="px-3 py-2.5 text-right num-tabular font-bold">${fmtP(p.act)}</td>
+                <td class="px-3 py-2.5 text-right num-tabular text-slate-500">${fmtP(p.base)}</td>
+                <td class="px-3 py-2.5 text-right">${chipDelta(p.delta)}</td>
+                <td class="px-3 py-2.5 text-right">${(p.estado === 'alerta' || p.estado === 'alta') ? botonAccion('Funnel', p.n, `${fmtP(p.act)} vs benchmark ${fmtP(p.base)} (${fmtP(p.delta, 1)}).`) : ''}</td></tr>`).join('');
+        let porCanal = '';
+        if (S.canal === 'Total') {
+            porCanal = ['Web', 'App'].map(c => {
+                const t = sumar(A.V.rows.filter(r => r.c === c)), tb = sumar(A.V.bRows.filter(r => r.c === c));
+                if (!t.ses) return '';
+                const p = tasasPaso(t), pb = tasasPaso(tb);
+                return `<div class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm"><h4 class="text-sm font-extrabold mb-2">${c} <span class="text-slate-400 font-semibold text-xs">CR ${fmtP(crDe(t))} · bench ${fmtP(crDe(tb))}</span></h4>
+                    <table class="w-full text-xs"><tbody class="divide-y divide-slate-100">${PASOS.map(s => `<tr><td class="py-1.5 text-slate-600">${s.n}</td><td class="py-1.5 text-right num-tabular font-bold">${fmtP(p[s.k])}</td><td class="py-1.5 text-right">${chipDelta(deltaRel(p[s.k], pb[s.k]))}</td></tr>`).join('')}</tbody></table></div>`;
+            }).join('');
+        }
+        document.getElementById('panel-funnel').innerHTML = `
+            <p class="text-[11px] text-slate-500">${textoVentana(A.V)} · Canal: <strong>${S.canal}</strong></p>
+            <div class="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-sm space-y-2.5"><h3 class="text-sm font-extrabold text-slate-900 mb-1">Funnel completo</h3>${etapas}</div>
+            <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+                <div class="px-4 sm:px-5 py-3 border-b border-slate-200"><h3 class="text-sm font-extrabold text-slate-900">Conversión entre etapas vs benchmark propio</h3>
+                <p class="text-[11px] text-slate-500">${A.fuga ? `Mayor fuga contra su benchmark: <strong>${A.fuga.n}</strong> (${fmtP(A.fuga.delta, 1)}).` : 'Ninguna etapa cae por debajo del umbral contra su benchmark (o falta base suficiente).'}</p></div>
+                <div class="overflow-x-auto"><table class="w-full text-left text-xs sm:text-sm"><thead class="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500"><tr><th class="px-3 py-2">Paso</th><th class="px-3 py-2 text-right">Volumen</th><th class="px-3 py-2 text-right">Tasa</th><th class="px-3 py-2 text-right">Benchmark</th><th class="px-3 py-2 text-right">Δ</th><th class="px-3 py-2"></th></tr></thead><tbody class="divide-y divide-slate-100">${filasP}</tbody></table></div>
+            </div>
+            ${porCanal ? `<div class="grid grid-cols-1 md:grid-cols-2 gap-3">${porCanal}</div>` : ''}`;
+    }
+
+    function renderDispositivo(A) {
+        const filas = A.porDisp.map(d => `
+            <tr><td class="px-3 py-2.5 font-bold text-xs sm:text-sm">${d.dispositivo}</td>
+                <td class="px-3 py-2.5 text-right num-tabular">${fmtN(d.t.ses)}</td><td class="px-3 py-2.5 text-right num-tabular text-slate-500">${fmtP(d.mix, 1)}</td>
+                ${PASOS.map(p => `<td class="px-3 py-2.5 text-right num-tabular">${fmtP(d.pasos[p.k], 1)}<div class="text-[10px] text-slate-400">bench ${fmtP(d.pasosB[p.k], 1)}</div></td>`).join('')}
+                <td class="px-3 py-2.5 text-right num-tabular font-bold">${fmtP(d.cr)}</td><td class="px-3 py-2.5 text-right num-tabular text-slate-500">${fmtP(d.crB)}</td>
+                <td class="px-3 py-2.5 text-right">${chipDelta(d.delta)}</td>
+                <td class="px-3 py-2.5 text-right">${(d.estado === 'alerta' || d.estado === 'alta') ? botonAccion('Dispositivo', d.dispositivo, `CR ${fmtP(d.cr)} vs benchmark ${fmtP(d.crB)} (${fmtP(d.delta, 1)}).`) : ''}</td></tr>`).join('');
+        document.getElementById('panel-dispositivo').innerHTML = `
+            <p class="text-[11px] text-slate-500">${textoVentana(A.V)} · Canal: <strong>${S.canal}</strong></p>
+            <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+                <div class="px-4 sm:px-5 py-3 border-b border-slate-200"><h3 class="text-sm font-extrabold text-slate-900">Conversión por dispositivo</h3>
+                <p class="text-[11px] text-slate-500">Tasa por etapa y CR global de cada dispositivo contra su propio benchmark. Para bugs técnicos por navegador revisa la pestaña Checkout del Master Dashboard.</p></div>
+                <div class="overflow-x-auto"><table class="w-full text-left text-xs sm:text-sm"><thead class="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500"><tr>
+                    <th class="px-3 py-2">Dispositivo</th><th class="px-3 py-2 text-right">Sesiones</th><th class="px-3 py-2 text-right">% mix</th>
+                    ${PASOS.map(p => `<th class="px-3 py-2 text-right">${p.n}</th>`).join('')}<th class="px-3 py-2 text-right">CR</th><th class="px-3 py-2 text-right">CR bench</th><th class="px-3 py-2 text-right">Δ</th><th class="px-3 py-2"></th></tr></thead>
+                    <tbody class="divide-y divide-slate-100">${filas || '<tr><td colspan="11" class="px-3 py-8 text-center text-slate-500">Sin datos en esta ventana.</td></tr>'}</tbody></table></div>
+            </div>`;
+    }
+
+    function renderAcciones(A) {
+        const color = { 'Pendiente': 'bg-amber-100 text-amber-800', 'En proceso': 'bg-sky-100 text-sky-800', 'Completada': 'bg-emerald-100 text-emerald-800' };
+        const orden = { 'Pendiente': 0, 'En proceso': 1, 'Completada': 2 };
+        const lista = [...S.acciones].sort((a, b) => orden[a.estatus] - orden[b.estatus] || b.creada.localeCompare(a.creada)).map(a => `
+            <li class="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                <div class="min-w-0"><div class="text-sm font-extrabold text-slate-900">${esc(a.titulo)}</div>
+                    ${a.detalle ? `<div class="text-xs text-slate-600 mt-0.5">${esc(a.detalle)}</div>` : ''}
+                    <div class="text-[11px] text-slate-400 mt-1">${esc(a.creada)}${a.responsable ? ' · ' + esc(a.responsable) : ''}</div></div>
+                <div class="flex items-center gap-2 shrink-0">
+                    <select onchange="cambiarEstatus('${a.id}', this.value)" class="rounded-lg border border-slate-300 px-2 py-1 text-xs font-bold ${color[a.estatus]}">${['Pendiente', 'En proceso', 'Completada'].map(e => `<option ${e === a.estatus ? 'selected' : ''}>${e}</option>`).join('')}</select>
+                    <button type="button" onclick="eliminarAccion('${a.id}')" class="px-2 py-1 rounded-lg border border-slate-300 text-xs text-slate-500 hover:bg-slate-50" title="Eliminar">🗑</button>
+                </div></li>`).join('');
+        const alertas = A.alertas.length ? A.alertas.map(a => `<li class="flex items-start justify-between gap-3 p-3 rounded-xl border ${a.sev === 'alta' ? 'border-rose-200 bg-rose-50/60' : 'border-amber-200 bg-amber-50/60'}">
+            <div><div class="text-xs font-extrabold"><span class="text-[10px] uppercase text-slate-500 mr-1.5">${a.tipo}</span>${esc(a.titulo)}</div><div class="text-xs text-slate-600 mt-0.5">${esc(a.detalle)}</div></div>${botonAccion(a.tipo, a.titulo, a.detalle)}</li>`).join('')
+            : '<li class="p-4 text-xs text-slate-500 rounded-xl bg-emerald-50 border border-emerald-200">Sin alertas activas.</li>';
+        document.getElementById('panel-acciones').innerHTML = `
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="space-y-3"><h3 class="text-sm font-extrabold text-slate-900">Alertas activas (${A.alertas.length})</h3><ul class="space-y-2">${alertas}</ul></div>
+                <div class="space-y-3"><div class="flex items-center justify-between"><h3 class="text-sm font-extrabold text-slate-900">Acciones registradas (${S.acciones.length})</h3>
+                    <button type="button" onclick="abrirAccion()" class="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold">+ Nueva acción</button></div>
+                    <ul class="space-y-2">${lista || '<li class="p-4 text-xs text-slate-500 rounded-xl bg-slate-50 border border-slate-200">Aún no hay acciones registradas.</li>'}</ul></div>
+            </div>`;
+    }
+
+    function renderTabsYFiltros() {
+        document.getElementById('pills-canal').innerHTML = CANALES.map(c => `<button type="button" onclick="cambiarCanal('${c}')" class="px-3 py-1.5 rounded-xl text-xs font-bold transition ${S.canal === c ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'}">${c === 'Total' ? 'Consolidado' : c}</button>`).join('');
+        const pend = S.acciones.filter(a => a.estatus !== 'Completada').length;
+        document.getElementById('tabs-vista').innerHTML = VISTAS.map(v => `<button type="button" onclick="cambiarVista('${v.id}')" class="shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition ${S.vista === v.id ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'}">${v.n}${v.id === 'acciones' && pend ? ` <span class="ml-1 px-1.5 py-0.5 rounded-md bg-white/90 text-blue-700 text-[10px]">${pend}</span>` : ''}</button>`).join('');
+        document.getElementById('sel-ventana').value = String(S.ventana);
+        document.getElementById('cfg-umbral').value = S.config.umbral;
+        document.getElementById('cfg-minses').value = S.config.minSesDia;
+    }
+
+    function mesesDisponibles() {
+        const set = new Set(S.registros.map(r => r.f.slice(0, 7)));
+        if (S.rangoMin && S.rangoMax) {
+            let m = S.rangoMin.slice(0, 7); const fin = S.rangoMax.slice(0, 7);
+            while (m <= fin) { set.add(m); const [y, mm] = m.split('-').map(Number); m = mm === 12 ? `${y + 1}-01` : `${y}-${String(mm + 1).padStart(2, '0')}`; }
+        }
+        return [...set].sort();
+    }
+
+    function renderTodo() {
+        const hayDatos = S.registros.length > 0;
+        document.getElementById('vacio').classList.toggle('hidden', hayDatos || S.demo);
+        document.getElementById('banner-demo').classList.toggle('hidden', !S.demo);
+        document.getElementById('banner-demo').classList.toggle('flex', S.demo);
+        const meses = mesesDisponibles();
+        if (!S.mes && meses.length) S.mes = meses[meses.length - 1];
+        const sel = document.getElementById('sel-mes');
+        sel.innerHTML = meses.length ? meses.map(m => `<option value="${m}" ${m === S.mes ? 'selected' : ''}>${etiquetaMes(m)}</option>`).join('') : '<option>—</option>';
+        if (S.mes) {
+            const maxMes = S.registros.filter(r => r.f.startsWith(S.mes)).map(r => r.f).sort().pop();
+            if (!S.corte || !S.corte.startsWith(S.mes)) S.corte = maxMes || finMes(S.mes);
+            document.getElementById('sel-corte').value = S.corte;
+            document.getElementById('sel-corte').min = `${S.mes}-01`; document.getElementById('sel-corte').max = finMes(S.mes);
+        }
+        renderTabsYFiltros();
+        document.querySelectorAll('.panel-vista').forEach(p => p.classList.add('hidden'));
+        if (!hayDatos) { if (S.vista === 'acciones') { document.getElementById('panel-acciones').classList.remove('hidden'); renderAcciones({ alertas: [] }); } return; }
+        const A = analisis();
+        renderResumen(A); renderFuentes(A); renderFunnel(A); renderDispositivo(A); renderAcciones(A);
+        document.getElementById('panel-' + S.vista).classList.remove('hidden');
+    }
+
+    function cambiarVista(v) { S.vista = v; renderTodo(); }
+    function cambiarCanal(c) { S.canal = c; renderTodo(); }
+    function cambiarVentana(v) { S.ventana = v === 'mtd' ? 'mtd' : Number(v); renderTodo(); }
+    function cambiarCorte(f) { if (!f) return; S.corte = f; renderTodo(); }
+    async function cambiarMes(m) { S.mes = m; S.corte = null; await cargarRegistrosNube(); renderTodo(); }
+
+    // =====================================================================
+    // 4. ACCIONES Y CONFIGURACIÓN
+    // =====================================================================
+    function abrirAccion(prefill) {
+        const p = prefill ? JSON.parse(prefill) : {};
+        document.getElementById('acc-titulo').value = p.titulo || '';
+        document.getElementById('acc-detalle').value = p.detalle || '';
+        document.getElementById('acc-resp').value = ''; document.getElementById('acc-estatus').value = 'Pendiente';
+        const m = document.getElementById('modal-accion'); m.classList.remove('hidden'); m.classList.add('flex');
+        document.getElementById('acc-titulo').focus();
+    }
+    function cerrarAccion() { const m = document.getElementById('modal-accion'); m.classList.add('hidden'); m.classList.remove('flex'); }
+    function guardarAccion(e) {
+        e.preventDefault();
+        S.acciones.unshift({ id: 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), creada: hoyISO(),
+            titulo: document.getElementById('acc-titulo').value.trim(), detalle: document.getElementById('acc-detalle').value.trim(),
+            responsable: document.getElementById('acc-resp').value.trim(), estatus: document.getElementById('acc-estatus').value });
+        cerrarAccion(); persistirEstado(); renderTodo(); toast('✅ Acción registrada.');
+    }
+    function cambiarEstatus(id, est) { const a = S.acciones.find(x => x.id === id); if (a) { a.estatus = est; persistirEstado(); renderTodo(); } }
+    function eliminarAccion(id) { if (!confirm('¿Eliminar esta acción?')) return; S.acciones = S.acciones.filter(a => a.id !== id); persistirEstado(); renderTodo(); }
+    function guardarConfig() {
+        const u = Number(document.getElementById('cfg-umbral').value), m = Number(document.getElementById('cfg-minses').value);
+        if (u >= 1 && u <= 90) S.config.umbral = u; if (m >= 1) S.config.minSesDia = m;
+        persistirEstado(); renderTodo();
+    }
+
+    // =====================================================================
+    // 5. IMPORTACIÓN DE CSV / EXCEL
+    // =====================================================================
+    function normalizarFecha(valor, orden) {
+        if (valor === null || valor === undefined || valor === '') return null;
+        if (typeof valor === 'number') { const iso = new Date(Math.floor(valor - 25569) * 86400 * 1000).toISOString().slice(0, 10); return /^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso : null; }
+        const s = String(valor).trim();
+        if (/^\d{8}$/.test(s)) return validarFecha(+s.slice(0, 4), +s.slice(4, 6), +s.slice(6, 8)); // formato GA4: 20261105
+        if (/^\d{4}-\d{2}-\d{2}/.test(s)) { const [y, m, d] = s.slice(0, 10).split('-').map(Number); return validarFecha(y, m, d); }
+        const p = s.split(/[\/\-]/);
+        if (p.length === 3 && p[2].length === 4) { const y = +p[2], m = +(orden === 'mdy' ? p[0] : p[1]), d = +(orden === 'mdy' ? p[1] : p[0]); return validarFecha(y, m, d); }
+        return null;
+    }
+    function validarFecha(y, m, d) {
+        const dt = new Date(Date.UTC(y, m - 1, d));
+        if (dt.getUTCFullYear() !== y || dt.getUTCMonth() + 1 !== m || dt.getUTCDate() !== d) return null;
+        return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    }
+    // Decide día/mes o mes/día por el archivo completo (un CSV mensual debe caer en pocos meses)
+    function detectarOrdenFechas(textos) {
+        let a12 = false, b12 = false; const pares = [];
+        textos.forEach(v => {
+            if (typeof v !== 'string') return;
+            const p = v.trim().split(/[\/\-]/);
+            if (p.length !== 3 || p[2].length !== 4) return;
+            const a = +p[0], b = +p[1], y = +p[2]; if (!a || !b || !y) return;
+            if (a > 12) a12 = true; if (b > 12) b12 = true; pares.push([a, b, y]);
+        });
+        if (a12 && !b12) return { orden: 'dmy', ambiguo: false };
+        if (b12 && !a12) return { orden: 'mdy', ambiguo: false };
+        if (!pares.length) return { orden: 'dmy', ambiguo: false };
+        const mD = new Set(pares.map(([a, b, y]) => `${y}-${b}`)).size, mM = new Set(pares.map(([a, b, y]) => `${y}-${a}`)).size;
+        if (mM < mD) return { orden: 'mdy', ambiguo: false };
+        return { orden: 'dmy', ambiguo: mD === mM };
+    }
+    function limpiarEntero(v) {
+        if (v === null || v === undefined || v === '' || v === '-' || v === '—') return null;
+        if (typeof v === 'number') return isNaN(v) ? null : v;
+        const n = parseFloat(String(v).replace(/[\s,$%]/g, ''));
+        return isNaN(n) ? null : n;
+    }
+    const sinAcentos = t => String(t).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
+    const COLS = {
+        fecha: ['fecha', 'date'], canal: ['canal', 'channel', 'plataforma'], fuente: ['fuente', 'source', 'origen'], dispositivo: ['dispositivo', 'device'],
+        ses: ['sesiones', 'sessions'], usr: ['usuarios', 'users'], pdp: ['pdp', 'producto', 'viewitem'], car: ['carrito', 'cart', 'addtocart'],
+        chk: ['checkout'], ped: ['pedidos', 'compras', 'purchases', 'transacciones']
+    };
+    function normCanal(t) { const x = sinAcentos(t); if (!x) return null; if (/app|ios|android|movilapp/.test(x)) return 'App'; if (/web|sitio|ecom|desktopweb|pagina/.test(x)) return 'Web'; return null; }
+    function normDisp(t) { const x = sinAcentos(t); if (/mobile|movil|smartphone|celular/.test(x)) return 'Móvil'; if (/desktop|escritorio|computadora|pc|laptop/.test(x)) return 'Escritorio'; if (/tablet/.test(x)) return 'Tablet'; return null; }
+
+    function parsearLibro(wb) {
+        const advertencias = []; const mapa = new Map(); let omitidas = 0, filasTotales = 0, sinFunnel = false;
+        const filasPorHoja = wb.SheetNames.map(n => XLSX.utils.sheet_to_json(wb.Sheets[n], { defval: '' }));
+        const fechaTextos = [];
+        filasPorHoja.forEach(filas => filas.forEach(r => { const k = Object.keys(r).find(c => COLS.fecha.some(p => sinAcentos(c).includes(p))); if (k) fechaTextos.push(r[k]); }));
+        const { orden, ambiguo } = detectarOrdenFechas(fechaTextos);
+        if (ambiguo) advertencias.push('Las fechas del archivo son ambiguas (día/mes o mes/día); se interpretaron como día/mes/año. Revisa el periodo detectado.');
+        filasPorHoja.forEach((filas, hi) => {
+            if (!filas.length) return;
+            const cab = Object.keys(filas[0]); const idx = {};
+            Object.entries(COLS).forEach(([campo, pats]) => { idx[campo] = cab.find(c => pats.some(p => sinAcentos(c).includes(p))) || null; });
+            const faltan = ['fecha', 'fuente', 'dispositivo', 'ses', 'ped'].filter(c => !idx[c]);
+            if (faltan.length) { advertencias.push(`Hoja "${wb.SheetNames[hi]}" omitida: faltan columnas obligatorias (${faltan.join(', ')}).`); return; }
+            if (!idx.pdp || !idx.car || !idx.chk) sinFunnel = true;
+            if (!idx.canal) advertencias.push('El archivo no trae columna Canal: se asumió Web.');
+            filas.forEach((r, i) => {
+                filasTotales++;
+                const n = i + 2;
+                const f = normalizarFecha(r[idx.fecha], orden); if (!f) { advertencias.push(`Fila ${n}: fecha inválida. Omitida.`); omitidas++; return; }
+                const c = idx.canal ? normCanal(r[idx.canal]) : 'Web'; if (!c) { advertencias.push(`Fila ${n}: canal no reconocido ("${r[idx.canal]}"). Omitida.`); omitidas++; return; }
+                const d = normDisp(r[idx.dispositivo]); if (!d) { advertencias.push(`Fila ${n}: dispositivo no reconocido ("${r[idx.dispositivo]}"). Omitida.`); omitidas++; return; }
+                const s = String(r[idx.fuente]).trim().slice(0, 120); if (!s) { advertencias.push(`Fila ${n}: fuente vacía. Omitida.`); omitidas++; return; }
+                const v = { ses: limpiarEntero(r[idx.ses]), usr: idx.usr ? limpiarEntero(r[idx.usr]) : null, pdp: idx.pdp ? limpiarEntero(r[idx.pdp]) : 0, car: idx.car ? limpiarEntero(r[idx.car]) : 0, chk: idx.chk ? limpiarEntero(r[idx.chk]) : 0, ped: limpiarEntero(r[idx.ped]) };
+                if (v.ses === null || v.ped === null) { advertencias.push(`Fila ${n}: sesiones o pedidos vacíos. Omitida.`); omitidas++; return; }
+                if ([v.ses, v.usr, v.pdp, v.car, v.chk, v.ped].some(x => x !== null && x < 0)) { advertencias.push(`Fila ${n}: contiene valores negativos. Omitida.`); omitidas++; return; }
+                v.pdp = v.pdp || 0; v.car = v.car || 0; v.chk = v.chk || 0;
+                if (v.pdp > v.ses || v.car > v.pdp || v.chk > v.car || v.ped > v.chk) {
+                    if (!(v.pdp === 0 && v.car === 0 && v.chk === 0)) advertencias.push(`Fila ${n} (${fechaCorta(f)} ${s}): las etapas no van en orden descendente (Sesiones ≥ PDP ≥ Carrito ≥ Checkout ≥ Pedido). Revisa que todas sean sesiones y no eventos.`);
+                }
+                const clave = [f, c, s, d].join('|');
+                if (mapa.has(clave)) { const x = mapa.get(clave); ['ses', 'pdp', 'car', 'chk', 'ped'].forEach(k => x[k] += v[k]); if (v.usr !== null) x.usr = (x.usr || 0) + v.usr; x.repetidas++; }
+                else mapa.set(clave, { f, c, s, d, ses: v.ses, usr: v.usr, pdp: v.pdp, car: v.car, chk: v.chk, ped: v.ped, repetidas: 0 });
+            });
+        });
+        const rep = [...mapa.values()].filter(x => x.repetidas > 0);
+        if (rep.length) advertencias.push(`${rep.length} combinación(es) de fecha, canal, fuente y dispositivo aparecían más de una vez; sus valores se sumaron (p. ej. campañas distintas de la misma fuente).`);
+        if (sinFunnel) advertencias.push('El archivo no trae todas las columnas del funnel (PDP, Carrito, Checkout): esas etapas quedarán en 0.');
+        return { registros: [...mapa.values()].map(({ repetidas, ...r }) => r), advertencias, omitidas, filasTotales };
+    }
+
+    function procesarArchivo(ev) {
+        const file = ev.target.files[0]; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = e => {
+            try {
+                if (!window.XLSX) throw new Error('XLSX no disponible');
+                const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array', raw: true });
+                const res = parsearLibro(wb);
+                if (!res.registros.length) { toast(`❌ Importación rechazada: ${res.advertencias[0] || 'no se encontraron filas válidas.'}`); return; }
+                window._pendiente = { nombre: file.name, ...res };
+                abrirImport();
+            } catch (err) { console.error(err); toast('❌ No se pudo leer el archivo. Verifica que sea .csv o .xlsx válido.'); }
+            finally { ev.target.value = ''; }
+        };
+        reader.readAsArrayBuffer(file);
+    }
+    function abrirImport() {
+        const p = window._pendiente; const fechas = p.registros.map(r => r.f).sort();
+        document.getElementById('imp-sub').textContent = `Archivo: ${p.nombre} • Periodo: ${fechaCorta(fechas[0])} – ${fechaCorta(fechas[fechas.length - 1])} (${fechas[0].slice(0, 4)}) • ${fmtN(sumar(p.registros).ses)} sesiones`;
+        document.getElementById('imp-validos').textContent = fmtN(p.registros.length);
+        document.getElementById('imp-adv').textContent = fmtN(p.advertencias.length);
+        document.getElementById('imp-omit').textContent = fmtN(p.omitidas);
+        const w = document.getElementById('imp-warn'); w.classList.toggle('hidden', !p.advertencias.length);
+        w.innerHTML = p.advertencias.slice(0, 40).map(a => `<div>• ${esc(a)}</div>`).join('') + (p.advertencias.length > 40 ? `<div class="font-bold">… y ${p.advertencias.length - 40} más.</div>` : '');
+        document.getElementById('imp-tbody').innerHTML = p.registros.slice(0, 8).map(r => `<tr><td class="px-3 py-1.5">${r.f}</td><td class="px-3 py-1.5">${r.c}</td><td class="px-3 py-1.5">${esc(r.s)}</td><td class="px-3 py-1.5">${r.d}</td><td class="px-3 py-1.5 text-right">${fmtN(r.ses)}</td><td class="px-3 py-1.5 text-right">${fmtN(r.ped)}</td></tr>`).join('');
+        const m = document.getElementById('modal-import'); m.classList.remove('hidden'); m.classList.add('flex');
+    }
+    function cerrarImport() { const m = document.getElementById('modal-import'); m.classList.add('hidden'); m.classList.remove('flex'); window._pendiente = null; }
+
+    async function confirmarImport() {
+        const p = window._pendiente; if (!p) return;
+        const btn = document.getElementById('imp-confirmar'); btn.disabled = true; btn.textContent = 'Importando…';
+        try {
+            if (S.demo) salirDemo(true);
+            const ok = await subirRegistrosNube(p.registros);
+            const clave = r => [r.f, r.c, r.s, r.d].join('|');
+            const nuevos = new Set(p.registros.map(clave));
+            S.registros = S.registros.filter(r => !nuevos.has(clave(r))).concat(p.registros);
+            const fechas = p.registros.map(r => r.f).sort();
+            S.mes = fechas[fechas.length - 1].slice(0, 7); S.corte = fechas[fechas.length - 1];
+            if (!S.rangoMin || fechas[0] < S.rangoMin) S.rangoMin = fechas[0];
+            if (!S.rangoMax || fechas[fechas.length - 1] > S.rangoMax) S.rangoMax = fechas[fechas.length - 1];
+            guardarCacheLocal(); cerrarImport(); renderTodo();
+            toast(ok ? `✅ ${fmtN(p.registros.length)} registros importados y guardados en la nube.` : `✅ ${fmtN(p.registros.length)} registros importados (solo en este equipo).`);
+        } catch (e) { console.error(e); toast('❌ No se pudo guardar la importación en la nube. No se aplicó ningún cambio.'); }
+        finally { btn.disabled = false; btn.textContent = 'Confirmar e importar'; }
+    }
+
+    function descargarMachote() {
+        const base = S.corte || hoyISO();
+        const filas = [['Fecha', 'Canal', 'Fuente_Medio', 'Dispositivo', 'Sesiones', 'Usuarios', 'Vistas_PDP', 'Carritos', 'Checkouts', 'Pedidos'],
+            [base, 'Web', 'google / organic', 'Móvil', 1200, 980, 540, 190, 95, 38], [base, 'Web', 'google / organic', 'Escritorio', 800, 650, 410, 150, 80, 36],
+            [base, 'Web', 'google / cpc', 'Móvil', 900, 820, 330, 90, 40, 12], [base, 'Web', '(direct) / (none)', 'Escritorio', 500, 300, 280, 120, 70, 33],
+            [base, 'App', 'app / push', 'Móvil', 350, 300, 210, 90, 55, 26]];
+        const csv = '﻿' + filas.map(f => f.join(',')).join('\r\n');
+        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+        a.download = 'Machote_Trafico_y_Conversion.csv'; document.body.appendChild(a); a.click(); a.remove();
+        toast('🧾 Machote descargado: una fila por fecha, canal, fuente/medio y dispositivo.');
+    }
+
+    // =====================================================================
+    // 6. DATOS DE DEMOSTRACIÓN (no se guardan)
+    // =====================================================================
+    function generarDemo() {
+        let semilla = 12345; const rnd = () => { semilla = (semilla * 1664525 + 1013904223) % 4294967296; return semilla / 4294967296; };
+        const fuentes = [['google / organic', 5200, 0.032], ['google / cpc', 3800, 0.026], ['(direct) / (none)', 3000, 0.045], ['facebook / paid-social', 2600, 0.024], ['email / crm', 1100, 0.058], ['instagram / social', 1500, 0.006], ['display / cpc', 2200, 0.004], ['bing / organic', 450, 0.029]];
+        const disp = [['Móvil', 0.62, 0.85], ['Escritorio', 0.31, 1.25], ['Tablet', 0.07, 0.9]];
+        const fin = hoyISO(); const filas = [];
+        for (let i = 55; i >= 0; i--) {
+            const f = addDias(fin, -i); const dow = new Date(f + 'T00:00:00Z').getUTCDay(); const fds = (dow === 0 || dow === 6) ? 0.82 : 1;
+            for (const canal of ['Web', 'App']) for (const [fu, vol, crBase] of fuentes) for (const [d, mixD, fd] of disp) {
+                if (canal === 'App' && !/direct|email|facebook/.test(fu)) continue;
+                const k = canal === 'Web' ? 1 : 0.35;
+                let ses = Math.round(vol * mixD * k * fds * (0.85 + rnd() * 0.3) / 6);
+                let cr = crBase * fd * (0.9 + rnd() * 0.2) * (canal === 'App' ? 1.3 : 1);
+                if (i <= 3 && fu === 'facebook / paid-social') cr *= 0.6;           // caída reciente en una fuente
+                if (i <= 4 && d === 'Móvil' && canal === 'Web') cr *= 0.88;        // fuga reciente en móvil
+                const ped = Math.round(ses * cr);
+                const chk = Math.min(ses, Math.round(ped / (0.42 + rnd() * 0.05))), car = Math.min(ses, Math.round(chk / (0.5 + rnd() * 0.05))), pdp = Math.min(ses, Math.round(car / (0.32 + rnd() * 0.04)));
+                filas.push({ f, c: canal, s: fu, d, ses, usr: Math.round(ses * 0.82), pdp: Math.max(pdp, car), car: Math.max(car, chk), chk: Math.max(chk, ped), ped });
+            }
+        }
+        return filas;
+    }
+    function entrarDemo() {
+        S.demo = true; S.registros = generarDemo(); S.mes = hoyISO().slice(0, 7); S.corte = hoyISO(); S.rangoMin = null; S.rangoMax = null;
+        renderTodo(); toast('Modo demostración activado.');
+    }
+    function salirDemo(silencioso) {
+        S.demo = false; S.registros = []; S.mes = null; S.corte = null;
+        if (!silencioso) { cargarCacheLocal(); cargarRegistrosNube().then(renderTodo); renderTodo(); }
+    }
+
+    // =====================================================================
+    // 7. PERSISTENCIA: caché local + Supabase (clave compartida)
+    // =====================================================================
+    const NUBE = {
+        url: 'https://vwbhwiivynuzzxsosjgd.supabase.co',
+        key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3Ymh3aWl2eW51enp4c29zamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTU1MzMwNjgsImV4cCI6MjExMTEwOTA2OH0.a-CP2pogi2x3zHmp0l6ErDiACTUPOLQv4OsnC-B_QbM',
+        client: null, activo: false, version: 0, timer: null, guardando: false
+    };
+    function nubeEstado(texto, tono) {
+        const el = document.getElementById('nube-estado'); el.textContent = texto;
+        el.className = 'fixed bottom-5 left-5 z-40 px-2.5 py-1 rounded-lg bg-white/90 border text-[11px] font-semibold shadow-sm ' + (tono === 'error' ? 'border-rose-300 text-rose-700' : tono === 'ok' ? 'border-emerald-300 text-emerald-700' : 'border-slate-200 text-slate-600');
+    }
+    function guardarCacheLocal() {
+        if (S.demo) return;
+        try { localStorage.setItem(CACHE_KEY, JSON.stringify({ r: S.registros.map(r => [r.f, r.c, r.s, r.d, r.ses, r.usr, r.pdp, r.car, r.chk, r.ped]), a: S.acciones, c: S.config })); } catch (e) {}
+    }
+    function cargarCacheLocal() {
+        try {
+            const d = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); if (!d) return;
+            S.registros = (d.r || []).map(([f, c, s, dd, ses, usr, pdp, car, chk, ped]) => ({ f, c, s, d: dd, ses, usr, pdp, car, chk, ped }));
+            S.acciones = d.a || []; S.config = Object.assign(S.config, d.c || {});
+        } catch (e) {}
+    }
+    const filaDeBD = r => ({ f: r.fecha, c: r.canal, s: r.fuente, d: r.dispositivo, ses: r.sesiones, usr: r.usuarios, pdp: r.vistas_pdp, car: r.carritos, chk: r.checkouts, ped: r.pedidos });
+    const filaABD = r => ({ fecha: r.f, canal: r.c, fuente: r.s, dispositivo: r.d, sesiones: r.ses, usuarios: r.usr, vistas_pdp: r.pdp, carritos: r.car, checkouts: r.chk, pedidos: r.ped });
+
+    async function cargarRegistrosNube() {
+        if (!NUBE.activo || S.demo) return;
+        try {
+            const [mn, mx] = await Promise.all([
+                NUBE.client.from('trafico_registros').select('fecha').order('fecha', { ascending: true }).limit(1),
+                NUBE.client.from('trafico_registros').select('fecha').order('fecha', { ascending: false }).limit(1)]);
+            if (mn.error) throw mn.error; if (mx.error) throw mx.error;
+            S.rangoMin = mn.data[0]?.fecha || null; S.rangoMax = mx.data[0]?.fecha || null;
+            if (!S.rangoMax) { S.registros = []; guardarCacheLocal(); return; }
+            if (!S.mes) S.mes = S.rangoMax.slice(0, 7);
+            const desde = addDias(`${S.mes}-01`, -35), hasta = finMes(S.mes);
+            const out = []; let pagina = 0;
+            for (;;) {
+                const { data, error } = await NUBE.client.from('trafico_registros').select('*').gte('fecha', desde).lte('fecha', hasta)
+                    .order('fecha').order('canal').order('fuente').order('dispositivo').range(pagina * 1000, pagina * 1000 + 999);
+                if (error) throw error;
+                out.push(...data.map(filaDeBD)); if (data.length < 1000) break; pagina++;
+            }
+            S.registros = out; guardarCacheLocal(); nubeEstado('☁️ Sincronizado', 'ok');
+        } catch (e) { console.error(e); nubeEstado('⚠️ Sin conexión: se muestran datos locales', 'error'); }
+    }
+    async function subirRegistrosNube(registros) {
+        if (!NUBE.activo) return false;
+        for (let i = 0; i < registros.length; i += 500) {
+            const lote = registros.slice(i, i + 500).map(filaABD);
+            const { error } = await NUBE.client.from('trafico_registros').upsert(lote, { onConflict: 'fecha,canal,fuente,dispositivo' });
+            if (error) throw error;
+            nubeEstado(`☁️ Subiendo ${Math.min(i + 500, registros.length)} / ${registros.length}…`);
+        }
+        nubeEstado('☁️ Sincronizado', 'ok'); return true;
+    }
+    async function cargarEstadoNube() {
+        const { data, error } = await NUBE.client.from('trafico_estado').select('*').eq('id', 'principal').maybeSingle();
+        if (error) throw error;
+        if (data) { S.acciones = data.acciones || []; S.config = Object.assign(S.config, data.config || {}); NUBE.version = data.version; return; }
+        const ins = await NUBE.client.from('trafico_estado').insert({ id: 'principal', acciones: S.acciones, config: S.config, version: 1 });
+        if (ins.error && ins.error.code !== '23505') throw ins.error;
+        NUBE.version = 1;
+    }
+    function persistirEstado() {
+        guardarCacheLocal(); if (!NUBE.activo || S.demo) return;
+        clearTimeout(NUBE.timer); NUBE.timer = setTimeout(guardarEstadoNube, 800);
+    }
+    async function guardarEstadoNube() {
+        NUBE.timer = null;
+        if (NUBE.guardando) { NUBE.timer = setTimeout(guardarEstadoNube, 1500); return; }
+        NUBE.guardando = true; nubeEstado('☁️ Guardando…');
+        try {
+            const { data, error } = await NUBE.client.from('trafico_estado').update({ acciones: S.acciones, config: S.config, version: NUBE.version + 1, actualizado_en: new Date().toISOString() })
+                .eq('id', 'principal').eq('version', NUBE.version).select('version');
+            if (error) throw error;
+            if (!data || !data.length) { await cargarEstadoNube(); renderTodo(); nubeEstado('⚠️ Otro usuario modificó los datos', 'error'); toast('⚠️ Otra persona guardó cambios antes que tú. Se cargó la versión más reciente; repite tu último cambio.'); }
+            else { NUBE.version = data[0].version; nubeEstado('☁️ Sincronizado', 'ok'); }
+        } catch (e) { console.error(e); nubeEstado('⚠️ Sin conexión: guardado solo en este equipo', 'error'); }
+        finally { NUBE.guardando = false; }
+    }
+    function nubeOverlay(mostrar, error) {
+        const o = document.getElementById('nube-overlay'); o.classList.toggle('hidden', !mostrar); o.classList.toggle('flex', mostrar);
+        const e = document.getElementById('nube-error'); e.textContent = error || ''; e.classList.toggle('hidden', !error);
+        if (mostrar) document.getElementById('nube-clave').focus();
+    }
+    async function nubeEntrar() {
+        NUBE.activo = true; nubeOverlay(false);
+        await cargarEstadoNube(); await cargarRegistrosNube(); renderTodo();
+        if (!S.registros.length) nubeEstado('☁️ Conectado (aún sin datos de tráfico)', 'ok');
+    }
+    async function nubeArrancar() {
+        if (!window.supabase) { nubeEstado('Modo local (sin conexión a la nube)', 'error'); return; }
+        try {
+            NUBE.client = window.supabase.createClient(NUBE.url, NUBE.key, { auth: { persistSession: true, autoRefreshToken: true } });
+            const { data: { session } } = await NUBE.client.auth.getSession();
+            if (!session) { const { error } = await NUBE.client.auth.signInAnonymously(); if (error) throw error; }
+            const { data: ok, error: errAut } = await NUBE.client.rpc('tablero_es_dispositivo_autorizado'); if (errAut) throw errAut;
+            if (!ok) { nubeOverlay(true); return; }
+            await nubeEntrar();
+        } catch (e) { console.error(e); nubeEstado('Modo local (sin conexión a la nube)', 'error'); }
+    }
+    document.getElementById('nube-form').addEventListener('submit', async ev => {
+        ev.preventDefault(); const b = document.getElementById('nube-boton'); b.disabled = true;
+        try {
+            const { data, error } = await NUBE.client.rpc('tablero_activar', { codigo: document.getElementById('nube-clave').value });
+            if (error) throw error;
+            if (data === 'ok' || data === 'definida') { document.getElementById('nube-clave').value = ''; await nubeEntrar(); }
+            else nubeOverlay(true, { incorrecta: 'Clave incorrecta.', bloqueado: 'Demasiados intentos. Espera 15 minutos.', corta: 'La clave debe tener al menos 12 caracteres.' }[data] || 'No se pudo validar la clave.');
+        } catch (e) { console.error(e); nubeOverlay(true, 'No se pudo conectar. Revisa tu conexión.'); }
+        finally { b.disabled = false; }
+    });
+
+    // =====================================================================
+    // 8. DESCARGA DE PDF (captura fiel de todas las vistas de análisis)
+    // =====================================================================
+    let _cssFuentesPDF = null;
+    async function obtenerCSSFuentesPDF() {
+        if (_cssFuentesPDF !== null) return _cssFuentesPDF; _cssFuentesPDF = '';
+        try {
+            const link = document.querySelector('link[href*="fonts.googleapis.com/css"]'); if (!link) return _cssFuentesPDF;
+            const css = await (await fetch(link.href)).text(); const cache = {};
+            for (const b of css.split('@font-face').slice(1).map(x => '@font-face' + x)) {
+                const m = b.match(/url\((https:[^)]+)\)/); if (!m) continue;
+                if (!(/unicode-range:[^;]*U\+0000-00FF/i.test(b) || /unicode-range:[^;]*U\+0100-02/i.test(b))) continue;
+                if (!cache[m[1]]) { const blob = await (await fetch(m[1])).blob(); cache[m[1]] = await new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(blob); }); }
+                _cssFuentesPDF += b.replace(m[1], cache[m[1]]) + '\n';
+            }
+        } catch (e) { console.warn('No se pudieron incrustar las fuentes para el PDF.', e); _cssFuentesPDF = ''; }
+        return _cssFuentesPDF;
+    }
+    async function descargarPDF() {
+        const btn = document.getElementById('btn-pdf'), label = document.getElementById('btn-pdf-label');
+        if (!window.htmlToImage || !window.jspdf) { toast('⚠️ No se pudieron cargar las librerías del PDF. Revisa tu conexión.'); return; }
+        if (!S.registros.length) { toast('Carga datos (o entra a la demostración) antes de descargar el PDF.'); return; }
+        btn.disabled = true; label.textContent = 'Generando…';
+        try {
+            window.scrollTo(0, 0);
+            const css = await obtenerCSSFuentesPDF(); if (document.fonts && document.fonts.ready) await document.fonts.ready;
+            document.body.classList.add('pdf-modo'); if (S.chart) S.chart.resize();
+            await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+            const el = document.body, ancho = Math.max(el.scrollWidth, document.documentElement.clientWidth), alto = el.scrollHeight;
+            const escala = Math.min(2, 15000 / alto, 15000 / ancho);
+            const canvas = await window.htmlToImage.toCanvas(el, { pixelRatio: escala, backgroundColor: '#f8fafc', width: ancho, height: alto, ...(css ? { fontEmbedCSS: css } : {}),
+                filter: n => !(n.id === 'nube-overlay' || n.id === 'toast' || n.id === 'nube-estado') });
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF({ orientation: ancho > alto ? 'landscape' : 'portrait', unit: 'px', format: [ancho, alto], compress: true });
+            pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, ancho, alto);
+            pdf.save(`Trafico_y_Conversion_${S.mes}_corte_${S.corte}.pdf`); toast('📄 PDF descargado.');
+        } catch (e) { console.error(e); toast('❌ No se pudo generar el PDF.'); }
+        finally { document.body.classList.remove('pdf-modo'); if (S.chart) S.chart.resize(); btn.disabled = false; label.textContent = 'Descargar PDF'; }
+    }
+
+    // =====================================================================
+    // 9. ARRANQUE
+    // =====================================================================
+    window.addEventListener('load', () => {
+        cargarCacheLocal(); renderTodo(); nubeArrancar();
+        document.addEventListener('visibilitychange', async () => { if (!document.hidden && NUBE.activo && !S.demo && !NUBE.timer) { await cargarRegistrosNube(); renderTodo(); } });
+    });
+    </script>
+</body>
+</html>
