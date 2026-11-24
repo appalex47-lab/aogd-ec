@@ -14,6 +14,8 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Supabase (sincronización en la nube) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
     <!-- SheetJS para lectura y exportación de Excel / CSV -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
@@ -1084,6 +1086,7 @@
                 localStorage.setItem(STORAGE_KEY_MES_ACTIVO, estadoApp.mesActivo);
                 localStorage.setItem(STORAGE_KEY_CORTES, JSON.stringify(estadoApp.cortesPorMes));
                 localStorage.setItem(STORAGE_KEY_ACCIONES, JSON.stringify(estadoApp.acciones));
+                if (typeof nubeProgramarGuardado === 'function') nubeProgramarGuardado();
             } catch (e) {
                 mostrarNotificacion('⚠️ Advertencia: Se alcanzó el límite de almacenamiento local. Descarga un respaldo .json.');
             }
@@ -4367,7 +4370,194 @@
         window.onload = function() {
             ejecutarSuitePruebasQA();
             renderizarTodo();
+            if (typeof nubeArrancar === 'function') nubeArrancar();
         };
+    </script>
+    <!-- ===================================================================== -->
+    <!-- SINCRONIZACIÓN EN LA NUBE (Supabase) + ACCESO CON CLAVE COMPARTIDA    -->
+    <!-- ===================================================================== -->
+    <div id="nube-overlay" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900 p-4">
+        <form id="nube-form" class="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6 space-y-4" autocomplete="off">
+            <div>
+                <h2 class="text-lg font-extrabold text-slate-900">Acceso al tablero</h2>
+                <p class="text-xs text-slate-500 mt-1">Escribe la clave de acceso compartida. Si es la primera vez que se usa el tablero, la clave que escribas quedará definida (mínimo 12 caracteres).</p>
+            </div>
+            <input id="nube-clave" type="password" minlength="1" required placeholder="Clave de acceso" autocomplete="current-password"
+                   class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <p id="nube-error" class="hidden text-xs font-semibold text-rose-600"></p>
+            <button id="nube-boton" type="submit" class="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold transition">Entrar</button>
+        </form>
+    </div>
+    <div id="nube-estado" class="fixed bottom-5 left-5 z-40 hidden px-2.5 py-1 rounded-lg bg-white/90 border border-slate-200 text-[11px] font-semibold text-slate-600 shadow-sm"></div>
+
+    <script>
+        const NUBE = {
+            url: 'https://vwbhwiivynuzzxsosjgd.supabase.co',
+            // Clave pública (anon): por diseño puede estar en el navegador; los datos los protege RLS en la base.
+            key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3Ymh3aWl2eW51enp4c29zamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTU1MzMwNjgsImV4cCI6MjExMTEwOTA2OH0.a-CP2pogi2x3zHmp0l6ErDiACTUPOLQv4OsnC-B_QbM',
+            client: null, activo: false, version: 0, timer: null, guardando: false, pendiente: false
+        };
+
+        function nubeEstado(texto, tono) {
+            const el = document.getElementById('nube-estado');
+            if (!el) return;
+            el.textContent = texto;
+            el.className = 'fixed bottom-5 left-5 z-40 px-2.5 py-1 rounded-lg bg-white/90 border text-[11px] font-semibold shadow-sm '
+                + (tono === 'error' ? 'border-rose-300 text-rose-700' : tono === 'ok' ? 'border-emerald-300 text-emerald-700' : 'border-slate-200 text-slate-600');
+        }
+
+        function nubeMostrarOverlay(mostrar, error) {
+            const o = document.getElementById('nube-overlay');
+            o.classList.toggle('hidden', !mostrar);
+            o.classList.toggle('flex', mostrar);
+            const e = document.getElementById('nube-error');
+            e.textContent = error || '';
+            e.classList.toggle('hidden', !error);
+            if (mostrar) document.getElementById('nube-clave').focus();
+        }
+
+        function nubeAplicarEstado(row) {
+            estadoApp.historico = row.historico || {};
+            estadoApp.cortesPorMes = row.cortes || {};
+            estadoApp.acciones = Array.isArray(row.acciones) ? row.acciones : [];
+            if (!estadoApp.historico[estadoApp.mesActivo]) {
+                estadoApp.mesActivo = Object.keys(estadoApp.historico).sort()[0] || estadoApp.mesActivo;
+            }
+            const c = estadoApp.cortesPorMes[estadoApp.mesActivo];
+            estadoApp.fechaCorte = (c && c.startsWith(estadoApp.mesActivo)) ? c : inferirFechaCortePorDefecto(estadoApp.mesActivo);
+            NUBE.version = row.version;
+            try {
+                localStorage.setItem(STORAGE_KEY_HISTORICO, JSON.stringify(estadoApp.historico));
+                localStorage.setItem(STORAGE_KEY_CORTES, JSON.stringify(estadoApp.cortesPorMes));
+                localStorage.setItem(STORAGE_KEY_ACCIONES, JSON.stringify(estadoApp.acciones));
+            } catch (e) {}
+            renderizarTodo();
+        }
+
+        async function nubeLeer() {
+            const { data, error } = await NUBE.client.from('tablero_estado').select('*').eq('id', 'principal').maybeSingle();
+            if (error) throw error;
+            return data;
+        }
+
+        async function nubeSincronizarInicial() {
+            const row = await nubeLeer();
+            if (row) {
+                nubeAplicarEstado(row);
+                nubeEstado('☁️ Sincronizado', 'ok');
+                return;
+            }
+            // Servidor vacío: se sube lo que ya existe en este navegador.
+            const { error } = await NUBE.client.from('tablero_estado').insert({
+                id: 'principal', historico: estadoApp.historico, cortes: estadoApp.cortesPorMes, acciones: estadoApp.acciones, version: 1
+            });
+            if (error) {
+                if (error.code === '23505') { return nubeSincronizarInicial(); }
+                throw error;
+            }
+            NUBE.version = 1;
+            nubeEstado('☁️ Datos subidos a la nube', 'ok');
+        }
+
+        async function nubeGuardar() {
+            if (!NUBE.activo) return;
+            if (NUBE.guardando) { NUBE.pendiente = true; return; }
+            NUBE.guardando = true;
+            nubeEstado('☁️ Guardando…');
+            try {
+                estadoApp.cortesPorMes[estadoApp.mesActivo] = estadoApp.fechaCorte;
+                const { data, error } = await NUBE.client.from('tablero_estado')
+                    .update({ historico: estadoApp.historico, cortes: estadoApp.cortesPorMes, acciones: estadoApp.acciones,
+                              version: NUBE.version + 1, actualizado_en: new Date().toISOString() })
+                    .eq('id', 'principal').eq('version', NUBE.version).select('version');
+                if (error) throw error;
+                if (!data || data.length === 0) {
+                    const row = await nubeLeer();
+                    if (row) nubeAplicarEstado(row);
+                    nubeEstado('⚠️ Otro usuario modificó los datos', 'error');
+                    mostrarNotificacion('⚠️ Otra persona guardó cambios antes que tú. Se cargó la versión más reciente; repite tu último cambio.');
+                } else {
+                    NUBE.version = data[0].version;
+                    nubeEstado('☁️ Sincronizado', 'ok');
+                }
+            } catch (e) {
+                console.error(e);
+                NUBE.pendiente = true;
+                nubeEstado('⚠️ Sin conexión: guardado solo en este equipo', 'error');
+            } finally {
+                NUBE.guardando = false;
+                if (NUBE.pendiente) { NUBE.pendiente = false; clearTimeout(NUBE.timer); NUBE.timer = setTimeout(nubeGuardar, 4000); }
+            }
+        }
+
+        function nubeProgramarGuardado() {
+            if (!NUBE.activo) return;
+            clearTimeout(NUBE.timer);
+            NUBE.timer = setTimeout(nubeGuardar, 800);
+        }
+
+        async function nubeRevisarCambios() {
+            if (!NUBE.activo || NUBE.guardando || NUBE.timer) return;
+            try {
+                const { data } = await NUBE.client.from('tablero_estado').select('version').eq('id', 'principal').maybeSingle();
+                if (data && data.version > NUBE.version) {
+                    const row = await nubeLeer();
+                    if (row) { nubeAplicarEstado(row); nubeEstado('☁️ Actualizado con cambios recientes', 'ok'); }
+                }
+            } catch (e) {}
+        }
+
+        async function nubeArrancar() {
+            if (!window.supabase) { nubeEstado('Modo local (sin conexión a la nube)', 'error'); return; }
+            try {
+                NUBE.client = window.supabase.createClient(NUBE.url, NUBE.key, { auth: { persistSession: true, autoRefreshToken: true } });
+                const { data: { session } } = await NUBE.client.auth.getSession();
+                if (!session) {
+                    const { error } = await NUBE.client.auth.signInAnonymously();
+                    if (error) throw error;
+                }
+                const { data: ok, error: errAut } = await NUBE.client.rpc('tablero_es_dispositivo_autorizado');
+                if (errAut) throw errAut;
+                if (!ok) { nubeMostrarOverlay(true); return; }
+                await nubeEntrar();
+            } catch (e) {
+                console.error(e);
+                nubeEstado('Modo local (sin conexión a la nube)', 'error');
+            }
+        }
+
+        async function nubeEntrar() {
+            NUBE.activo = true;
+            nubeMostrarOverlay(false);
+            await nubeSincronizarInicial();
+        }
+
+        document.getElementById('nube-form').addEventListener('submit', async (ev) => {
+            ev.preventDefault();
+            const boton = document.getElementById('nube-boton');
+            const clave = document.getElementById('nube-clave').value;
+            boton.disabled = true;
+            try {
+                const { data, error } = await NUBE.client.rpc('tablero_activar', { codigo: clave });
+                if (error) throw error;
+                if (data === 'ok' || data === 'definida') {
+                    document.getElementById('nube-clave').value = '';
+                    await nubeEntrar();
+                    if (data === 'definida') mostrarNotificacion('🔑 Clave de acceso definida. Compártela con tu analista.');
+                } else {
+                    const msg = { incorrecta: 'Clave incorrecta.', bloqueado: 'Demasiados intentos. Espera 15 minutos.', corta: 'La clave debe tener al menos 12 caracteres.' };
+                    nubeMostrarOverlay(true, msg[data] || 'No se pudo validar la clave.');
+                }
+            } catch (e) {
+                console.error(e);
+                nubeMostrarOverlay(true, 'No se pudo conectar. Revisa tu conexión.');
+            } finally {
+                boton.disabled = false;
+            }
+        });
+
+        window.addEventListener('online', () => { if (NUBE.activo) nubeGuardar(); });
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) nubeRevisarCambios(); });
     </script>
 </body>
 </html>
