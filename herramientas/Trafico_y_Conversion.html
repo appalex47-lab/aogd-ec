@@ -195,7 +195,7 @@
         { k: 'ped', n: 'Pedido' }
     ];
     const PASOS = [
-        { k: 'pdp', de: 'ses', n: 'Sesión → PDP' },
+        { k: 'pdp', de: 'ses', n: 'Vistas de producto por sesión', razon: true },
         { k: 'car', de: 'pdp', n: 'PDP → Carrito' },
         { k: 'chk', de: 'car', n: 'Carrito → Checkout' },
         { k: 'ped', de: 'chk', n: 'Checkout → Pedido' }
@@ -259,7 +259,9 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? (c === 
         return t;
     }
     const crDe = t => div(t.ped, t.ses);
-    function tasasPaso(t) { const o = {}; PASOS.forEach(p => { o[p.k] = div(t[p.k], t[p.de]); }); return o; }
+    // Las etapas son EVENTOS de GA4: el primer paso es una razón (vistas por sesión, puede ser > 1); los demás son tasas entre eventos.
+    function tasasPaso(t) { const o = {}; PASOS.forEach(p => { o[p.k] = p.razon ? (t[p.de] > 0 ? t[p.k] / t[p.de] : null) : div(t[p.k], t[p.de]); }); return o; }
+    function fmtPaso(p, v, d = 2) { return (v === null || v === undefined || isNaN(v)) ? '—' : (p.razon ? `${v.toFixed(2)} x` : `${v.toFixed(d)}%`); }
     function agrupar(rows, keyFn) {
         const m = new Map();
         for (const r of rows) { const k = keyFn(r); if (!m.has(k)) m.set(k, []); m.get(k).push(r); }
@@ -321,7 +323,7 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? (c === 
         // Alertas
         const alertas = [];
         porFuente.forEach(f => { if (f.estado === 'alerta' || f.estado === 'alta') alertas.push({ tipo: 'Fuente', sev: f.estado, titulo: f.fuente, detalle: `CR ${fmtP(f.cr)} vs benchmark ${fmtP(f.crB)} (${fmtP(f.delta, 1)}). ${fmtN(f.t.ses)} sesiones.` }); });
-        detPasos.forEach(p => { if (p.estado === 'alerta' || p.estado === 'alta') alertas.push({ tipo: 'Funnel', sev: p.estado, titulo: p.n, detalle: `${fmtP(p.act)} vs benchmark ${fmtP(p.base)} (${fmtP(p.delta, 1)}).` }); });
+        detPasos.forEach(p => { if (p.estado === 'alerta' || p.estado === 'alta') alertas.push({ tipo: 'Funnel', sev: p.estado, titulo: p.n, detalle: `${fmtPaso(p, p.act)} vs benchmark ${fmtPaso(p, p.base)} (${fmtP(p.delta, 1)}).` }); });
         porDisp.forEach(d => { if (d.estado === 'alerta' || d.estado === 'alta') alertas.push({ tipo: 'Dispositivo', sev: d.estado, titulo: d.dispositivo, detalle: `CR ${fmtP(d.cr)} vs benchmark ${fmtP(d.crB)} (${fmtP(d.delta, 1)}).` }); });
         alertas.sort((a, b) => (a.sev === 'alta' ? 0 : 1) - (b.sev === 'alta' ? 0 : 1));
         const bajaIntencion = porFuente.filter(f => f.clase === 'Baja intención');
@@ -441,19 +443,22 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? (c === 
     }
 
     function renderFunnel(A) {
-        const etapas = ETAPAS.map((e, i) => {
-            const v = A.total.t[e.k], ancho = A.total.t.ses > 0 ? Math.max(4, (v / A.total.t.ses) * 100) : 0;
+        const T = A.total.t;
+        const ETAPAS_EVT = ETAPAS.filter(e => e.k !== 'ses');
+        const etapas = ETAPAS_EVT.map((e, i) => {
+            const v = T[e.k], ancho = T.pdp > 0 ? Math.max(4, (v / T.pdp) * 100) : 0;
             return `<div class="flex items-center gap-3"><div class="w-40 shrink-0 text-xs font-bold text-slate-700">${e.n}</div>
-                <div class="flex-1 bg-slate-100 rounded-lg h-8 overflow-hidden"><div class="h-8 rounded-lg bg-blue-500/80 flex items-center px-2.5 text-xs font-bold text-white num-tabular" style="width:${ancho}%">${fmtN(v)}</div></div>
-                <div class="w-16 text-right text-[11px] text-slate-500 num-tabular">${i === 0 ? '100%' : fmtP(div(v, A.total.t.ses), 1)}</div></div>`;
+                <div class="flex-1 bg-slate-100 rounded-lg h-8 flex items-center overflow-hidden"><div class="h-8 rounded-lg bg-blue-500/80 shrink-0" style="width:${Math.min(ancho, 88)}%"></div><span class="ml-2 text-xs font-bold text-slate-800 num-tabular whitespace-nowrap">${fmtN(v)}</span></div>
+                <div class="w-14 text-right text-[11px] text-slate-500 num-tabular" title="% de las vistas de producto">${i === 0 ? '100%' : fmtP(div(v, T.pdp), 1)}</div>
+                <div class="w-24 text-right text-[11px] text-slate-400 num-tabular" title="Por cada 100 sesiones">${fmtN(div(v, T.ses))} / 100 ses.</div></div>`;
         }).join('');
         const filasP = A.detPasos.map(p => `
             <tr><td class="px-3 py-2.5 font-bold text-xs sm:text-sm">${p.n}</td>
                 <td class="px-3 py-2.5 text-right num-tabular">${fmtN(p.de)} → ${fmtN(p.a)}</td>
-                <td class="px-3 py-2.5 text-right num-tabular font-bold">${fmtP(p.act)}</td>
-                <td class="px-3 py-2.5 text-right num-tabular text-slate-500">${fmtP(p.base)}</td>
+                <td class="px-3 py-2.5 text-right num-tabular font-bold">${fmtPaso(p, p.act)}</td>
+                <td class="px-3 py-2.5 text-right num-tabular text-slate-500">${fmtPaso(p, p.base)}</td>
                 <td class="px-3 py-2.5 text-right">${chipDelta(p.delta)}</td>
-                <td class="px-3 py-2.5 text-right">${(p.estado === 'alerta' || p.estado === 'alta') ? botonAccion('Funnel', p.n, `${fmtP(p.act)} vs benchmark ${fmtP(p.base)} (${fmtP(p.delta, 1)}).`) : ''}</td></tr>`).join('');
+                <td class="px-3 py-2.5 text-right">${(p.estado === 'alerta' || p.estado === 'alta') ? botonAccion('Funnel', p.n, `${fmtPaso(p, p.act)} vs benchmark ${fmtPaso(p, p.base)} (${fmtP(p.delta, 1)}).`) : ''}</td></tr>`).join('');
         let porCanal = '';
         if (S.canal === 'Total') {
             porCanal = ['Web', 'iOS', 'Android'].map(c => {
@@ -461,12 +466,12 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? (c === 
                 if (!t.ses) return '';
                 const p = tasasPaso(t), pb = tasasPaso(tb);
                 return `<div class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm"><h4 class="text-sm font-extrabold mb-2">${c === 'Web' ? 'Web' : 'App ' + c} <span class="text-slate-400 font-semibold text-xs">CR ${fmtP(crDe(t))} · bench ${fmtP(crDe(tb))}</span></h4>
-                    <table class="w-full text-xs"><tbody class="divide-y divide-slate-100">${PASOS.map(s => `<tr><td class="py-1.5 text-slate-600">${s.n}</td><td class="py-1.5 text-right num-tabular font-bold">${fmtP(p[s.k])}</td><td class="py-1.5 text-right">${chipDelta(deltaRel(p[s.k], pb[s.k]))}</td></tr>`).join('')}</tbody></table></div>`;
+                    <table class="w-full text-xs"><tbody class="divide-y divide-slate-100">${PASOS.map(s => `<tr><td class="py-1.5 text-slate-600">${s.n}</td><td class="py-1.5 text-right num-tabular font-bold">${fmtPaso(s, p[s.k])}</td><td class="py-1.5 text-right">${chipDelta(deltaRel(p[s.k], pb[s.k]))}</td></tr>`).join('')}</tbody></table></div>`;
             }).join('');
         }
         document.getElementById('panel-funnel').innerHTML = `
             <p class="text-[11px] text-slate-500">${textoVentana(A.V)} · Canal: <strong>${ETIQ_CANAL[S.canal]}</strong></p>
-            <div class="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-sm space-y-2.5"><h3 class="text-sm font-extrabold text-slate-900 mb-1">Funnel completo</h3>${etapas}</div>
+            <div class="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-sm space-y-2.5"><h3 class="text-sm font-extrabold text-slate-900">Funnel de eventos (GA4)</h3><p class="text-[11px] text-slate-500 mb-1">${fmtN(T.ses)} sesiones · ${fmtN(T.pdp)} vistas de producto (${fmtPaso(PASOS[0], T.pdp / (T.ses || 1))} por sesión). Las barras comparan cada evento contra las vistas de producto.</p>${etapas}</div>
             <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
                 <div class="px-4 sm:px-5 py-3 border-b border-slate-200"><h3 class="text-sm font-extrabold text-slate-900">Conversión entre etapas vs benchmark propio</h3>
                 <p class="text-[11px] text-slate-500">${A.fuga ? `Mayor fuga contra su benchmark: <strong>${A.fuga.n}</strong> (${fmtP(A.fuga.delta, 1)}).` : 'Ninguna etapa cae por debajo del umbral contra su benchmark (o falta base suficiente).'}</p></div>
@@ -479,7 +484,7 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? (c === 
         const filas = A.porDisp.map(d => `
             <tr><td class="px-3 py-2.5 font-bold text-xs sm:text-sm">${d.dispositivo}</td>
                 <td class="px-3 py-2.5 text-right num-tabular">${fmtN(d.t.ses)}</td><td class="px-3 py-2.5 text-right num-tabular text-slate-500">${fmtP(d.mix, 1)}</td>
-                ${PASOS.map(p => `<td class="px-3 py-2.5 text-right num-tabular">${fmtP(d.pasos[p.k], 1)}<div class="text-[10px] text-slate-400">bench ${fmtP(d.pasosB[p.k], 1)}</div></td>`).join('')}
+                ${PASOS.map(p => `<td class="px-3 py-2.5 text-right num-tabular">${fmtPaso(p, d.pasos[p.k], 1)}<div class="text-[10px] text-slate-400">bench ${fmtPaso(p, d.pasosB[p.k], 1)}</div></td>`).join('')}
                 <td class="px-3 py-2.5 text-right num-tabular font-bold">${fmtP(d.cr)}</td><td class="px-3 py-2.5 text-right num-tabular text-slate-500">${fmtP(d.crB)}</td>
                 <td class="px-3 py-2.5 text-right">${chipDelta(d.delta)}</td>
                 <td class="px-3 py-2.5 text-right">${(d.estado === 'alerta' || d.estado === 'alta') ? botonAccion('Dispositivo', d.dispositivo, `CR ${fmtP(d.cr)} vs benchmark ${fmtP(d.crB)} (${fmtP(d.delta, 1)}).`) : ''}</td></tr>`).join('');
@@ -645,7 +650,7 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? (c === 
     function normDisp(t) { const x = sinAcentos(t); if (/mobile|movil|smartphone|celular/.test(x)) return 'Móvil'; if (/desktop|escritorio|computadora|pc|laptop/.test(x)) return 'Escritorio'; if (/tablet/.test(x)) return 'Tablet'; return null; }
 
     function parsearLibro(wb) {
-        const advertencias = []; const mapa = new Map(); let omitidas = 0, filasTotales = 0, sinFunnel = false;
+        const advertencias = []; const mapa = new Map(); let omitidas = 0, filasTotales = 0, sinFunnel = false, fueraDeOrden = 0;
         const filasPorHoja = wb.SheetNames.map(n => XLSX.utils.sheet_to_json(wb.Sheets[n], { defval: '' }));
         const fechaTextos = [];
         filasPorHoja.forEach(filas => filas.forEach(r => { const k = Object.keys(r).find(c => COLS.fecha.some(p => sinAcentos(c).includes(p))); if (k) fechaTextos.push(r[k]); }));
@@ -670,9 +675,7 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? (c === 
                 if (v.ses === null || v.ped === null) { advertencias.push(`Fila ${n}: sesiones o pedidos vacíos. Omitida.`); omitidas++; return; }
                 if ([v.ses, v.usr, v.pdp, v.car, v.chk, v.ped].some(x => x !== null && x < 0)) { advertencias.push(`Fila ${n}: contiene valores negativos. Omitida.`); omitidas++; return; }
                 v.pdp = v.pdp || 0; v.car = v.car || 0; v.chk = v.chk || 0;
-                if (v.pdp > v.ses || v.car > v.pdp || v.chk > v.car || v.ped > v.chk) {
-                    if (!(v.pdp === 0 && v.car === 0 && v.chk === 0)) advertencias.push(`Fila ${n} (${fechaCorta(f)} ${s}): las etapas no van en orden descendente (Sesiones ≥ PDP ≥ Carrito ≥ Checkout ≥ Pedido). Revisa que todas sean sesiones y no eventos.`);
-                }
+                if (v.car > v.pdp || v.chk > v.car || v.ped > v.chk) fueraDeOrden++;
                 const clave = [f, c, s, d].join('|');
                 if (mapa.has(clave)) { const x = mapa.get(clave); ['ses', 'pdp', 'car', 'chk', 'ped'].forEach(k => x[k] += v[k]); if (v.usr !== null) x.usr = (x.usr || 0) + v.usr; x.repetidas++; }
                 else mapa.set(clave, { f, c, s, d, ses: v.ses, usr: v.usr, pdp: v.pdp, car: v.car, chk: v.chk, ped: v.ped, repetidas: 0 });
@@ -680,6 +683,7 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? (c === 
         });
         const rep = [...mapa.values()].filter(x => x.repetidas > 0);
         if (rep.length) advertencias.push(`${rep.length} combinación(es) de fecha, canal, fuente y dispositivo aparecían más de una vez; sus valores se sumaron (p. ej. campañas distintas de la misma fuente).`);
+        if (fueraDeOrden) advertencias.push(`${fmtN(fueraDeOrden)} fila(s) tienen un evento mayor que el anterior (p. ej. más checkouts que carritos). Es normal con eventos de GA4 (un usuario puede entrar al checkout sin pasar por el carrito, o repetir eventos); se importan tal cual.`);
         if (sinFunnel) advertencias.push('El archivo no trae todas las columnas del funnel (PDP, Carrito, Checkout): esas etapas quedarán en 0.');
         return { registros: [...mapa.values()].map(({ repetidas, ...r }) => r), advertencias, omitidas, filasTotales };
     }
@@ -735,9 +739,9 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? (c === 
     function descargarMachote() {
         const base = S.corte || hoyISO();
         const filas = [['Fecha', 'Canal', 'Fuente_Medio', 'Dispositivo', 'Sesiones', 'Usuarios', 'Vistas_PDP', 'Carritos', 'Checkouts', 'Pedidos'],
-            [base, 'Web', 'google / organic', 'Móvil', 1200, 980, 540, 190, 95, 38], [base, 'Web', 'google / organic', 'Escritorio', 800, 650, 410, 150, 80, 36],
-            [base, 'Web', 'google / cpc', 'Móvil', 900, 820, 330, 90, 40, 12], [base, 'Web', '(direct) / (none)', 'Escritorio', 500, 300, 280, 120, 70, 33],
-            [base, 'iOS', 'app / push', 'Móvil', 220, 190, 130, 56, 35, 17], [base, 'Android', 'app / push', 'Móvil', 130, 110, 80, 34, 20, 9]];
+            [base, 'Web', 'google / organic', 'Móvil', 1200, 980, 1450, 190, 95, 38], [base, 'Web', 'google / organic', 'Escritorio', 800, 650, 1100, 150, 80, 36],
+            [base, 'Web', 'google / cpc', 'Móvil', 900, 820, 980, 90, 40, 12], [base, 'Web', '(direct) / (none)', 'Escritorio', 500, 300, 760, 120, 70, 33],
+            [base, 'iOS', 'app / push', 'Móvil', 220, 190, 300, 56, 35, 17], [base, 'Android', 'app / push', 'Móvil', 130, 110, 170, 34, 20, 9]];
         const csv = '﻿' + filas.map(f => f.join(',')).join('\r\n');
         const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
         a.download = 'Machote_Trafico_y_Conversion.csv'; document.body.appendChild(a); a.click(); a.remove();
@@ -763,8 +767,8 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? (c === 
                 if (i <= 3 && fu === 'facebook / paid-social') cr *= 0.6;           // caída reciente en una fuente
                 if (i <= 4 && d === 'Móvil' && canal === 'Web') cr *= 0.88;        // fuga reciente en móvil
                 const ped = Math.round(ses * cr);
-                const chk = Math.min(ses, Math.round(ped / (0.42 + rnd() * 0.05))), car = Math.min(ses, Math.round(chk / (0.5 + rnd() * 0.05))), pdp = Math.min(ses, Math.round(car / (0.32 + rnd() * 0.04)));
-                filas.push({ f, c: canal, s: fu, d, ses, usr: Math.round(ses * 0.82), pdp: Math.max(pdp, car), car: Math.max(car, chk), chk: Math.max(chk, ped), ped });
+                const chk = Math.round(ped / (0.42 + rnd() * 0.05)), car = Math.round(chk / (0.5 + rnd() * 0.05)), pdp = Math.max(car, Math.round(ses * (1.15 + rnd() * 0.25)));
+                filas.push({ f, c: canal, s: fu, d, ses, usr: Math.round(ses * 0.82), pdp, car, chk: Math.min(chk, car), ped: Math.min(ped, chk) });
             }
         }
         return filas;
