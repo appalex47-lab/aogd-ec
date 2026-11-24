@@ -225,7 +225,7 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
     const S = {
         registros: [], acciones: [], config: { umbral: 10, minSesDia: 30, impactoAlto: 1, impactoMedio: 0.3 },
         mes: null, corte: null, canal: 'Total', ventana: 7, vista: 'resumen',
-        demo: false, rangoMin: null, rangoMax: null, chart: null, accionPrefill: null
+        abiertos: {}, demo: false, rangoMin: null, rangoMax: null, chart: null, accionPrefill: null
     };
 
     const fmtN = v => (v === null || v === undefined || isNaN(v)) ? '—' : new Intl.NumberFormat('es-MX', { maximumFractionDigits: 0 }).format(Math.round(v));
@@ -411,7 +411,6 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
         return { nombre, color, accion, lectura, efic, peso };
     }
     const chipPerfil = pf => `<span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-extrabold ${PERFIL_COLOR[pf.color]}">${pf.nombre}</span>`;
-    const celdaPerfil = g => g.perfil ? `<div class="max-w-xs">${chipPerfil(g.perfil)}<div class="mt-1 text-[11px] text-slate-600 leading-snug">${esc(g.perfil.lectura)}</div>${g.perfil.accion ? `<div class="mt-0.5 text-[11px] text-slate-500"><strong class="text-slate-700">Qué hacer:</strong> ${esc(g.perfil.accion)}</div>` : ''}</div>` : '<span class="text-slate-300">—</span>';
     const chipPerfilCorto = g => g.perfil ? `<span title="${esc(g.perfil.lectura)}">${chipPerfil(g.perfil)}</span>` : '<span class="text-slate-300">—</span>';
     function chipTend(d) {
         if (d === null || d === undefined) return '<span class="inline-block whitespace-nowrap px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[11px] font-bold">Nueva / sin base</span>';
@@ -669,8 +668,6 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
             <p class="text-[11px] text-slate-500 mb-3">No son problemas: convierten al menos 50% más que su propio ritmo normal. Vale la pena entender por qué.</p>
             <ul class="space-y-2">${arr.slice(0, 5).map(itemAlerta).join('')}</ul></div>`;
     }
-    const celdaPasoDebil = g => (g.diag && g.diag.peor && !(g.delta !== null && g.delta >= S.config.umbral)) ? `<div class="text-[11px] font-bold text-slate-800">${g.diag.peor.paso.n}</div><div class="mt-0.5">${chipDelta(g.diag.peor.delta)}</div>` : '<span class="text-slate-300">—</span>';
-    const celdaPerdidos = g => { const p = perdidosDe(g); return p >= 1 ? `<span class="font-bold text-rose-700 num-tabular">≈ ${fmtN(p)}</span>` : '<span class="text-slate-300">—</span>'; };
     function textoBenchmark(V) {
         return `<details class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm text-xs text-slate-600 leading-relaxed" data-pdf-ocultar="true">
             <summary class="cursor-pointer font-bold text-slate-800">ⓘ ¿De dónde sale el benchmark?</summary>
@@ -734,41 +731,88 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
         });
     }
 
+    // ---- Tabla compacta con detalle desplegable (Fuentes, Campañas y Dispositivo) ----
+    // La fila muestra solo lo comparable; la lectura del perfil, el funnel por paso y los pedidos viven en un detalle que se abre con clic.
+    // Las filas con alerta salen abiertas; "Expandir todo / Contraer todo" cambia toda la tabla.
+    const celdaImpacto = g => {
+        const peor = (g.diag && g.diag.peor && !(g.delta !== null && g.delta >= S.config.umbral)) ? g.diag.peor.paso.n : '';
+        const p = perdidosDe(g);
+        if (!peor && p < 1) return '<span class="text-slate-300">—</span>';
+        return `${peor ? `<div class="text-[11px] font-bold text-slate-800 break-words">${peor}</div>` : ''}${p >= 1 ? `<div class="text-[11px] font-bold text-rose-700 num-tabular whitespace-nowrap">≈ ${fmtN(p)} ped. menos</div>` : ''}`;
+    };
+    function detalleCompacto(g, uni, extra, tipoAccion, tituloAccion) {
+        const dec = g.diag && g.diag.dec, pf = g.perfil;
+        const pasos = dec ? dec.pasos.map(p => { const pr = deltaRel(p.act, p.base), c = p.contrib;
+            return `<tr><td class="py-1 pr-2 text-slate-700">${p.paso.n}</td><td class="py-1 text-right num-tabular whitespace-nowrap">${fmtPaso(p.paso, p.act)}</td><td class="py-1 text-right num-tabular text-slate-400 whitespace-nowrap">${fmtPaso(p.paso, p.base)}</td>
+                <td class="py-1 text-right num-tabular whitespace-nowrap ${pr !== null && pr <= -S.config.umbral ? 'text-rose-700 font-bold' : 'text-slate-500'}">${pr === null ? '—' : (pr >= 0 ? '+' : '−') + Math.abs(pr).toFixed(1) + '%'}</td>
+                <td class="py-1 text-right num-tabular font-bold whitespace-nowrap ${c > 0 ? 'text-rose-700' : 'text-emerald-700'}">${c > 0 ? '−' : '+'}${fmtPed(c)}</td></tr>`; }).join('')
+            : '<tr><td colspan="5" class="py-2 text-slate-400">Sin base suficiente para repartir por paso.</td></tr>';
+        const p = perdidosDe(g), gap = (g.cr !== null && uni.crU) ? (uni.crU - g.cr) / 100 * g.t.ses : 0;
+        const plano = [pf ? pf.lectura : '', pf && pf.accion ? 'Qué hacer: ' + pf.accion : ''].filter(Boolean).join(' ');
+        return `<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 p-4 bg-slate-50/80">
+            <div class="min-w-0"><div class="text-[10px] font-extrabold uppercase text-slate-500 mb-1">Lectura del perfil</div>
+                ${pf ? `<div>${chipPerfil(pf)}</div><p class="mt-1.5 text-xs text-slate-700 leading-relaxed break-words">${esc(pf.lectura)}</p>${pf.accion ? `<p class="mt-1 text-xs text-slate-600"><strong class="text-slate-800">Qué hacer:</strong> ${esc(pf.accion)}</p>` : ''}` : '<p class="text-xs text-slate-400">Sin perfil.</p>'}
+                ${extra ? `<p class="mt-1.5 text-[11px] text-slate-500 break-words">${extra}</p>` : ''}</div>
+            <div class="min-w-0"><div class="text-[10px] font-extrabold uppercase text-slate-500 mb-1">Funnel por paso vs su normal <span class="font-normal normal-case text-slate-400">(pedidos que explica cada paso)</span></div>
+                <table class="w-full text-[11px]"><thead class="text-[10px] text-slate-400"><tr><th class="text-left font-semibold">Paso</th><th class="text-right font-semibold">Hoy</th><th class="text-right font-semibold">Normal</th><th class="text-right font-semibold">Δ</th><th class="text-right font-semibold">Pedidos</th></tr></thead><tbody>${pasos}</tbody></table></div>
+            <div class="min-w-0 space-y-2"><div class="text-[10px] font-extrabold uppercase text-slate-500">Dos números, dos preguntas</div>
+                <div class="text-xs text-slate-700"><span class="text-slate-500">Frente a su propio normal:</span> ${p >= 1 ? `<strong class="text-rose-700">≈ ${fmtN(p)} pedidos menos</strong>${(g.delta !== null && g.delta > -S.config.umbral) ? ' <span class="text-slate-400">(dentro del margen de alerta)</span>' : ''}` : '<strong>sin pérdida</strong>'}</div>
+                <div class="text-xs text-slate-700"><span class="text-slate-500">Frente al promedio de sus pares:</span> ${gap >= 1 ? `<strong>≈ ${fmtN(gap)} pedidos que no llegan</strong>` : '<strong>en línea o por encima</strong>'}</div>
+                <div>${botonAccion(tipoAccion, tituloAccion, plano)}</div></div></div>`;
+    }
+    function tablaCompacta(c) {
+        const filas = c.items.map((g, i) => {
+            const m = c.filaDe(g);
+            const clave = `${c.id}|${m.clave}`;
+            const abierto = m.sinDetalle ? false : (clave in S.abiertos ? S.abiertos[clave] : !!m.alerta);
+            const fila = `<tr id="fila-${c.id}-${i}" data-clave="${esc(m.clave)}" ${m.sinDetalle ? '' : `onclick="alternarDetalle('${c.id}', ${i})" aria-expanded="${abierto}"`} class="align-middle ${m.sinDetalle ? 'bg-slate-50' : 'cursor-pointer hover:bg-slate-50'}">
+                <td class="px-3 py-2.5 ${m.sangria ? 'pl-6' : ''}"><div class="${m.sinDetalle ? 'font-extrabold' : 'font-bold'} text-xs sm:text-sm text-slate-900 break-words max-w-[240px]">${esc(m.nombre)}</div>${m.sub ? `<div class="text-[10px] text-slate-400 break-words max-w-[240px]">${esc(m.sub)}</div>` : ''}</td>
+                <td class="px-3 py-2.5 text-right num-tabular"><div class="text-sm">${fmtN(g.t.ses)}</div><div class="text-[10px] text-slate-400 whitespace-nowrap">${fmtP(m.mix, 1)} del total</div></td>
+                <td class="px-3 py-2.5 text-right num-tabular"><div class="text-sm font-bold">${fmtP(g.cr)}</div><div class="text-[10px] text-slate-400 whitespace-nowrap">normal ${fmtP(g.crB)}</div></td>
+                <td class="px-3 py-2.5 text-right">${chipTend(g.delta)}</td>
+                <td class="px-3 py-2.5 text-right">${g.efic !== null && g.efic !== undefined ? chipEfic(g.efic) : '<span class="text-slate-300">—</span>'}</td>
+                <td class="px-3 py-2.5">${g.perfil ? chipPerfil(g.perfil) : '<span class="text-slate-300">—</span>'}</td>
+                <td class="px-3 py-2.5 text-right">${celdaImpacto(g)}</td>
+                <td class="px-2 text-slate-400 text-center w-6">${m.sinDetalle ? '' : `<span id="chev-${c.id}-${i}" class="inline-block transition-transform ${abierto ? 'rotate-180' : ''}">▾</span>`}</td></tr>`;
+            const det = m.sinDetalle ? '' : `<tr id="det-${c.id}-${i}" class="${abierto ? '' : 'hidden'}"><td colspan="8" class="p-0 border-b border-slate-200">${detalleCompacto(g, c.uni, m.extra, c.tipoAccion, m.tituloAccion)}</td></tr>`;
+            return fila + det;
+        }).join('');
+        return `<div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+            <div class="px-4 sm:px-5 py-3 border-b border-slate-200 flex flex-wrap items-start justify-between gap-3">
+                <div class="min-w-0 flex-1"><h3 class="text-sm font-extrabold text-slate-900">${c.titulo}</h3><p class="text-[11px] text-slate-500">${c.nota}</p>${c.derecha ? `<p class="mt-1 text-xs font-bold ${c.derechaClase || 'text-slate-600'}">${c.derecha}</p>` : ''}</div>
+                <div class="shrink-0 flex items-center gap-1.5" data-pdf-ocultar="true">
+                    <button type="button" onclick="expandirTodo('${c.id}', true)" class="px-2.5 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-[11px] font-bold text-slate-700">Expandir todo</button>
+                    <button type="button" onclick="expandirTodo('${c.id}', false)" class="px-2.5 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-[11px] font-bold text-slate-700">Contraer todo</button></div>
+            </div>
+            <div class="overflow-x-auto"><table class="w-full text-left text-xs sm:text-sm">
+                <thead class="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500"><tr>
+                    <th class="px-3 py-2">${c.col1}</th><th class="px-3 py-2 text-right">Sesiones</th><th class="px-3 py-2 text-right">CR</th><th class="px-3 py-2 text-right">Tendencia vs benchmark</th>
+                    <th class="px-3 py-2 text-right" title="CR del segmento ÷ CR promedio de sus pares">Eficiencia</th><th class="px-3 py-2">Perfil</th><th class="px-3 py-2 text-right" title="Paso más débil y pedidos que habría tenido de mantener su benchmark">Impacto</th><th></th></tr></thead>
+                <tbody class="divide-y divide-slate-100">${filas || '<tr><td colspan="8" class="px-3 py-8 text-center text-slate-500">Sin datos en esta ventana.</td></tr>'}</tbody></table></div></div>`;
+    }
+    function fijarDetalle(tabla, i, abrir) {
+        const fila = document.getElementById(`fila-${tabla}-${i}`), det = document.getElementById(`det-${tabla}-${i}`), chev = document.getElementById(`chev-${tabla}-${i}`);
+        if (!fila || !det) return;
+        det.classList.toggle('hidden', !abrir); if (chev) chev.classList.toggle('rotate-180', abrir); fila.setAttribute('aria-expanded', String(abrir));
+        S.abiertos[`${tabla}|${fila.dataset.clave}`] = abrir;
+    }
+    function alternarDetalle(tabla, i) { const det = document.getElementById(`det-${tabla}-${i}`); if (det) fijarDetalle(tabla, i, det.classList.contains('hidden')); }
+    function expandirTodo(tabla, abrir) { document.querySelectorAll(`[id^="det-${tabla}-"]`).forEach(d => fijarDetalle(tabla, d.id.split('-').pop(), abrir)); }
+
     function renderFuentes(A) {
         const grupos = [...agrupar(A.V.rows, r => grupoFuente(r.s))].map(([g, rows]) => ({ g, t: sumar(rows) })).sort((a, b) => b.t.ses - a.t.ses);
         const tarjetasG = grupos.map(x => `<div class="rounded-2xl bg-white border border-slate-200 p-3 shadow-sm"><div class="text-[11px] font-bold uppercase text-slate-500">${x.g}</div><div class="text-lg font-extrabold num-tabular">${fmtN(x.t.ses)}</div><div class="text-[11px] text-slate-500">${fmtP(div(x.t.ses, A.total.t.ses), 1)} del tráfico · CR ${fmtP(crDe(x.t))}</div></div>`).join('');
-        const filas = A.porFuente.map(f => `
-            <tr class="hover:bg-slate-50/70">
-                <td class="px-3 py-2.5"><div class="font-bold text-slate-900 text-xs sm:text-sm">${esc(f.fuente)}</div><div class="text-[10px] text-slate-400">${f.grupo}</div></td>
-                <td class="px-3 py-2.5 text-right num-tabular">${fmtN(f.t.ses)}</td>
-                <td class="px-3 py-2.5 text-right num-tabular text-slate-500">${fmtP(f.mix, 1)}</td>
-                <td class="px-3 py-2.5 text-right num-tabular">${fmtN(f.t.ped)}</td>
-                <td class="px-3 py-2.5 text-right num-tabular font-bold">${fmtP(f.cr)}</td>
-                <td class="px-3 py-2.5 text-right num-tabular text-slate-500">${fmtP(f.crB)}</td>
-                <td class="px-3 py-2.5 text-right">${chipTend(f.delta)}</td>
-                <td class="px-3 py-2.5 text-right">${f.efic !== null ? chipEfic(f.efic) : '<span class="text-slate-300">—</span>'}</td>
-                <td class="px-3 py-2.5">${celdaPerfil(f)}</td>
-                <td class="px-3 py-2.5 text-right">${celdaPasoDebil(f)}</td><td class="px-3 py-2.5 text-right">${celdaPerdidos(f)}</td>
-                <td class="px-3 py-2.5 text-right">${(f.estado === 'alerta' || f.estado === 'alta') ? botonAccion('Fuente', f.fuente, `CR ${fmtP(f.cr)} vs benchmark ${fmtP(f.crB)} (${fmtP(f.delta, 1)}).`) : ''}</td>
-            </tr>`).join('');
+        const alertasF = new Set(A.alertasPorDim.Fuente.filter(x => x.sev !== 'aviso').map(x => x.titulo));
+        const tablaF = tablaCompacta({ id: 'fuentes', titulo: 'Perfil de las fuentes de tráfico', col1: 'Fuente / medio', items: A.porFuente, uni: { crU: A.total.cr }, tipoAccion: 'Fuente',
+            nota: 'El Perfil combina cuánto pesa la fuente en el tráfico con su Eficiencia (CR de la fuente ÷ CR promedio de las fuentes) y dice qué hacer. Clic en una fila para ver su detalle; las filas con alerta salen abiertas.',
+            derecha: `${fmtP(A.pctBaja, 1)} de las sesiones vienen de fuentes que convierten menos de la mitad que el promedio`, derechaClase: A.pctBaja > 20 ? 'text-rose-700' : 'text-slate-600',
+            filaDe: f => ({ nombre: f.fuente, sub: f.grupo, clave: f.fuente, mix: f.mix, alerta: alertasF.has(f.fuente), tituloAccion: f.fuente }) });
         document.getElementById('panel-fuentes').innerHTML = `
             <p class="text-[11px] text-slate-500">${textoVentana(A.V)} · Canal: <strong>${ETIQ_CANAL[S.canal]}</strong></p>
             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">${tarjetasG}</div>
             ${panelAlertas('Alertas por fuente de tráfico', A.alertasPorDim.Fuente, 'Ninguna fuente convierte menos de lo normal.')}
             ${panelOportunidades(A.oportunidadesPorDim.Fuente)}
-            <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
-                <div class="px-4 sm:px-5 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
-                    <div><h3 class="text-sm font-extrabold text-slate-900">Perfil de las fuentes de tráfico</h3>
-                    <p class="text-[11px] text-slate-500">El Perfil combina cuánto pesa la fuente en el tráfico con su Eficiencia (CR de la fuente ÷ CR promedio de las fuentes) y dice qué hacer. La Tendencia compara contra el CR de la propia fuente en los 28 días previos.</p></div>
-                    <div class="text-xs font-bold ${A.pctBaja > 20 ? 'text-rose-700' : 'text-slate-600'}">${fmtP(A.pctBaja, 1)} de las sesiones vienen de fuentes que convierten menos de la mitad que el promedio</div>
-                </div>
-                <div class="overflow-x-auto"><table class="w-full text-left text-xs sm:text-sm">
-                    <thead class="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500"><tr>
-                        <th class="px-3 py-2">Fuente / medio</th><th class="px-3 py-2 text-right">Sesiones</th><th class="px-3 py-2 text-right">% mix</th><th class="px-3 py-2 text-right">Pedidos</th>
-                        <th class="px-3 py-2 text-right">CR</th><th class="px-3 py-2 text-right">CR benchmark</th><th class="px-3 py-2 text-right">Tendencia vs benchmark</th><th class="px-3 py-2 text-right" title="CR de la fuente ÷ CR promedio de las fuentes">Eficiencia</th><th class="px-3 py-2">Perfil</th><th class="px-3 py-2 text-right">Paso más débil</th><th class="px-3 py-2 text-right" title="Pedidos que habría tenido de mantener su benchmark">Pedidos menos</th><th class="px-3 py-2"></th></tr></thead>
-                    <tbody class="divide-y divide-slate-100">${filas || '<tr><td colspan="12" class="px-3 py-8 text-center text-slate-500">Sin datos en esta ventana.</td></tr>'}</tbody>
-                </table></div>
-            </div>
+            ${tablaF}
             ${leyendaPerfiles()}`;
     }
 
@@ -804,14 +848,10 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
             <div class="px-4 sm:px-5 py-3 border-b border-slate-200"><h3 class="text-sm font-extrabold text-slate-900">${titulo}</h3><p class="text-[11px] text-slate-500">${nota}</p></div>
             <div class="overflow-x-auto"><table class="w-full text-left text-xs sm:text-sm">${cabeceraGrupo(nombreCol)}<tbody class="divide-y divide-slate-100">${grupos.map(g => filaGrupoCamp(g, g.nombre)).join('')}</tbody></table></div></div>`;
         const maxFilas = 40;
-        const filas = A.porCampana.slice(0, maxFilas).map(c => `<tr class="hover:bg-slate-50/70">
-            <td class="px-3 py-2.5"><div class="font-bold text-xs sm:text-sm text-slate-900">${esc(c.campana)}</div><div class="text-[10px] text-slate-400">${esc(c.fuente)}</div></td>
-            <td class="px-3 py-2.5 text-xs text-slate-600">${esc(c.tipo)}</td><td class="px-3 py-2.5 text-xs text-slate-600">${esc(c.etiqueta)}</td>
-            <td class="px-3 py-2.5 text-right num-tabular">${fmtN(c.t.ses)}</td><td class="px-3 py-2.5 text-right num-tabular">${fmtN(c.t.ped)}</td>
-            <td class="px-3 py-2.5 text-right num-tabular font-bold">${fmtP(c.cr)}</td><td class="px-3 py-2.5 text-right num-tabular text-slate-500">${fmtP(c.crB)}</td>
-            <td class="px-3 py-2.5 text-right">${chipTend(c.delta)}</td><td class="px-3 py-2.5 text-right">${chipEfic(c.efic)}</td><td class="px-3 py-2.5">${celdaPerfil(c)}</td>
-            <td class="px-3 py-2.5 text-right">${celdaPasoDebil(c)}</td><td class="px-3 py-2.5 text-right">${celdaPerdidos(c)}</td>
-            <td class="px-3 py-2.5 text-right">${(c.estado === 'alerta' || c.estado === 'alta') ? botonAccion('Campaña', `${c.campana} (${c.fuente})`, `CR ${fmtP(c.cr)} vs benchmark ${fmtP(c.crB)} (${fmtP(c.delta, 1)}).`) : ''}</td></tr>`).join('');
+        const alertasC = new Set(A.alertasPorDim['Campaña'].filter(x => x.sev !== 'aviso').map(x => x.titulo));
+        const tablaC = tablaCompacta({ id: 'campanas', titulo: 'Detalle por campaña', col1: 'Campaña', items: A.porCampana.slice(0, maxFilas), uni: { crU: A.totalC.cr }, tipoAccion: 'Campaña',
+            nota: `Eficiencia = % de pedidos ÷ % de sesiones de las campañas; el Perfil la combina con el peso de la campaña y dice qué hacer. La Tendencia compara contra sus propios 28 días previos; una campaña nueva aparece "Sin base". Clic en una fila para ver su detalle; las filas con alerta salen abiertas.${A.porCampana.length > maxFilas ? ` Se muestran las ${maxFilas} con más sesiones de ${A.porCampana.length}.` : ''}`,
+            filaDe: c => { const t = `${c.campana} (${c.fuente})`; return { nombre: c.campana, sub: c.fuente, clave: t, mix: c.mixSes, alerta: alertasC.has(t), tituloAccion: t, extra: `Tipo: <strong>${esc(c.tipo)}</strong> · Intención: <strong>${esc(c.etiqueta)}</strong>` }; } });
         el.innerHTML = `
             <p class="text-[11px] text-slate-500">${textoVentana(A.V)} · Canal: <strong>${ETIQ_CANAL[S.canal]}</strong> · Campañas = tráfico de pago, correo/CRM y filas con nombre de campaña (orgánico y directo se ven en Fuentes de tráfico).</p>
             ${cards}
@@ -819,14 +859,7 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
             ${panelOportunidades(A.oportunidadesPorDim['Campaña'])}
             ${bloque('Por tipo de campaña', 'Tipo según el medio de GA4 (búsqueda de pago, social de pago, display y video, shopping, correo/CRM…). Eficiencia = % de pedidos ÷ % de sesiones: arriba de 1 x convierte más de lo que pesa.', 'Tipo', A.porTipo)}
             ${bloque('Por intención de la campaña', 'Etiqueta detectada por palabras del nombre: Marca, Genérica, Remarketing, Promoción, Prospección. "Sin etiqueta" = el nombre no contiene ninguna de esas palabras.', 'Intención', A.porEtiqueta)}
-            <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
-                <div class="px-4 sm:px-5 py-3 border-b border-slate-200"><h3 class="text-sm font-extrabold text-slate-900">Detalle por campaña</h3>
-                <p class="text-[11px] text-slate-500">Eficiencia = % de pedidos ÷ % de sesiones de las campañas; el Perfil la combina con el peso de la campaña y dice qué hacer. La Tendencia compara contra sus propios 28 días previos; una campaña nueva aparece "Sin base".${A.porCampana.length > maxFilas ? ` Se muestran las ${maxFilas} con más sesiones de ${A.porCampana.length}.` : ''}</p></div>
-                <div class="overflow-x-auto"><table class="w-full text-left text-xs sm:text-sm"><thead class="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500"><tr>
-                    <th class="px-3 py-2">Campaña</th><th class="px-3 py-2">Tipo</th><th class="px-3 py-2">Intención</th><th class="px-3 py-2 text-right">Sesiones</th><th class="px-3 py-2 text-right">Pedidos</th>
-                    <th class="px-3 py-2 text-right">CR</th><th class="px-3 py-2 text-right">CR bench</th><th class="px-3 py-2 text-right">Tendencia vs benchmark</th><th class="px-3 py-2 text-right">Eficiencia</th><th class="px-3 py-2">Perfil</th><th class="px-3 py-2 text-right">Paso más débil</th><th class="px-3 py-2 text-right" title="Pedidos que habría tenido de mantener su benchmark">Pedidos menos</th><th class="px-3 py-2"></th></tr></thead>
-                    <tbody class="divide-y divide-slate-100">${filas}</tbody></table></div>
-            </div>
+            ${tablaC}
             ${leyendaPerfiles()}`;
     }
 
@@ -896,27 +929,15 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
     }
 
     function renderDispositivo(A) {
-        const filas = A.porDisp.map(d => `
-            <tr class="${d.subtotal ? 'bg-slate-50' : ''}"><td class="px-3 py-2.5 ${d.subtotal ? 'font-extrabold' : 'font-semibold pl-6'} text-xs sm:text-sm">${d.dispositivo}</td>
-                <td class="px-3 py-2.5 text-right num-tabular">${fmtN(d.t.ses)}</td><td class="px-3 py-2.5 text-right num-tabular text-slate-500">${fmtP(d.mix, 1)}</td>
-                ${PASOS.map(p => `<td class="px-3 py-2.5 text-right num-tabular">${fmtPaso(p, d.pasos[p.k], 1)}<div class="text-[10px] text-slate-400">bench ${fmtPaso(p, d.pasosB[p.k], 1)}</div></td>`).join('')}
-                <td class="px-3 py-2.5 text-right num-tabular font-bold">${fmtP(d.cr)}</td><td class="px-3 py-2.5 text-right num-tabular text-slate-500">${fmtP(d.crB)}</td>
-                <td class="px-3 py-2.5 text-right">${chipTend(d.delta)}</td>
-                <td class="px-3 py-2.5 text-right">${d.efic !== null ? chipEfic(d.efic) : '<span class="text-slate-300">—</span>'}</td><td class="px-3 py-2.5">${d.subtotal ? '<span class="text-slate-300">—</span>' : celdaPerfil(d)}</td>
-                <td class="px-3 py-2.5 text-right">${celdaPasoDebil(d)}</td><td class="px-3 py-2.5 text-right">${celdaPerdidos(d)}</td>
-                <td class="px-3 py-2.5 text-right">${(!d.subtotal && (d.estado === 'alerta' || d.estado === 'alta')) ? botonAccion('Dispositivo', d.dispositivo, `CR ${fmtP(d.cr)} vs benchmark ${fmtP(d.crB)} (${fmtP(d.delta, 1)}).`) : ''}</td></tr>`).join('');
+        const alertasD = new Set(A.alertasPorDim.Dispositivo.filter(x => x.sev !== 'aviso').map(x => x.titulo));
+        const tablaD = tablaCompacta({ id: 'dispositivo', titulo: 'Conversión por dispositivo', col1: 'Plataforma / dispositivo', items: A.porDisp, uni: { crU: A.total.cr }, tipoAccion: 'Dispositivo',
+            nota: 'Web: móvil, escritorio, tablet y Smart TV. App: sistema operativo (iOS / Android) y, dentro de cada uno, móvil y tablet. El detalle de cada fila muestra el funnel por paso contra su benchmark. Para bugs técnicos por navegador revisa la pestaña Checkout del Master Dashboard.',
+            filaDe: d => ({ nombre: d.dispositivo, clave: d.dispositivo, mix: d.mix, sinDetalle: !!d.subtotal, sangria: !d.subtotal && /^App /.test(d.dispositivo), alerta: alertasD.has(d.dispositivo), tituloAccion: d.dispositivo }) });
         document.getElementById('panel-dispositivo').innerHTML = `
             <p class="text-[11px] text-slate-500">${textoVentana(A.V)} · Canal: <strong>${ETIQ_CANAL[S.canal]}</strong></p>
             ${panelAlertas('Alertas por dispositivo / plataforma', A.alertasPorDim.Dispositivo, 'Ningún dispositivo ni plataforma convierte menos de lo normal.')}
             ${panelOportunidades(A.oportunidadesPorDim.Dispositivo)}
-            <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
-                <div class="px-4 sm:px-5 py-3 border-b border-slate-200"><h3 class="text-sm font-extrabold text-slate-900">Conversión por dispositivo</h3>
-                <p class="text-[11px] text-slate-500">Web: móvil, escritorio, tablet y Smart TV. App: sistema operativo (iOS / Android) y, dentro de cada uno, móvil y tablet. Tasa por etapa y CR de cada grupo contra su propio benchmark. Para bugs técnicos por navegador revisa la pestaña Checkout del Master Dashboard.</p></div>
-                <div class="overflow-x-auto"><table class="w-full text-left text-xs sm:text-sm"><thead class="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500"><tr>
-                    <th class="px-3 py-2">Plataforma / dispositivo</th><th class="px-3 py-2 text-right">Sesiones</th><th class="px-3 py-2 text-right">% mix</th>
-                    ${PASOS.map(p => `<th class="px-3 py-2 text-right">${p.n}</th>`).join('')}<th class="px-3 py-2 text-right">CR</th><th class="px-3 py-2 text-right">CR bench</th><th class="px-3 py-2 text-right">Tendencia vs benchmark</th><th class="px-3 py-2 text-right" title="CR del grupo ÷ CR promedio">Eficiencia</th><th class="px-3 py-2">Perfil</th><th class="px-3 py-2 text-right">Paso más débil</th><th class="px-3 py-2 text-right" title="Pedidos que habría tenido de mantener su benchmark">Pedidos menos</th><th class="px-3 py-2"></th></tr></thead>
-                    <tbody class="divide-y divide-slate-100">${filas || '<tr><td colspan="15" class="px-3 py-8 text-center text-slate-500">Sin datos en esta ventana.</td></tr>'}</tbody></table></div>
-            </div>
+            ${tablaD}
             ${leyendaPerfiles()}`;
     }
 
@@ -985,10 +1006,10 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
     }
 
     function cambiarVista(v) { S.vista = v; renderTodo(); }
-    function cambiarCanal(c) { S.canal = c; renderTodo(); }
-    function cambiarVentana(v) { S.ventana = v === 'mtd' ? 'mtd' : Number(v); renderTodo(); }
-    function cambiarCorte(f) { if (!f) return; S.corte = f; renderTodo(); }
-    async function cambiarMes(m) { S.mes = m; S.corte = null; await cargarRegistrosNube(); renderTodo(); }
+    function cambiarCanal(c) { S.canal = c; S.abiertos = {}; renderTodo(); }
+    function cambiarVentana(v) { S.ventana = v === 'mtd' ? 'mtd' : Number(v); S.abiertos = {}; renderTodo(); }
+    function cambiarCorte(f) { if (!f) return; S.corte = f; S.abiertos = {}; renderTodo(); }
+    async function cambiarMes(m) { S.mes = m; S.corte = null; S.abiertos = {}; await cargarRegistrosNube(); renderTodo(); }
 
     // =====================================================================
     // 4. ACCIONES Y CONFIGURACIÓN
