@@ -14,6 +14,9 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Descarga de PDF: captura de pantalla completa -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <!-- Supabase (sincronización en la nube) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
     <!-- SheetJS para lectura y exportación de Excel / CSV -->
@@ -73,10 +76,10 @@
 
                 <!-- Acciones de Carga Dual + QA -->
                 <div class="flex items-center gap-2">
-                    <!-- Badge QA Verificado -->
-                    <button type="button" onclick="abrirModalQA()" id="btn-qa-status" class="hidden md:inline-flex items-center gap-1.5 px-2.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold transition cursor-pointer" title="Ver matriz completa de pruebas QA ejecutadas">
-                        <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-600"></i>
-                        <span id="qa-status-label">QA: Verificando...</span>
+                    <!-- Botón Descargar PDF (captura de toda la pantalla) -->
+                    <button type="button" id="btn-descargar-pdf" onclick="descargarPDF()" data-html2canvas-ignore="true" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs sm:text-sm font-semibold transition cursor-pointer">
+                        <i data-lucide="file-down" class="w-4 h-4 text-slate-600"></i>
+                        <span id="btn-descargar-pdf-label">Descargar PDF</span>
                     </button>
 
                     <!-- Acción Primaria: Captura Rápida Manual -->
@@ -4333,10 +4336,52 @@
             if (badge) {
                 badge.textContent = `QA: ${aprobadas}/${resultados.length} PASS`;
             }
-            if (btn && aprobadas < resultados.length) {
-                btn.className = 'hidden md:inline-flex items-center gap-1.5 px-2.5 py-2 rounded-xl bg-rose-50 text-rose-800 border border-rose-200 text-xs font-bold transition cursor-pointer';
-            }
             return resultados;
+        }
+
+
+        // =====================================================================
+        // DESCARGA DE PDF: captura de toda la pantalla (vista actual completa) en una sola página
+        // =====================================================================
+        async function descargarPDF() {
+            const btn = document.getElementById('btn-descargar-pdf');
+            const label = document.getElementById('btn-descargar-pdf-label');
+            if (!window.html2canvas || !window.jspdf) {
+                mostrarNotificacion('⚠️ No se pudieron cargar las librerías del PDF. Revisa tu conexión e inténtalo de nuevo.');
+                return;
+            }
+            btn.disabled = true;
+            label.textContent = 'Generando…';
+            try {
+                cerrarDataMenu && cerrarDataMenu();
+                window.scrollTo(0, 0);
+                const el = document.body;
+                const ancho = Math.max(el.scrollWidth, document.documentElement.clientWidth);
+                const alto = el.scrollHeight;
+                // Los navegadores limitan el tamaño del canvas (~16,000 px por lado): se ajusta la escala.
+                const escala = Math.min(2, 15000 / alto, 15000 / ancho);
+                const canvas = await html2canvas(el, {
+                    scale: escala, useCORS: true, backgroundColor: '#f8fafc', logging: false,
+                    width: ancho, height: alto, windowWidth: ancho, windowHeight: alto, scrollX: 0, scrollY: 0,
+                    ignoreElements: (n) => n.id === 'nube-overlay' || n.id === 'nube-estado' || n.id === 'toast-notification',
+                    onclone: (doc) => {
+                        // El encabezado fijo se muestra una sola vez, al inicio de la captura.
+                        doc.querySelectorAll('header').forEach(h => { h.style.position = 'static'; });
+                    }
+                });
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF({ orientation: ancho > alto ? 'landscape' : 'portrait', unit: 'px', format: [ancho, alto], compress: true });
+                pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, ancho, alto);
+                const nombre = `Tablero_Revision_Diaria_${estadoApp.mesActivo}_corte_${estadoApp.fechaCorte}.pdf`;
+                pdf.save(nombre);
+                mostrarNotificacion('📄 PDF descargado.');
+            } catch (e) {
+                console.error(e);
+                mostrarNotificacion('❌ No se pudo generar el PDF.');
+            } finally {
+                btn.disabled = false;
+                label.textContent = 'Descargar PDF';
+            }
         }
 
         function abrirModalQA() {
