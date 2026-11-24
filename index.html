@@ -2676,7 +2676,14 @@
                     { name: 'Tráfico y Conversión', detail: 'Fuentes de tráfico y funnel completo PDP → Carrito → Checkout (Quincenal).' },
                     { name: 'Checkout', detail: 'Abandono de carrito detallado por dispositivo, navegador y canal (Semanal).' },
                     { name: 'Comercial', detail: 'Ventas por categoría/SKU, estrella vs. ancla, alto tráfico/bajo CR y contribución (Semanal / Mensual).' },
-                    { name: 'Demanda', detail: 'Variación de demanda por canal propio y alertas tempranas (Quincenal).' }
+                    { name: 'Demanda', detail: 'Variación de demanda por canal propio y alertas tempranas (Quincenal).' },
+                    {
+                        name: 'Revisión Diaria (tablero propio)',
+                        detail: 'Ritmo de venta vs. meta por canal, pacing, pronóstico de cierre y recuperación diaria requerida, con registro de acciones (Diaria). Carga por CSV o captura manual; pendiente de automatizar con GA4 / ERP.',
+                        tag: 'Complemento de Salud del Negocio',
+                        href: 'herramientas/Tablero_de_Control_-_Revision_Diaria.html',
+                        linkLabel: 'Abrir tablero en otra pestaña'
+                    }
                 ]
             },
             {
@@ -2700,7 +2707,7 @@
                 title: 'Deck de Insights Continuo (4 Bloques)',
                 desc: 'Una sola presentación viva quincenal/mensual que traduce los hallazgos del Dashboard y el Excel en recomendaciones accionables para el Gerente.',
                 items: [
-                    { name: 'Insights Accionables de Canales y Funnel', detail: 'Diagnóstico de ROI por canal y puntos de fuga en conversión (Quincenal).' },
+                    { name: 'Insights Accionables de Canales y Funnel', detail: 'Diagnóstico de ROI por canal y puntos de fuga en conversión (Quincenal). Fuente: acciones y brechas registradas en la Revisión Diaria.' },
                     { name: 'Resultados Pruebas Bot de WhatsApp', detail: 'Hallazgos de flujos conversacionales y cierre de venta asistida (Quincenal).' },
                     { name: 'Insights de Comportamiento (Clarity)', detail: 'Mapas de calor, grabaciones y fricciones visuales UX (Mensual).' },
                     { name: 'Funcionalidades Lanzadas por Competencia', detail: 'Radar de innovación tecnológica rival para evaluar en roadmap TI (Mensual).' }
@@ -2733,9 +2740,11 @@
                     <p class="text-xs sm:text-sm text-slate-600 mt-1 mb-5 max-w-3xl leading-relaxed">${tool.desc}</p>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                         ${tool.items.map(it => `
-                            <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                            <div class="p-3.5 rounded-2xl bg-slate-50 border ${it.href ? 'border-teal-300 md:col-span-2' : 'border-slate-200/80'}">
+                                ${it.tag ? `<span class="inline-block mb-1.5 px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 text-[10px] font-bold">${it.tag}</span>` : ''}
                                 <h4 class="text-xs sm:text-sm font-bold text-slate-900 mb-1">${it.name}</h4>
                                 <p class="text-xs text-slate-600 leading-relaxed">${it.detail}</p>
+                                ${it.href ? `<a href="${it.href}" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 mt-2.5 px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold transition"><span>${it.linkLabel || 'Abrir'}</span><span aria-hidden="true">↗</span></a>` : ''}
                             </div>
                         `).join('')}
                     </div>
