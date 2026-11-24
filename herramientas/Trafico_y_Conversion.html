@@ -201,7 +201,9 @@
         { k: 'ped', de: 'chk', n: 'Checkout → Pedido' }
     ];
     const DISPOSITIVOS = ['Móvil', 'Escritorio', 'Tablet'];
-    const CANALES = ['Total', 'Web', 'App'];
+    const CANALES = ['Total', 'Web', 'App', 'iOS', 'Android'];
+const ETIQ_CANAL = { Total: 'Consolidado', Web: 'Web', App: 'App (iOS + Android)', iOS: 'App iOS', Android: 'App Android' };
+const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? (c === 'iOS' || c === 'Android') : c === S.canal);
     const VISTAS = [
         { id: 'resumen', n: 'Resumen' }, { id: 'fuentes', n: 'Fuentes de tráfico' }, { id: 'funnel', n: 'Funnel' },
         { id: 'dispositivo', n: 'Dispositivo' }, { id: 'acciones', n: 'Alertas y acciones' }
@@ -270,7 +272,7 @@
         const ini = S.ventana === 'mtd' ? `${S.mes}-01` : addDias(S.corte, -(S.ventana - 1));
         const fin = S.corte;
         const bFin = addDias(ini, -1), bIni = addDias(ini, -28);
-        const okCanal = r => S.canal === 'Total' || r.c === S.canal;
+        const okCanal = r => canalCoincide(r.c);
         const rows = S.registros.filter(r => r.f >= ini && r.f <= fin && okCanal(r));
         const bRows = S.registros.filter(r => r.f >= bIni && r.f <= bFin && okCanal(r));
         return { ini, fin, bIni, bFin, rows, bRows, dias: Math.max(1, diasConDatos(rows)), bDias: Math.max(1, diasConDatos(bRows)) };
@@ -370,7 +372,7 @@
                 ${botonAccion(a.tipo, a.titulo, a.detalle)}
             </li>`).join('') : '<li class="p-4 text-xs text-slate-500 rounded-xl bg-emerald-50 border border-emerald-200">Sin alertas: ninguna fuente, etapa o dispositivo cae por debajo del umbral contra su benchmark.</li>';
         document.getElementById('panel-resumen').innerHTML = `
-            <p class="text-[11px] text-slate-500">${textoVentana(V)} · Canal: <strong>${S.canal}</strong></p>
+            <p class="text-[11px] text-slate-500">${textoVentana(V)} · Canal: <strong>${ETIQ_CANAL[S.canal]}</strong></p>
             <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">${cards}</div>
             <div class="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-sm">
                 <h3 class="text-sm font-extrabold text-slate-900">Comportamiento diario del mes</h3>
@@ -389,7 +391,7 @@
         if (!cv || !window.Chart) return;
         if (S.chart) { S.chart.destroy(); S.chart = null; }
         const ini = `${S.mes}-01`, fin = S.corte < finMes(S.mes) ? S.corte : finMes(S.mes);
-        const okCanal = r => S.canal === 'Total' || r.c === S.canal;
+        const okCanal = r => canalCoincide(r.c);
         const porDia = agrupar(S.registros.filter(r => r.f >= ini && r.f <= fin && okCanal(r)), r => r.f);
         const dias = [...porDia.keys()].sort();
         const ses = dias.map(d => sumar(porDia.get(d)).ses);
@@ -421,7 +423,7 @@
                 <td class="px-3 py-2.5 text-right">${(f.estado === 'alerta' || f.estado === 'alta') ? botonAccion('Fuente', f.fuente, `CR ${fmtP(f.cr)} vs benchmark ${fmtP(f.crB)} (${fmtP(f.delta, 1)}).`) : ''}</td>
             </tr>`).join('');
         document.getElementById('panel-fuentes').innerHTML = `
-            <p class="text-[11px] text-slate-500">${textoVentana(A.V)} · Canal: <strong>${S.canal}</strong></p>
+            <p class="text-[11px] text-slate-500">${textoVentana(A.V)} · Canal: <strong>${ETIQ_CANAL[S.canal]}</strong></p>
             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">${tarjetasG}</div>
             <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
                 <div class="px-4 sm:px-5 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
@@ -454,23 +456,23 @@
                 <td class="px-3 py-2.5 text-right">${(p.estado === 'alerta' || p.estado === 'alta') ? botonAccion('Funnel', p.n, `${fmtP(p.act)} vs benchmark ${fmtP(p.base)} (${fmtP(p.delta, 1)}).`) : ''}</td></tr>`).join('');
         let porCanal = '';
         if (S.canal === 'Total') {
-            porCanal = ['Web', 'App'].map(c => {
+            porCanal = ['Web', 'iOS', 'Android'].map(c => {
                 const t = sumar(A.V.rows.filter(r => r.c === c)), tb = sumar(A.V.bRows.filter(r => r.c === c));
                 if (!t.ses) return '';
                 const p = tasasPaso(t), pb = tasasPaso(tb);
-                return `<div class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm"><h4 class="text-sm font-extrabold mb-2">${c} <span class="text-slate-400 font-semibold text-xs">CR ${fmtP(crDe(t))} · bench ${fmtP(crDe(tb))}</span></h4>
+                return `<div class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm"><h4 class="text-sm font-extrabold mb-2">${c === 'Web' ? 'Web' : 'App ' + c} <span class="text-slate-400 font-semibold text-xs">CR ${fmtP(crDe(t))} · bench ${fmtP(crDe(tb))}</span></h4>
                     <table class="w-full text-xs"><tbody class="divide-y divide-slate-100">${PASOS.map(s => `<tr><td class="py-1.5 text-slate-600">${s.n}</td><td class="py-1.5 text-right num-tabular font-bold">${fmtP(p[s.k])}</td><td class="py-1.5 text-right">${chipDelta(deltaRel(p[s.k], pb[s.k]))}</td></tr>`).join('')}</tbody></table></div>`;
             }).join('');
         }
         document.getElementById('panel-funnel').innerHTML = `
-            <p class="text-[11px] text-slate-500">${textoVentana(A.V)} · Canal: <strong>${S.canal}</strong></p>
+            <p class="text-[11px] text-slate-500">${textoVentana(A.V)} · Canal: <strong>${ETIQ_CANAL[S.canal]}</strong></p>
             <div class="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-sm space-y-2.5"><h3 class="text-sm font-extrabold text-slate-900 mb-1">Funnel completo</h3>${etapas}</div>
             <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
                 <div class="px-4 sm:px-5 py-3 border-b border-slate-200"><h3 class="text-sm font-extrabold text-slate-900">Conversión entre etapas vs benchmark propio</h3>
                 <p class="text-[11px] text-slate-500">${A.fuga ? `Mayor fuga contra su benchmark: <strong>${A.fuga.n}</strong> (${fmtP(A.fuga.delta, 1)}).` : 'Ninguna etapa cae por debajo del umbral contra su benchmark (o falta base suficiente).'}</p></div>
                 <div class="overflow-x-auto"><table class="w-full text-left text-xs sm:text-sm"><thead class="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500"><tr><th class="px-3 py-2">Paso</th><th class="px-3 py-2 text-right">Volumen</th><th class="px-3 py-2 text-right">Tasa</th><th class="px-3 py-2 text-right">Benchmark</th><th class="px-3 py-2 text-right">Δ</th><th class="px-3 py-2"></th></tr></thead><tbody class="divide-y divide-slate-100">${filasP}</tbody></table></div>
             </div>
-            ${porCanal ? `<div class="grid grid-cols-1 md:grid-cols-2 gap-3">${porCanal}</div>` : ''}`;
+            ${porCanal ? `<div class="grid grid-cols-1 md:grid-cols-3 gap-3">${porCanal}</div>` : ''}`;
     }
 
     function renderDispositivo(A) {
@@ -482,7 +484,7 @@
                 <td class="px-3 py-2.5 text-right">${chipDelta(d.delta)}</td>
                 <td class="px-3 py-2.5 text-right">${(d.estado === 'alerta' || d.estado === 'alta') ? botonAccion('Dispositivo', d.dispositivo, `CR ${fmtP(d.cr)} vs benchmark ${fmtP(d.crB)} (${fmtP(d.delta, 1)}).`) : ''}</td></tr>`).join('');
         document.getElementById('panel-dispositivo').innerHTML = `
-            <p class="text-[11px] text-slate-500">${textoVentana(A.V)} · Canal: <strong>${S.canal}</strong></p>
+            <p class="text-[11px] text-slate-500">${textoVentana(A.V)} · Canal: <strong>${ETIQ_CANAL[S.canal]}</strong></p>
             <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
                 <div class="px-4 sm:px-5 py-3 border-b border-slate-200"><h3 class="text-sm font-extrabold text-slate-900">Conversión por dispositivo</h3>
                 <p class="text-[11px] text-slate-500">Tasa por etapa y CR global de cada dispositivo contra su propio benchmark. Para bugs técnicos por navegador revisa la pestaña Checkout del Master Dashboard.</p></div>
@@ -518,7 +520,7 @@
     }
 
     function renderTabsYFiltros() {
-        document.getElementById('pills-canal').innerHTML = CANALES.map(c => `<button type="button" onclick="cambiarCanal('${c}')" class="px-3 py-1.5 rounded-xl text-xs font-bold transition ${S.canal === c ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'}">${c === 'Total' ? 'Consolidado' : c}</button>`).join('');
+        document.getElementById('pills-canal').innerHTML = CANALES.map(c => `<button type="button" onclick="cambiarCanal('${c}')" class="px-3 py-1.5 rounded-xl text-xs font-bold transition ${S.canal === c ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'}">${ETIQ_CANAL[c]}</button>`).join('');
         const pend = S.acciones.filter(a => a.estatus !== 'Completada').length;
         document.getElementById('tabs-vista').innerHTML = VISTAS.map(v => `<button type="button" onclick="cambiarVista('${v.id}')" class="shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition ${S.vista === v.id ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'}">${v.n}${v.id === 'acciones' && pend ? ` <span class="ml-1 px-1.5 py-0.5 rounded-md bg-white/90 text-blue-700 text-[10px]">${pend}</span>` : ''}</button>`).join('');
         document.getElementById('sel-ventana').value = String(S.ventana);
@@ -638,7 +640,8 @@
         ses: ['sesiones', 'sessions'], usr: ['usuarios', 'users'], pdp: ['pdp', 'producto', 'viewitem'], car: ['carrito', 'cart', 'addtocart'],
         chk: ['checkout'], ped: ['pedidos', 'compras', 'purchases', 'transacciones']
     };
-    function normCanal(t) { const x = sinAcentos(t); if (!x) return null; if (/app|ios|android|movilapp/.test(x)) return 'App'; if (/web|sitio|ecom|desktopweb|pagina/.test(x)) return 'Web'; return null; }
+    // Canales: Web, iOS y Android. "App" sin sistema operativo es ambiguo y se rechaza para no mezclar plataformas.
+    function normCanal(t) { const x = sinAcentos(t); if (!x) return null; if (/android/.test(x)) return 'Android'; if (/ios|iphone|ipad/.test(x)) return 'iOS'; if (/web|sitio|ecom|pagina/.test(x)) return 'Web'; return null; }
     function normDisp(t) { const x = sinAcentos(t); if (/mobile|movil|smartphone|celular/.test(x)) return 'Móvil'; if (/desktop|escritorio|computadora|pc|laptop/.test(x)) return 'Escritorio'; if (/tablet/.test(x)) return 'Tablet'; return null; }
 
     function parsearLibro(wb) {
@@ -660,7 +663,7 @@
                 filasTotales++;
                 const n = i + 2;
                 const f = normalizarFecha(r[idx.fecha], orden); if (!f) { advertencias.push(`Fila ${n}: fecha inválida. Omitida.`); omitidas++; return; }
-                const c = idx.canal ? normCanal(r[idx.canal]) : 'Web'; if (!c) { advertencias.push(`Fila ${n}: canal no reconocido ("${r[idx.canal]}"). Omitida.`); omitidas++; return; }
+                const c = idx.canal ? normCanal(r[idx.canal]) : 'Web'; if (!c) { advertencias.push(/^\s*app\s*$/i.test(String(r[idx.canal])) ? `Fila ${n}: el canal "App" no indica el sistema operativo. Usa "iOS" o "Android". Omitida.` : `Fila ${n}: canal no reconocido ("${r[idx.canal]}"). Omitida.`); omitidas++; return; }
                 const d = normDisp(r[idx.dispositivo]); if (!d) { advertencias.push(`Fila ${n}: dispositivo no reconocido ("${r[idx.dispositivo]}"). Omitida.`); omitidas++; return; }
                 const s = String(r[idx.fuente]).trim().slice(0, 120); if (!s) { advertencias.push(`Fila ${n}: fuente vacía. Omitida.`); omitidas++; return; }
                 const v = { ses: limpiarEntero(r[idx.ses]), usr: idx.usr ? limpiarEntero(r[idx.usr]) : null, pdp: idx.pdp ? limpiarEntero(r[idx.pdp]) : 0, car: idx.car ? limpiarEntero(r[idx.car]) : 0, chk: idx.chk ? limpiarEntero(r[idx.chk]) : 0, ped: limpiarEntero(r[idx.ped]) };
@@ -734,7 +737,7 @@
         const filas = [['Fecha', 'Canal', 'Fuente_Medio', 'Dispositivo', 'Sesiones', 'Usuarios', 'Vistas_PDP', 'Carritos', 'Checkouts', 'Pedidos'],
             [base, 'Web', 'google / organic', 'Móvil', 1200, 980, 540, 190, 95, 38], [base, 'Web', 'google / organic', 'Escritorio', 800, 650, 410, 150, 80, 36],
             [base, 'Web', 'google / cpc', 'Móvil', 900, 820, 330, 90, 40, 12], [base, 'Web', '(direct) / (none)', 'Escritorio', 500, 300, 280, 120, 70, 33],
-            [base, 'App', 'app / push', 'Móvil', 350, 300, 210, 90, 55, 26]];
+            [base, 'iOS', 'app / push', 'Móvil', 220, 190, 130, 56, 35, 17], [base, 'Android', 'app / push', 'Móvil', 130, 110, 80, 34, 20, 9]];
         const csv = '﻿' + filas.map(f => f.join(',')).join('\r\n');
         const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
         a.download = 'Machote_Trafico_y_Conversion.csv'; document.body.appendChild(a); a.click(); a.remove();
@@ -751,11 +754,12 @@
         const fin = hoyISO(); const filas = [];
         for (let i = 55; i >= 0; i--) {
             const f = addDias(fin, -i); const dow = new Date(f + 'T00:00:00Z').getUTCDay(); const fds = (dow === 0 || dow === 6) ? 0.82 : 1;
-            for (const canal of ['Web', 'App']) for (const [fu, vol, crBase] of fuentes) for (const [d, mixD, fd] of disp) {
-                if (canal === 'App' && !/direct|email|facebook/.test(fu)) continue;
-                const k = canal === 'Web' ? 1 : 0.35;
+            for (const canal of ['Web', 'iOS', 'Android']) for (const [fu, vol, crBase] of fuentes) for (const [d, mixD, fd] of disp) {
+                if (canal !== 'Web' && !/direct|email|facebook/.test(fu)) continue;
+                if (canal !== 'Web' && d !== 'Móvil') continue;
+                const k = canal === 'Web' ? 1 : (canal === 'iOS' ? 0.25 : 0.2);
                 let ses = Math.round(vol * mixD * k * fds * (0.85 + rnd() * 0.3) / 6);
-                let cr = crBase * fd * (0.9 + rnd() * 0.2) * (canal === 'App' ? 1.3 : 1);
+                let cr = crBase * fd * (0.9 + rnd() * 0.2) * (canal === 'Web' ? 1 : 1.3);
                 if (i <= 3 && fu === 'facebook / paid-social') cr *= 0.6;           // caída reciente en una fuente
                 if (i <= 4 && d === 'Móvil' && canal === 'Web') cr *= 0.88;        // fuga reciente en móvil
                 const ped = Math.round(ses * cr);
