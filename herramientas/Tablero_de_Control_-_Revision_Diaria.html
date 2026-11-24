@@ -1936,67 +1936,69 @@
             return r;
         }
         const NOMBRE_FACTOR = { trafico: 'tráfico', conversion: 'conversión', ticket: 'ticket promedio' };
+        // Montos y cantidades en forma corta para que el resumen sea de texto breve
+        const corto = v => { const a = Math.abs(v); return (v >= 0 ? '+' : '−') + (a >= 1e6 ? '$' + (a / 1e6).toFixed(2) + 'M' : a >= 1e3 ? '$' + Math.round(a / 1e3) + 'K' : '$' + Math.round(a)); };
+        const montoCorto = v => corto(Math.abs(v)).replace('+', '');
+        const cant = n => n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e5 ? Math.round(n / 1e3) + 'K' : n >= 1e4 ? (n / 1e3).toFixed(1) + 'K' : fmtNumero(n);
         function detalleFactor(c, k) {
-            if (k === 'trafico') return `${fmtNumero(c.S)} vs ${fmtNumero(c.Sp)} ${c.etiqueta} del plan`;
-            if (k === 'conversion') return `CR ${c.CR.toFixed(2)}% vs ${c.CRp.toFixed(2)}% del plan`;
-            return `ticket ${fmtMoneda(c.T)} vs ${fmtMoneda(c.Tp)} del plan`;
+            if (k === 'trafico') return `${cant(c.S)} vs ${cant(c.Sp)} ${c.etiqueta}`;
+            if (k === 'conversion') return `CR ${c.CR.toFixed(2)}% vs ${c.CRp.toFixed(2)}%`;
+            return `${fmtMoneda(c.T)} vs ${fmtMoneda(c.Tp)}`;
+        }
+        function racha(c) {
+            if (c.racha.rachaTipo === 'DOWN') return ` ${c.racha.rachaDias} días seguidos bajo meta.`;
+            if (c.racha.rachaTipo === 'UP') return ` ${c.racha.rachaDias} días seguidos sobre meta.`;
+            return '';
         }
         function fraseCanalResumen(c) {
-            const signo = x => `${x >= 0 ? '+' : '−'}${fmtMoneda(Math.abs(x))}`;
-            if (c.Vp <= 0) return `${c.nombre}: sin plan cargado para comparar (venta real ${fmtMoneda(c.V)}).`;
-            if (Math.abs(c.gap) < 0.01 * c.Vp) return `${c.nombre} ${signo(c.gap)} (${c.pct.toFixed(1)}%): en línea con el plan.${racha(c)}`;
-            let t = `${c.nombre} ${signo(c.gap)} (${c.pct.toFixed(1)}% del plan)`;
+            if (c.Vp <= 0) return `${c.nombre}: sin plan cargado (venta real ${montoCorto(c.V)}).`;
+            const cab = `${c.nombre} ${corto(c.gap)} (${c.pct.toFixed(1)}%)`;
+            if (Math.abs(c.gap) < 0.01 * c.Vp) return `${cab}: en línea con el plan.${racha(c)}`;
+            let t = cab;
             if (c.drivers) {
                 const ord = Object.keys(c.drivers).sort((a, b) => Math.abs(c.drivers[b]) - Math.abs(c.drivers[a]));
                 const k1 = ord[0];
-                t += `: ${c.gap < 0 ? 'lo frena' : 'lo impulsa'} ${NOMBRE_FACTOR[k1]} (${signo(c.drivers[k1])}; ${detalleFactor(c, k1)})`;
+                t += `: ${c.gap < 0 ? 'frena' : 'impulsa'} ${NOMBRE_FACTOR[k1]} ${corto(c.drivers[k1])} (${detalleFactor(c, k1)})`;
                 ord.slice(1).filter(k => Math.abs(c.drivers[k]) >= 0.15 * Math.abs(c.gap)).forEach(k => {
                     const opuesto = (c.drivers[k] >= 0) !== (c.drivers[k1] >= 0);
-                    t += `; ${opuesto ? 'lo compensa' : 'también'} ${NOMBRE_FACTOR[k]} (${signo(c.drivers[k])}; ${detalleFactor(c, k)})`;
+                    t += `; ${opuesto ? 'compensa' : 'también'} ${NOMBRE_FACTOR[k]} ${corto(c.drivers[k])} (${detalleFactor(c, k)})`;
                 });
             }
             return t + '.' + racha(c);
-        }
-        function racha(c) {
-            if (c.racha.rachaTipo === 'DOWN') return ` Racha: ${c.racha.rachaDias} días seguidos bajo su meta diaria.`;
-            if (c.racha.rachaTipo === 'UP') return ` Racha: ${c.racha.rachaDias} días seguidos sobre su meta diaria.`;
-            return '';
         }
         function generarResumenNarrativo(mtd, rachaInfo, esConsolidado) {
             if (mtd.diasCapturadosCount === 0) return null;
             const cls = esConsolidado ? Object.keys(CONFIG_CANALES) : [estadoApp.canal];
             const canales = cls.map(resumenDeCanal).filter(Boolean);
             const titulares = [];
-            const dia = `día ${mtd.diasTranscurridosCalendario} de ${mtd.totalDiasMes}`;
             if (mtd.presupuestoTotalMes <= 0 || mtd.planVentaMTD <= 0) {
-                titulares.push(`Este mes todavía no tiene plan cargado, así que no se puede comparar contra la meta. Lo vendido al corte es ${fmtMoneda(mtd.ventaRealObservada)}. Carga el plan (CSV o captura) para ver el resumen completo.`);
-                return { titulares, canales: [], resta: '', suma: '', nota: '' };
+                titulares.push(`Este mes no tiene plan cargado, así que no se puede comparar contra la meta. Venta al corte: ${montoCorto(mtd.ventaRealObservada)}. Carga el plan (CSV o captura) para ver el resumen completo.`);
+                return { titulares, canalesTitulo: '', canales: [], resta: '', suma: '', nota: '' };
             }
             const brecha = mtd.ventaRealObservada - mtd.planVentaMTD, pct = mtd.cumplimientoVentaMTD;
-            titulares.push(`Al ${dia}, ${esConsolidado ? 'la venta acumulada' : 'la venta del canal'} es ${fmtMoneda(mtd.ventaRealObservada)}: ${Math.abs(pct - 100).toFixed(1)}% ${brecha >= 0 ? 'por encima' : 'por debajo'} del plan al corte (${brecha >= 0 ? '+' : '−'}${fmtMoneda(Math.abs(brecha))}).`);
-            // Con captura incompleta, la brecha contra el plan puede venir de datos que faltan y no de un mal desempeño
-            if (esConsolidado && mtd.cumplimientoSobreCapturado !== null && Math.abs(mtd.cumplimientoSobreCapturado - pct) >= 1) {
-                titulares.push(`Ojo: parte de esa diferencia se debe a captura pendiente (días o canales sin datos). Sobre lo que sí está capturado, la venta va ${mtd.cumplimientoSobreCapturado.toFixed(1)}% del plan (${mtd.cumplimientoSobreCapturado >= 100 ? 'por encima' : 'por debajo'}).`);
-            }
-            if (rachaInfo.pct7d !== null) {
-                const mejor = rachaInfo.pct7d >= pct;
-                titulares.push(`En los últimos 7 días el ritmo es ${rachaInfo.pct7d.toFixed(1)}% del plan, ${mejor ? 'mejor' : 'peor'} que el acumulado del mes (${pct.toFixed(1)}%): la tendencia ${mejor ? 'está mejorando' : 'se está debilitando'}.`);
-            }
+            // Primer párrafo: dónde estamos contra el plan y hacia dónde va el ritmo
+            let p1 = `Día ${mtd.diasTranscurridosCalendario}/${mtd.totalDiasMes}: ${montoCorto(mtd.ventaRealObservada)}, ${Math.abs(pct - 100).toFixed(1)}% ${brecha >= 0 ? 'sobre' : 'bajo'} el plan (${corto(brecha)}).`;
+            // Con captura incompleta, la brecha puede venir de datos que faltan y no de un mal desempeño
+            if (esConsolidado && mtd.cumplimientoSobreCapturado !== null && Math.abs(mtd.cumplimientoSobreCapturado - pct) >= 1) p1 += ` Sobre lo capturado va ${mtd.cumplimientoSobreCapturado.toFixed(1)}%.`;
+            if (rachaInfo.pct7d !== null) p1 += ` Últimos 7 días: ${rachaInfo.pct7d.toFixed(1)}% (${rachaInfo.pct7d >= pct ? 'mejora' : 'se debilita'} vs ${pct.toFixed(1)}% del mes).`;
+            titulares.push(p1);
+            // Segundo párrafo: cierre estimado y lo que falta
             if (mtd.pronosticoCierreBase !== null) {
-                let f = `Si el ritmo se mantiene, el mes cerraría en ${fmtMoneda(mtd.pronosticoCierreBase)} (${mtd.cumplimientoPronosticoBase.toFixed(1)}% de la meta de ${fmtMoneda(mtd.presupuestoTotalMes)}).`;
+                let f = `Cierre estimado ${montoCorto(mtd.pronosticoCierreBase)} (${mtd.cumplimientoPronosticoBase.toFixed(1)}% de la meta de ${montoCorto(mtd.presupuestoTotalMes)})`;
                 if (mtd.diasRestantesCalendario > 0 && mtd.brechaParaMetaTotalMes > 0 && mtd.cuotaDiariaPlanFuturo > 0)
-                    f += ` Para llegar a la meta falta vender ${fmtMoneda(mtd.brechaParaMetaTotalMes)}: ${fmtMoneda(mtd.cuotaDiariaRequerida)} por día en los ${mtd.diasRestantesCalendario} días que quedan (${Math.abs(mtd.exigenciaCuotaPct).toFixed(1)}% ${mtd.exigenciaCuotaPct >= 0 ? 'más' : 'menos'} que el plan diario).`;
-                else if (mtd.brechaParaMetaTotalMes <= 0) f += ' La meta del mes ya está cubierta.';
+                    f += `; faltan ${montoCorto(mtd.brechaParaMetaTotalMes)}: ${montoCorto(mtd.cuotaDiariaRequerida)}/día en ${mtd.diasRestantesCalendario} días (${mtd.exigenciaCuotaPct >= 0 ? '+' : '−'}${Math.abs(mtd.exigenciaCuotaPct).toFixed(0)}% vs el plan diario).`;
+                else if (mtd.brechaParaMetaTotalMes <= 0) f += '; meta cubierta.';
+                else f += '.';
                 titulares.push(f);
             }
             // Qué más resta y qué más suma, entre todos los canales y factores
             const aportes = [];
             canales.forEach(c => { if (c.drivers) Object.keys(c.drivers).forEach(k => aportes.push({ canal: c.nombre, k, v: c.drivers[k] })); });
             const peor = aportes.filter(a => a.v < 0).sort((a, b) => a.v - b.v)[0], mejor = aportes.filter(a => a.v > 0).sort((a, b) => b.v - a.v)[0];
-            const aFrase = a => `${NOMBRE_FACTOR[a.k]} de ${a.canal} (${a.v >= 0 ? '+' : '−'}${fmtMoneda(Math.abs(a.v))})`;
-            const nota = (esConsolidado && (mtd.esConsolidadoParcial || mtd.brechasSinCapturaCount > 0))
-                ? 'La captura está incompleta: cada canal se compara solo en los días que tiene capturados, y el consolidado puede verse más bajo de lo real hasta completarla.' : '';
-            return { titulares, canales: canales.sort((a, b) => Math.abs(b.gap) - Math.abs(a.gap)).map(fraseCanalResumen), resta: peor ? `Lo que más resta: ${aFrase(peor)}.` : (aportes.length ? 'Ningún canal resta contra el plan en los días capturados.' : ''), suma: mejor ? `Lo que más suma: ${aFrase(mejor)}.` : '', nota };
+            const aFrase = a => `${NOMBRE_FACTOR[a.k]} de ${a.canal} ${corto(a.v)}`;
+            const nota = (esConsolidado && (mtd.esConsolidadoParcial || mtd.brechasSinCapturaCount > 0)) ? 'Captura incompleta: cada canal se compara solo en sus días capturados.' : '';
+            return { titulares, canalesTitulo: esConsolidado ? 'Por canal vs plan:' : '', canales: canales.sort((a, b) => Math.abs(b.gap) - Math.abs(a.gap)).map(fraseCanalResumen),
+                resta: peor ? `Más resta: ${aFrase(peor)}.` : (aportes.length ? 'Ningún canal resta contra el plan en los días capturados.' : ''), suma: mejor ? `Más suma: ${aFrase(mejor)}.` : '', nota };
         }
         const escHTML = t => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         function htmlResumenNarrativo(r) {
@@ -2004,7 +2006,7 @@
             return `<div class="mt-3 pt-3 border-t border-slate-200/80 space-y-2 min-w-0">
                 <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">Resumen: qué está pasando</div>
                 <div class="space-y-1">${r.titulares.map(t => `<p class="text-xs text-slate-800 leading-relaxed">${escHTML(t)}</p>`).join('')}</div>
-                ${r.canales.length ? `<ul class="text-xs text-slate-700 space-y-1 list-disc pl-4 leading-relaxed">${r.canales.map(c => `<li>${escHTML(c)}</li>`).join('')}</ul>` : ''}
+                ${r.canales.length ? `${r.canalesTitulo ? `<p class="text-[11px] font-bold text-slate-500">${escHTML(r.canalesTitulo)}</p>` : ''}<ul class="text-xs text-slate-700 space-y-0.5 list-disc pl-4 leading-snug">${r.canales.map(c => `<li>${escHTML(c)}</li>`).join('')}</ul>` : ''}
                 ${(r.resta || r.suma) ? `<p class="text-xs text-slate-700 leading-relaxed">${escHTML([r.resta, r.suma].filter(Boolean).join(' '))}</p>` : ''}
                 ${r.nota ? `<p class="text-[10px] text-slate-400 leading-snug">${escHTML(r.nota)}</p>` : ''}
             </div>`;
@@ -4108,7 +4110,7 @@
                 : `CR (${CONFIG_CANALES[estadoApp.canal].etiquetaTrafico}): ${fmtCR(calcularCR(mtd.realPedidosMTD, mtd.realSesionesMTD))}`;
 
             const narr = generarResumenNarrativo(mtd, analizarRachaYVelocidad(mtd.capturadosAlCorte), esConsolidado);
-            const lineasNarr = narr ? ['', '🧭 *Qué está pasando*', ...narr.titulares, ...narr.canales.map(c => `• ${c}`), [narr.resta, narr.suma].filter(Boolean).join(' ')].filter(x => x !== undefined) : [];
+            const lineasNarr = narr ? ['', '🧭 *Qué está pasando*', ...narr.titulares, ...(narr.canalesTitulo ? [narr.canalesTitulo] : []), ...narr.canales.map(c => `• ${c}`), [narr.resta, narr.suma].filter(Boolean).join(' ')].filter(x => x !== undefined) : [];
             const texto = [
                 `📊 *REVISIÓN DIARIA - ${tituloVista} (${formatearEtiquetaMes(estadoApp.mesActivo)})*`,
                 `📅 Corte calendario: ${estadoApp.fechaCorte} (Día ${mtd.diasTranscurridosCalendario}/${mtd.totalDiasMes} • ${mtd.diasCapturadosCount} días con captura)`,

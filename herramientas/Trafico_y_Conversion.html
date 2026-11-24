@@ -733,7 +733,7 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
 
     // ---- Tabla compacta con detalle desplegable (Fuentes, Campañas y Dispositivo) ----
     // La fila muestra solo lo comparable; la lectura del perfil, el funnel por paso y los pedidos viven en un detalle que se abre con clic.
-    // Las filas con alerta salen abiertas; "Expandir todo / Contraer todo" cambia toda la tabla.
+    // Todas las filas salen cerradas; una marca roja a la izquierda señala las que tienen alerta. "Expandir todo / Contraer todo" cambia toda la tabla.
     const celdaImpacto = g => {
         const peor = (g.diag && g.diag.peor && !(g.delta !== null && g.delta >= S.config.umbral)) ? g.diag.peor.paso.n : '';
         const p = perdidosDe(g);
@@ -764,9 +764,9 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
         const filas = c.items.map((g, i) => {
             const m = c.filaDe(g);
             const clave = `${c.id}|${m.clave}`;
-            const abierto = m.sinDetalle ? false : (clave in S.abiertos ? S.abiertos[clave] : !!m.alerta);
+            const abierto = m.sinDetalle ? false : (clave in S.abiertos ? S.abiertos[clave] : false);
             const fila = `<tr id="fila-${c.id}-${i}" data-clave="${esc(m.clave)}" ${m.sinDetalle ? '' : `onclick="alternarDetalle('${c.id}', ${i})" aria-expanded="${abierto}"`} class="align-middle ${m.sinDetalle ? 'bg-slate-50' : 'cursor-pointer hover:bg-slate-50'}">
-                <td class="px-3 py-2.5 ${m.sangria ? 'pl-6' : ''}"><div class="${m.sinDetalle ? 'font-extrabold' : 'font-bold'} text-xs sm:text-sm text-slate-900 break-words max-w-[240px]">${esc(m.nombre)}</div>${m.sub ? `<div class="text-[10px] text-slate-400 break-words max-w-[240px]">${esc(m.sub)}</div>` : ''}</td>
+                <td class="px-3 py-2.5 ${m.sangria ? 'pl-6' : ''} ${m.alerta ? 'border-l-4 border-l-rose-300' : ''}" ${m.alerta ? 'title="Tiene una alerta activa"' : ''}><div class="${m.sinDetalle ? 'font-extrabold' : 'font-bold'} text-xs sm:text-sm text-slate-900 break-words max-w-[240px]">${esc(m.nombre)}</div>${m.sub ? `<div class="text-[10px] text-slate-400 break-words max-w-[240px]">${esc(m.sub)}</div>` : ''}</td>
                 <td class="px-3 py-2.5 text-right num-tabular"><div class="text-sm">${fmtN(g.t.ses)}</div><div class="text-[10px] text-slate-400 whitespace-nowrap">${fmtP(m.mix, 1)} del total</div></td>
                 <td class="px-3 py-2.5 text-right num-tabular"><div class="text-sm font-bold">${fmtP(g.cr)}</div><div class="text-[10px] text-slate-400 whitespace-nowrap">normal ${fmtP(g.crB)}</div></td>
                 <td class="px-3 py-2.5 text-right">${chipTend(g.delta)}</td>
@@ -804,7 +804,7 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
         const tarjetasG = grupos.map(x => `<div class="rounded-2xl bg-white border border-slate-200 p-3 shadow-sm"><div class="text-[11px] font-bold uppercase text-slate-500">${x.g}</div><div class="text-lg font-extrabold num-tabular">${fmtN(x.t.ses)}</div><div class="text-[11px] text-slate-500">${fmtP(div(x.t.ses, A.total.t.ses), 1)} del tráfico · CR ${fmtP(crDe(x.t))}</div></div>`).join('');
         const alertasF = new Set(A.alertasPorDim.Fuente.filter(x => x.sev !== 'aviso').map(x => x.titulo));
         const tablaF = tablaCompacta({ id: 'fuentes', titulo: 'Perfil de las fuentes de tráfico', col1: 'Fuente / medio', items: A.porFuente, uni: { crU: A.total.cr }, tipoAccion: 'Fuente',
-            nota: 'El Perfil combina cuánto pesa la fuente en el tráfico con su Eficiencia (CR de la fuente ÷ CR promedio de las fuentes) y dice qué hacer. Clic en una fila para ver su detalle; las filas con alerta salen abiertas.',
+            nota: 'El Perfil combina cuánto pesa la fuente en el tráfico con su Eficiencia (CR de la fuente ÷ CR promedio de las fuentes) y dice qué hacer. Clic en una fila para ver su detalle; la marca roja de la izquierda indica que tiene una alerta.',
             derecha: `${fmtP(A.pctBaja, 1)} de las sesiones vienen de fuentes que convierten menos de la mitad que el promedio`, derechaClase: A.pctBaja > 20 ? 'text-rose-700' : 'text-slate-600',
             filaDe: f => ({ nombre: f.fuente, sub: f.grupo, clave: f.fuente, mix: f.mix, alerta: alertasF.has(f.fuente), tituloAccion: f.fuente }) });
         document.getElementById('panel-fuentes').innerHTML = `
@@ -850,7 +850,7 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
         const maxFilas = 40;
         const alertasC = new Set(A.alertasPorDim['Campaña'].filter(x => x.sev !== 'aviso').map(x => x.titulo));
         const tablaC = tablaCompacta({ id: 'campanas', titulo: 'Detalle por campaña', col1: 'Campaña', items: A.porCampana.slice(0, maxFilas), uni: { crU: A.totalC.cr }, tipoAccion: 'Campaña',
-            nota: `Eficiencia = % de pedidos ÷ % de sesiones de las campañas; el Perfil la combina con el peso de la campaña y dice qué hacer. La Tendencia compara contra sus propios 28 días previos; una campaña nueva aparece "Sin base". Clic en una fila para ver su detalle; las filas con alerta salen abiertas.${A.porCampana.length > maxFilas ? ` Se muestran las ${maxFilas} con más sesiones de ${A.porCampana.length}.` : ''}`,
+            nota: `Eficiencia = % de pedidos ÷ % de sesiones de las campañas; el Perfil la combina con el peso de la campaña y dice qué hacer. La Tendencia compara contra sus propios 28 días previos; una campaña nueva aparece "Sin base". Clic en una fila para ver su detalle; la marca roja de la izquierda indica que tiene una alerta.${A.porCampana.length > maxFilas ? ` Se muestran las ${maxFilas} con más sesiones de ${A.porCampana.length}.` : ''}`,
             filaDe: c => { const t = `${c.campana} (${c.fuente})`; return { nombre: c.campana, sub: c.fuente, clave: t, mix: c.mixSes, alerta: alertasC.has(t), tituloAccion: t, extra: `Tipo: <strong>${esc(c.tipo)}</strong> · Intención: <strong>${esc(c.etiqueta)}</strong>` }; } });
         el.innerHTML = `
             <p class="text-[11px] text-slate-500">${textoVentana(A.V)} · Canal: <strong>${ETIQ_CANAL[S.canal]}</strong> · Campañas = tráfico de pago, correo/CRM y filas con nombre de campaña (orgánico y directo se ven en Fuentes de tráfico).</p>
