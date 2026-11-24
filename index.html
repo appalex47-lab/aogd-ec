@@ -2669,21 +2669,20 @@
             {
                 badge: 'Herramienta BI • Looker Studio / Power BI',
                 badgeClass: 'bg-teal-100 text-teal-800',
-                title: 'Master Dashboard (5 Pestañas + Revisión Diaria)',
-                desc: 'Las 5 pestañas de Looker / Power BI se conectan automáticamente a GA4, plataforma de e-commerce y ERP: eliminan reportes manuales y permiten auditar tendencias al instante. Se complementan con la Revisión Diaria, un tablero propio de carga por CSV mientras se automatiza.',
+                title: 'Master Dashboard (5 Pestañas)',
+                desc: 'La información se extrae de GA4, las plataformas de e-commerce y el ERP, y se carga en tableros automáticos (Looker Studio / Power BI) que eliminan los reportes manuales y permiten auditar tendencias al instante.',
                 items: [
-                    { name: 'Salud del Negocio', detail: 'Ritmo de venta vs. meta mensual y comparativo YoY (Semanal / Mensual).' },
+                    {
+                        name: 'Salud del Negocio • Revisión Diaria',
+                        detail: 'Primer tablero de salud del negocio: ritmo de venta vs. meta mensual por canal, con comparativo del día, semanal y mensual (Diaria). Incluye pacing, pronóstico de cierre, recuperación diaria requerida y registro de acciones. Tablero propio con carga por CSV o captura manual.',
+                        tag: 'Tablero propio',
+                        href: 'herramientas/Tablero_de_Control_-_Revision_Diaria.html',
+                        linkLabel: 'Abrir tablero en otra pestaña'
+                    },
                     { name: 'Tráfico y Conversión', detail: 'Fuentes de tráfico y funnel completo PDP → Carrito → Checkout (Quincenal).' },
                     { name: 'Checkout', detail: 'Abandono de carrito detallado por dispositivo, navegador y canal (Semanal).' },
                     { name: 'Comercial', detail: 'Ventas por categoría/SKU, estrella vs. ancla, alto tráfico/bajo CR y contribución (Semanal / Mensual).' },
-                    { name: 'Demanda', detail: 'Variación de demanda por canal propio y alertas tempranas (Quincenal).' },
-                    {
-                        name: 'Revisión Diaria (tablero propio)',
-                        detail: 'Ritmo de venta vs. meta por canal, pacing, pronóstico de cierre y recuperación diaria requerida, con registro de acciones (Diaria). Carga por CSV o captura manual; pendiente de automatizar con GA4 / ERP.',
-                        tag: 'Complemento de Salud del Negocio',
-                        href: 'herramientas/Tablero_de_Control_-_Revision_Diaria.html',
-                        linkLabel: 'Abrir tablero en otra pestaña'
-                    }
+                    { name: 'Demanda', detail: 'Variación de demanda por canal propio y alertas tempranas (Quincenal).' }
                 ]
             },
             {
