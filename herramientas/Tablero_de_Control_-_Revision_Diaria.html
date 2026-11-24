@@ -481,15 +481,15 @@
                         <div class="text-xs font-extrabold uppercase tracking-wider text-slate-600">Meta / Plan Diario (≥ 0)</div>
                         <div>
                             <label class="block text-xs font-semibold text-slate-700 mb-1">Venta Plan ($)</label>
-                            <input type="number" step="0.01" min="0" id="input-venta-plan" required placeholder="Ej. 365000" oninput="actualizarPreviewCR()" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold num-tabular focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <input type="number" step="any" min="0" id="input-venta-plan" required placeholder="Ej. 365000" oninput="actualizarPreviewCR()" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold num-tabular focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-slate-700 mb-1">Pedidos Plan (#)</label>
-                            <input type="number" step="1" min="0" id="input-pedidos-plan" required placeholder="Ej. 198" oninput="actualizarPreviewCR()" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold num-tabular focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <input type="number" step="any" min="0" id="input-pedidos-plan" required placeholder="Ej. 198" oninput="actualizarPreviewCR()" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold num-tabular focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
                         <div>
                             <label id="label-input-sesiones-plan" class="block text-xs font-semibold text-slate-700 mb-1">Sesiones Plan (#)</label>
-                            <input type="number" step="1" min="0" id="input-sesiones-plan" required placeholder="Ej. 8500" oninput="actualizarPreviewCR()" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold num-tabular focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <input type="number" step="any" min="0" id="input-sesiones-plan" required placeholder="Ej. 8500" oninput="actualizarPreviewCR()" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold num-tabular focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
                     </div>
                 </div>
@@ -3394,8 +3394,8 @@
             const vPlan = parseFloat(document.getElementById('input-venta-plan').value);
             const pReal = parseInt(document.getElementById('input-pedidos-real').value, 10);
             const sReal = parseInt(document.getElementById('input-sesiones-real').value, 10);
-            const pPlan = parseInt(document.getElementById('input-pedidos-plan').value, 10);
-            const sPlan = parseInt(document.getElementById('input-sesiones-plan').value, 10);
+            const pPlan = parseFloat(document.getElementById('input-pedidos-plan').value);
+            const sPlan = parseFloat(document.getElementById('input-sesiones-plan').value);
 
             const crReal = (!isNaN(pReal) && !isNaN(sReal) && sReal > 0) ? (pReal / sReal) * 100 : null;
             const crPlan = (!isNaN(pPlan) && !isNaN(sPlan) && sPlan > 0) ? (pPlan / sPlan) * 100 : null;
@@ -3443,8 +3443,8 @@
             const sesionesReal = sRealRaw === '' ? null : parseInt(sRealRaw, 10);
 
             const ventaPlan = parseFloat(document.getElementById('input-venta-plan').value);
-            const pedidosPlan = parseInt(document.getElementById('input-pedidos-plan').value, 10);
-            const sesionesPlan = parseInt(document.getElementById('input-sesiones-plan').value, 10);
+            const pedidosPlan = parseFloat(document.getElementById('input-pedidos-plan').value);
+            const sesionesPlan = parseFloat(document.getElementById('input-sesiones-plan').value);
 
             if (!fecha || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
                 errBox.textContent = 'Fecha inválida. Verifica el formato AAAA-MM-DD.';
@@ -3641,7 +3641,7 @@
             return null;
         }
 
-        function normalizarFechaExcel(valor) {
+        function normalizarFechaExcel(valor, orden = 'dmy') {
             if (!valor) return null;
             if (typeof valor === 'number') {
                 const utcDays = Math.floor(valor - 25569);
@@ -3659,13 +3659,45 @@
             }
             const parts = str.split(/[\/\-]/);
             if (parts.length === 3 && parts[2].length === 4) {
-                const y = Number(parts[2]), m = Number(parts[1]), d = Number(parts[0]);
+                const y = Number(parts[2]);
+                const m = Number(orden === 'mdy' ? parts[0] : parts[1]);
+                const d = Number(orden === 'mdy' ? parts[1] : parts[0]);
                 const dt = new Date(y, m - 1, d);
                 if (dt.getFullYear() === y && (dt.getMonth() + 1) === m && dt.getDate() === d) {
                     return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
                 }
             }
             return null;
+        }
+
+        // Un CSV trae fechas como texto "01/11/2026": puede ser día/mes o mes/día según la configuración regional
+        // de quien lo guardó. Se decide por el archivo completo y no fila por fila.
+        function detectarOrdenFechas(workbook) {
+            let primeroMayor12 = false, segundoMayor12 = false;
+            const pares = [];
+            workbook.SheetNames.forEach(nombre => {
+                const filas = XLSX.utils.sheet_to_json(workbook.Sheets[nombre], { defval: '' });
+                filas.forEach(row => {
+                    const k = Object.keys(row).find(key => ['fecha', 'date', 'dia'].some(p => key.toLowerCase().includes(p)));
+                    const v = k ? row[k] : '';
+                    if (typeof v !== 'string') return;
+                    const partes = v.trim().split(/[\/\-]/);
+                    if (partes.length !== 3 || partes[2].length !== 4) return;
+                    const a = Number(partes[0]), b = Number(partes[1]), y = Number(partes[2]);
+                    if (!a || !b || !y) return;
+                    if (a > 12) primeroMayor12 = true;
+                    if (b > 12) segundoMayor12 = true;
+                    pares.push([a, b, y]);
+                });
+            });
+            if (primeroMayor12 && !segundoMayor12) return { orden: 'dmy', ambiguo: false };
+            if (segundoMayor12 && !primeroMayor12) return { orden: 'mdy', ambiguo: false };
+            if (pares.length === 0) return { orden: 'dmy', ambiguo: false };
+            // Ambiguo: un archivo mensual debe caer en pocos meses; se elige la lectura que menos meses distintos produce.
+            const mesesDmy = new Set(pares.map(([a, b, y]) => `${y}-${b}`)).size;
+            const mesesMdy = new Set(pares.map(([a, b, y]) => `${y}-${a}`)).size;
+            if (mesesMdy < mesesDmy) return { orden: 'mdy', ambiguo: false };
+            return { orden: 'dmy', ambiguo: mesesDmy === mesesMdy };
         }
 
         function limpiarNumero(val) {
@@ -3682,6 +3714,10 @@
             const llavesVistas = new Set();
             const mesesDetectados = new Set();
             let filasIgnoradas = 0;
+            const { orden: ordenFecha, ambiguo: fechasAmbiguas } = detectarOrdenFechas(workbook);
+            if (fechasAmbiguas) {
+                advertencias.push('Las fechas del archivo son ambiguas (día/mes o mes/día); se interpretaron como día/mes/año. Revisa el periodo detectado.');
+            }
 
             workbook.SheetNames.forEach(sheetName => {
                 const hoja = workbook.Sheets[sheetName];
@@ -3713,7 +3749,7 @@
                         return;
                     }
 
-                    const fecha = normalizarFechaExcel(getCol(['fecha', 'date', 'dia']));
+                    const fecha = normalizarFechaExcel(getCol(['fecha', 'date', 'dia']), ordenFecha);
                     if (!fecha) {
                         advertencias.push(`Fila ${idxFila + 2}: fecha inválida. Omitida.`);
                         filasIgnoradas++;
@@ -3778,7 +3814,7 @@
             reader.onload = function(e) {
                 try {
                     const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
+                    const workbook = XLSX.read(data, { type: 'array', raw: true });
                     const resultado = parsearYValidarWorkbook(workbook);
 
                     if (resultado.registrosValidos.length === 0) {
