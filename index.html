@@ -2739,7 +2739,7 @@
                     <p class="text-xs sm:text-sm text-slate-600 mt-1 mb-5 max-w-3xl leading-relaxed">${tool.desc}</p>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                         ${tool.items.map(it => `
-                            <div class="p-3.5 rounded-2xl bg-slate-50 border ${it.href ? 'border-teal-300 md:col-span-2' : 'border-slate-200/80'}">
+                            <div class="p-3.5 rounded-2xl bg-slate-50 border ${it.href ? 'border-teal-300' : 'border-slate-200/80'}">
                                 ${it.tag ? `<span class="inline-block mb-1.5 px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 text-[10px] font-bold">${it.tag}</span>` : ''}
                                 <h4 class="text-xs sm:text-sm font-bold text-slate-900 mb-1">${it.name}</h4>
                                 <p class="text-xs text-slate-600 leading-relaxed">${it.detail}</p>
