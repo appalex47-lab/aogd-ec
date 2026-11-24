@@ -1359,6 +1359,47 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
         } catch (e) { console.warn('No se pudieron incrustar las fuentes para el PDF.', e); _cssFuentesPDF = ''; }
         return _cssFuentesPDF;
     }
+    // Captura de la pantalla SIN alturas congeladas. La librería fija en px el alto de cada bloque según la medida de pantalla; si en la
+    // captura una palabra baja de renglón (el texto se mide con una diferencia mínima), el bloque no crece y el texto se encima con el
+    // siguiente. Aquí se quita el alto fijo de todo bloque que contiene texto, para que se acomode al contenido real.
+    async function capturarPantallaPDF(el, ancho, alto, escalaMax, cssFuentes, quitarAlturas = true) {
+        const opciones = { pixelRatio: 1, backgroundColor: '#f8fafc', width: ancho, height: alto,
+            ...(cssFuentes ? { fontEmbedCSS: cssFuentes } : {}),
+            filter: (n) => !(n.id === 'nube-overlay' || n.id === 'toast' || n.id === 'nube-estado') };
+        const svgUrl = await window.htmlToImage.toSvg(el, opciones);
+        const svgTexto = decodeURIComponent(svgUrl.substring(svgUrl.indexOf(',') + 1));
+        const doc = new DOMParser().parseFromString(svgTexto, 'image/svg+xml');
+        if (doc.querySelector('parsererror')) throw new Error('SVG inválido');
+        const extra = Math.round(alto * 0.06) + 240;           // margen por si algún bloque crece al acomodar el texto
+        const altoTotal = alto + extra;
+        if (quitarAlturas) {
+            const ALTURAS = /(^|;)\s*(height|min-height|max-height|block-size|min-block-size|max-block-size)\s*:[^;]*/gi;
+            doc.querySelectorAll('foreignObject *').forEach(n => {
+                const estilo = n.getAttribute && n.getAttribute('style');
+                if (estilo && (n.textContent || '').trim()) n.setAttribute('style', estilo.replace(ALTURAS, '$1'));
+            });
+        }
+        const raiz = doc.documentElement;
+        raiz.setAttribute('height', String(altoTotal)); raiz.setAttribute('viewBox', `0 0 ${ancho} ${altoTotal}`);
+        const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(doc));
+        const img = await new Promise((ok, fallo) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => fallo(new Error('No se pudo dibujar la captura')); i.src = url; });
+        const escala = Math.min(escalaMax, 15000 / altoTotal, 15000 / ancho);
+        const lienzo = document.createElement('canvas'); lienzo.width = Math.round(ancho * escala); lienzo.height = Math.round(altoTotal * escala);
+        const ctx = lienzo.getContext('2d'); ctx.fillStyle = '#f8fafc'; ctx.fillRect(0, 0, lienzo.width, lienzo.height);
+        ctx.drawImage(img, 0, 0, lienzo.width, lienzo.height);
+        // Se recorta el espacio en blanco sobrante al final (primera fila, de abajo hacia arriba, con algo distinto al fondo)
+        let ultima = lienzo.height - 1;
+        for (; ultima > 0; ultima--) {
+            const fila = ctx.getImageData(0, ultima, lienzo.width, 1).data; let hay = false;
+            for (let x = 0; x < fila.length; x += 4) { if (Math.abs(fila[x] - 248) + Math.abs(fila[x + 1] - 250) + Math.abs(fila[x + 2] - 252) > 6) { hay = true; break; } }
+            if (hay) break;
+        }
+        const altoRecorte = Math.min(lienzo.height, ultima + Math.round(24 * escala));
+        const recorte = document.createElement('canvas'); recorte.width = lienzo.width; recorte.height = altoRecorte;
+        recorte.getContext('2d').drawImage(lienzo, 0, 0);
+        return { canvas: recorte, escala };
+    }
+
     async function descargarPDF() {
         const btn = document.getElementById('btn-pdf'), label = document.getElementById('btn-pdf-label');
         if (!window.htmlToImage || !window.jspdf) { toast('⚠️ No se pudieron cargar las librerías del PDF. Revisa tu conexión.'); return; }
@@ -1371,11 +1412,11 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
             await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
             const el = document.body, ancho = Math.max(el.scrollWidth, document.documentElement.clientWidth), alto = el.scrollHeight;
             const escala = Math.min(2, 15000 / alto, 15000 / ancho);
-            const canvas = await window.htmlToImage.toCanvas(el, { pixelRatio: escala, backgroundColor: '#f8fafc', width: ancho, height: alto, ...(css ? { fontEmbedCSS: css } : {}),
-                filter: n => !(n.id === 'nube-overlay' || n.id === 'toast' || n.id === 'nube-estado') });
+            const { canvas, escala: esc2 } = await capturarPantallaPDF(el, ancho, alto, 2, css);
+            const altoFinal = canvas.height / esc2;
             const { jsPDF } = window.jspdf;
-            const pdf = new jsPDF({ orientation: ancho > alto ? 'landscape' : 'portrait', unit: 'px', format: [ancho, alto], compress: true });
-            pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, ancho, alto);
+            const pdf = new jsPDF({ orientation: ancho > altoFinal ? 'landscape' : 'portrait', unit: 'px', format: [ancho, altoFinal], compress: true });
+            pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, ancho, altoFinal);
             pdf.save(`Trafico_y_Conversion_${S.mes}_corte_${S.corte}.pdf`); toast('📄 PDF descargado.');
         } catch (e) { console.error(e); toast('❌ No se pudo generar el PDF.'); }
         finally { document.body.classList.remove('pdf-modo'); if (S.chart) S.chart.resize(); btn.disabled = false; label.textContent = 'Descargar PDF'; }

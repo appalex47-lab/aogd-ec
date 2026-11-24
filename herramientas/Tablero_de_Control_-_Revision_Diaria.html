@@ -237,7 +237,7 @@
         </div>
 
         <!-- Banner de Diagnóstico Ejecutivo MTD (3 Niveles: Señal + Explicación Cuantitativa + Hipótesis Operativa) -->
-        <div id="mtd-diagnostic-banner" class="rounded-2xl border p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white border-slate-200 shadow-2xs">
+        <div id="mtd-diagnostic-banner" class="rounded-2xl border p-4 flex flex-col sm:flex-row sm:items-start justify-between gap-3 bg-white border-slate-200 shadow-2xs">
         </div>
 
         <!-- 4 Tarjetas KPI Ejecutivas (MTD Real vs Plan Acumulado al Corte + Pronóstico Descompuesto) -->
@@ -1907,6 +1907,109 @@
         // =====================================================================
         // 9. RENDERIZADO EJECUTIVO DE TARJETAS MTD, PACING Y PRONÓSTICO 4 PARTES
         // =====================================================================
+        // =====================================================================
+        // RESUMEN NARRATIVO: qué está pasando con los datos al corte, en lenguaje claro
+        // =====================================================================
+        // La venta es Tráfico × Conversión × Ticket (Venta = Sesiones × (Pedidos ÷ Sesiones) × (Venta ÷ Pedidos)), así que la diferencia contra el
+        // plan se reparte EXACTAMENTE entre esos tres factores (proporcional al cambio relativo de cada uno) y se puede decir qué la explica.
+        function resumenDeCanal(cKey) {
+            const corte = estadoApp.fechaCorte;
+            const num = v => Number(v || 0);
+            const regs = (estadoApp.datos[cKey] || []).filter(r => r.fecha <= corte);
+            const conVenta = regs.filter(r => esNumeroValidoNoNegativo(r.ventaReal));
+            if (conVenta.length === 0) return null;
+            const suma = (arr, k) => arr.reduce((a, r) => a + num(r[k]), 0);
+            const cfg = CONFIG_CANALES[cKey];
+            const V = suma(conVenta, 'ventaReal'), Vp = suma(conVenta, 'ventaPlan');
+            const r = { cKey, nombre: cfg.nombre, etiqueta: (cfg.etiquetaTrafico || 'sesiones').toLowerCase(), V, Vp, gap: V - Vp, pct: Vp > 0 ? V / Vp * 100 : null, dias: conVenta.length, drivers: null };
+            const comp = conVenta.filter(x => esNumeroValidoNoNegativo(x.pedidosReal) && esNumeroValidoNoNegativo(x.sesionesReal) && num(x.pedidosReal) > 0 && num(x.sesionesReal) > 0 && num(x.pedidosPlan) > 0 && num(x.sesionesPlan) > 0);
+            if (comp.length > 0 && Vp > 0) {
+                const v = suma(comp, 'ventaReal'), vp = suma(comp, 'ventaPlan'), p = suma(comp, 'pedidosReal'), pp = suma(comp, 'pedidosPlan'), se = suma(comp, 'sesionesReal'), sp = suma(comp, 'sesionesPlan');
+                const rS = se / sp, rCR = (p / se) / (pp / sp), rT = (v / p) / (vp / pp), lt = Math.log(v / vp);
+                if (isFinite(lt) && Math.abs(lt) > 1e-6) {
+                    const g = r.gap;
+                    r.drivers = { trafico: g * Math.log(rS) / lt, conversion: g * Math.log(rCR) / lt, ticket: g * Math.log(rT) / lt };
+                    Object.assign(r, { S: se, Sp: sp, CR: p / se * 100, CRp: pp / sp * 100, T: v / p, Tp: vp / pp });
+                }
+            }
+            r.racha = analizarRachaYVelocidad(conVenta);
+            return r;
+        }
+        const NOMBRE_FACTOR = { trafico: 'tráfico', conversion: 'conversión', ticket: 'ticket promedio' };
+        function detalleFactor(c, k) {
+            if (k === 'trafico') return `${fmtNumero(c.S)} vs ${fmtNumero(c.Sp)} ${c.etiqueta} del plan`;
+            if (k === 'conversion') return `CR ${c.CR.toFixed(2)}% vs ${c.CRp.toFixed(2)}% del plan`;
+            return `ticket ${fmtMoneda(c.T)} vs ${fmtMoneda(c.Tp)} del plan`;
+        }
+        function fraseCanalResumen(c) {
+            const signo = x => `${x >= 0 ? '+' : '−'}${fmtMoneda(Math.abs(x))}`;
+            if (c.Vp <= 0) return `${c.nombre}: sin plan cargado para comparar (venta real ${fmtMoneda(c.V)}).`;
+            if (Math.abs(c.gap) < 0.01 * c.Vp) return `${c.nombre} ${signo(c.gap)} (${c.pct.toFixed(1)}%): en línea con el plan.${racha(c)}`;
+            let t = `${c.nombre} ${signo(c.gap)} (${c.pct.toFixed(1)}% del plan)`;
+            if (c.drivers) {
+                const ord = Object.keys(c.drivers).sort((a, b) => Math.abs(c.drivers[b]) - Math.abs(c.drivers[a]));
+                const k1 = ord[0];
+                t += `: ${c.gap < 0 ? 'lo frena' : 'lo impulsa'} ${NOMBRE_FACTOR[k1]} (${signo(c.drivers[k1])}; ${detalleFactor(c, k1)})`;
+                ord.slice(1).filter(k => Math.abs(c.drivers[k]) >= 0.15 * Math.abs(c.gap)).forEach(k => {
+                    const opuesto = (c.drivers[k] >= 0) !== (c.drivers[k1] >= 0);
+                    t += `; ${opuesto ? 'lo compensa' : 'también'} ${NOMBRE_FACTOR[k]} (${signo(c.drivers[k])}; ${detalleFactor(c, k)})`;
+                });
+            }
+            return t + '.' + racha(c);
+        }
+        function racha(c) {
+            if (c.racha.rachaTipo === 'DOWN') return ` Racha: ${c.racha.rachaDias} días seguidos bajo su meta diaria.`;
+            if (c.racha.rachaTipo === 'UP') return ` Racha: ${c.racha.rachaDias} días seguidos sobre su meta diaria.`;
+            return '';
+        }
+        function generarResumenNarrativo(mtd, rachaInfo, esConsolidado) {
+            if (mtd.diasCapturadosCount === 0) return null;
+            const cls = esConsolidado ? Object.keys(CONFIG_CANALES) : [estadoApp.canal];
+            const canales = cls.map(resumenDeCanal).filter(Boolean);
+            const titulares = [];
+            const dia = `día ${mtd.diasTranscurridosCalendario} de ${mtd.totalDiasMes}`;
+            if (mtd.presupuestoTotalMes <= 0 || mtd.planVentaMTD <= 0) {
+                titulares.push(`Este mes todavía no tiene plan cargado, así que no se puede comparar contra la meta. Lo vendido al corte es ${fmtMoneda(mtd.ventaRealObservada)}. Carga el plan (CSV o captura) para ver el resumen completo.`);
+                return { titulares, canales: [], resta: '', suma: '', nota: '' };
+            }
+            const brecha = mtd.ventaRealObservada - mtd.planVentaMTD, pct = mtd.cumplimientoVentaMTD;
+            titulares.push(`Al ${dia}, ${esConsolidado ? 'la venta acumulada' : 'la venta del canal'} es ${fmtMoneda(mtd.ventaRealObservada)}: ${Math.abs(pct - 100).toFixed(1)}% ${brecha >= 0 ? 'por encima' : 'por debajo'} del plan al corte (${brecha >= 0 ? '+' : '−'}${fmtMoneda(Math.abs(brecha))}).`);
+            // Con captura incompleta, la brecha contra el plan puede venir de datos que faltan y no de un mal desempeño
+            if (esConsolidado && mtd.cumplimientoSobreCapturado !== null && Math.abs(mtd.cumplimientoSobreCapturado - pct) >= 1) {
+                titulares.push(`Ojo: parte de esa diferencia se debe a captura pendiente (días o canales sin datos). Sobre lo que sí está capturado, la venta va ${mtd.cumplimientoSobreCapturado.toFixed(1)}% del plan (${mtd.cumplimientoSobreCapturado >= 100 ? 'por encima' : 'por debajo'}).`);
+            }
+            if (rachaInfo.pct7d !== null) {
+                const mejor = rachaInfo.pct7d >= pct;
+                titulares.push(`En los últimos 7 días el ritmo es ${rachaInfo.pct7d.toFixed(1)}% del plan, ${mejor ? 'mejor' : 'peor'} que el acumulado del mes (${pct.toFixed(1)}%): la tendencia ${mejor ? 'está mejorando' : 'se está debilitando'}.`);
+            }
+            if (mtd.pronosticoCierreBase !== null) {
+                let f = `Si el ritmo se mantiene, el mes cerraría en ${fmtMoneda(mtd.pronosticoCierreBase)} (${mtd.cumplimientoPronosticoBase.toFixed(1)}% de la meta de ${fmtMoneda(mtd.presupuestoTotalMes)}).`;
+                if (mtd.diasRestantesCalendario > 0 && mtd.brechaParaMetaTotalMes > 0 && mtd.cuotaDiariaPlanFuturo > 0)
+                    f += ` Para llegar a la meta falta vender ${fmtMoneda(mtd.brechaParaMetaTotalMes)}: ${fmtMoneda(mtd.cuotaDiariaRequerida)} por día en los ${mtd.diasRestantesCalendario} días que quedan (${Math.abs(mtd.exigenciaCuotaPct).toFixed(1)}% ${mtd.exigenciaCuotaPct >= 0 ? 'más' : 'menos'} que el plan diario).`;
+                else if (mtd.brechaParaMetaTotalMes <= 0) f += ' La meta del mes ya está cubierta.';
+                titulares.push(f);
+            }
+            // Qué más resta y qué más suma, entre todos los canales y factores
+            const aportes = [];
+            canales.forEach(c => { if (c.drivers) Object.keys(c.drivers).forEach(k => aportes.push({ canal: c.nombre, k, v: c.drivers[k] })); });
+            const peor = aportes.filter(a => a.v < 0).sort((a, b) => a.v - b.v)[0], mejor = aportes.filter(a => a.v > 0).sort((a, b) => b.v - a.v)[0];
+            const aFrase = a => `${NOMBRE_FACTOR[a.k]} de ${a.canal} (${a.v >= 0 ? '+' : '−'}${fmtMoneda(Math.abs(a.v))})`;
+            const nota = (esConsolidado && (mtd.esConsolidadoParcial || mtd.brechasSinCapturaCount > 0))
+                ? 'La captura está incompleta: cada canal se compara solo en los días que tiene capturados, y el consolidado puede verse más bajo de lo real hasta completarla.' : '';
+            return { titulares, canales: canales.sort((a, b) => Math.abs(b.gap) - Math.abs(a.gap)).map(fraseCanalResumen), resta: peor ? `Lo que más resta: ${aFrase(peor)}.` : (aportes.length ? 'Ningún canal resta contra el plan en los días capturados.' : ''), suma: mejor ? `Lo que más suma: ${aFrase(mejor)}.` : '', nota };
+        }
+        const escHTML = t => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        function htmlResumenNarrativo(r) {
+            if (!r) return '';
+            return `<div class="mt-3 pt-3 border-t border-slate-200/80 space-y-2 min-w-0">
+                <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">Resumen: qué está pasando</div>
+                <div class="space-y-1">${r.titulares.map(t => `<p class="text-xs text-slate-800 leading-relaxed">${escHTML(t)}</p>`).join('')}</div>
+                ${r.canales.length ? `<ul class="text-xs text-slate-700 space-y-1 list-disc pl-4 leading-relaxed">${r.canales.map(c => `<li>${escHTML(c)}</li>`).join('')}</ul>` : ''}
+                ${(r.resta || r.suma) ? `<p class="text-xs text-slate-700 leading-relaxed">${escHTML([r.resta, r.suma].filter(Boolean).join(' '))}</p>` : ''}
+                ${r.nota ? `<p class="text-[10px] text-slate-400 leading-snug">${escHTML(r.nota)}</p>` : ''}
+            </div>`;
+        }
+
         function renderizarTarjetasMTD() {
             const registros = obtenerRegistrosCanalActivo();
             const mtd = calcularMetricasCalendarioMTD(registros, estadoApp.fechaCorte);
@@ -1988,7 +2091,7 @@
                     <div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${mtd.diasCapturadosCount === 0 ? 'bg-slate-100 text-slate-500' : (cumpleGlobal ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700')}">
                         <i data-lucide="${cumpleGlobal ? 'trending-up' : 'alert-circle'}" class="w-5 h-5"></i>
                     </div>
-                    <div class="space-y-1">
+                    <div class="space-y-1 min-w-0 flex-1">
                         <div class="flex flex-wrap items-center gap-2">
                             <span class="text-xs font-extrabold uppercase tracking-wider text-slate-500">${nombreVistaActual} • Corte ${estadoApp.fechaCorte} (Día ${mtd.diasTranscurridosCalendario}/${mtd.totalDiasMes})</span>
                             ${obtenerSemaforoHTML(mtd.cumplimientoVentaMTD, mtd.diasCapturadosCount === 0)}
@@ -1999,6 +2102,7 @@
                         <p class="text-sm font-extrabold text-slate-900">${diagMTD.senal}</p>
                         <p class="text-xs text-slate-700 num-tabular">${diagMTD.explicacionCuantitativa}</p>
                         <p class="text-[11px] text-slate-500 italic">${diagMTD.hipotesisOperativa}</p>
+                        ${htmlResumenNarrativo(generarResumenNarrativo(mtd, rachaInfo, esConsolidado))}
                     </div>
                 </div>
                 <div class="flex sm:flex-col items-end gap-2 shrink-0">
@@ -4003,6 +4107,8 @@
                 ? `Ticket Prom.: ${fmtMoneda(mtd.realPedidosMTD > 0 ? mtd.ventaRealObservada / mtd.realPedidosMTD : 0)}`
                 : `CR (${CONFIG_CANALES[estadoApp.canal].etiquetaTrafico}): ${fmtCR(calcularCR(mtd.realPedidosMTD, mtd.realSesionesMTD))}`;
 
+            const narr = generarResumenNarrativo(mtd, analizarRachaYVelocidad(mtd.capturadosAlCorte), esConsolidado);
+            const lineasNarr = narr ? ['', '🧭 *Qué está pasando*', ...narr.titulares, ...narr.canales.map(c => `• ${c}`), [narr.resta, narr.suma].filter(Boolean).join(' ')].filter(x => x !== undefined) : [];
             const texto = [
                 `📊 *REVISIÓN DIARIA - ${tituloVista} (${formatearEtiquetaMes(estadoApp.mesActivo)})*`,
                 `📅 Corte calendario: ${estadoApp.fechaCorte} (Día ${mtd.diasTranscurridosCalendario}/${mtd.totalDiasMes} • ${mtd.diasCapturadosCount} días con captura)`,
@@ -4010,7 +4116,8 @@
                 `${semaforo} *Observado MTD:* ${fmtMoneda(mtd.ventaRealObservada)} vs Plan Corte ${fmtMoneda(mtd.planVentaMTD)} (*${mtd.cumplimientoVentaMTD.toFixed(1)}%*)`,
                 `📈 *Pacing Mes:* ${mtd.pacingRealMesPct.toFixed(1)}% (Esperado: ${mtd.pacingEsperadoMesPct.toFixed(1)}%) | *Pronóstico Cierre:* ${fmtMoneda(mtd.pronosticoCierreBase)}`,
                 `🎯 *Recuperación Req. (${mtd.diasRestantesCalendario}d):* ${mtd.diasRestantesCalendario > 0 ? fmtMoneda(mtd.cuotaDiariaRequerida) + '/día' : 'Periodo cerrado'}`,
-                `🛍️ *Pedidos MTD:* ${fmtNumero(mtd.realPedidosMTD)} | *${metricaCR}*`
+                `🛍️ *Pedidos MTD:* ${fmtNumero(mtd.realPedidosMTD)} | *${metricaCR}*`,
+                ...lineasNarr
             ].join('\n');
 
             if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -4399,6 +4506,47 @@
             return _cssFuentesPDF;
         }
 
+        // Captura de la pantalla SIN alturas congeladas. La librería fija en px el alto de cada bloque según la medida de pantalla; si en la
+        // captura una palabra baja de renglón (el texto se mide con una diferencia mínima), el bloque no crece y el texto se encima con el
+        // siguiente. Aquí se quita el alto fijo de todo bloque que contiene texto, para que se acomode al contenido real.
+        async function capturarPantallaPDF(el, ancho, alto, escalaMax, cssFuentes, quitarAlturas = true) {
+            const opciones = { pixelRatio: 1, backgroundColor: '#f8fafc', width: ancho, height: alto,
+                ...(cssFuentes ? { fontEmbedCSS: cssFuentes } : {}),
+                filter: (n) => !(n.id === 'nube-overlay' || n.id === 'toast-notification' || n.id === 'nube-estado') };
+            const svgUrl = await window.htmlToImage.toSvg(el, opciones);
+            const svgTexto = decodeURIComponent(svgUrl.substring(svgUrl.indexOf(',') + 1));
+            const doc = new DOMParser().parseFromString(svgTexto, 'image/svg+xml');
+            if (doc.querySelector('parsererror')) throw new Error('SVG inválido');
+            const extra = Math.round(alto * 0.06) + 240;           // margen por si algún bloque crece al acomodar el texto
+            const altoTotal = alto + extra;
+            if (quitarAlturas) {
+                const ALTURAS = /(^|;)\s*(height|min-height|max-height|block-size|min-block-size|max-block-size)\s*:[^;]*/gi;
+                doc.querySelectorAll('foreignObject *').forEach(n => {
+                    const estilo = n.getAttribute && n.getAttribute('style');
+                    if (estilo && (n.textContent || '').trim()) n.setAttribute('style', estilo.replace(ALTURAS, '$1'));
+                });
+            }
+            const raiz = doc.documentElement;
+            raiz.setAttribute('height', String(altoTotal)); raiz.setAttribute('viewBox', `0 0 ${ancho} ${altoTotal}`);
+            const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(doc));
+            const img = await new Promise((ok, fallo) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => fallo(new Error('No se pudo dibujar la captura')); i.src = url; });
+            const escala = Math.min(escalaMax, 15000 / altoTotal, 15000 / ancho);
+            const lienzo = document.createElement('canvas'); lienzo.width = Math.round(ancho * escala); lienzo.height = Math.round(altoTotal * escala);
+            const ctx = lienzo.getContext('2d'); ctx.fillStyle = '#f8fafc'; ctx.fillRect(0, 0, lienzo.width, lienzo.height);
+            ctx.drawImage(img, 0, 0, lienzo.width, lienzo.height);
+            // Se recorta el espacio en blanco sobrante al final (primera fila, de abajo hacia arriba, con algo distinto al fondo)
+            let ultima = lienzo.height - 1;
+            for (; ultima > 0; ultima--) {
+                const fila = ctx.getImageData(0, ultima, lienzo.width, 1).data; let hay = false;
+                for (let x = 0; x < fila.length; x += 4) { if (Math.abs(fila[x] - 248) + Math.abs(fila[x + 1] - 250) + Math.abs(fila[x + 2] - 252) > 6) { hay = true; break; } }
+                if (hay) break;
+            }
+            const altoRecorte = Math.min(lienzo.height, ultima + Math.round(24 * escala));
+            const recorte = document.createElement('canvas'); recorte.width = lienzo.width; recorte.height = altoRecorte;
+            recorte.getContext('2d').drawImage(lienzo, 0, 0);
+            return { canvas: recorte, escala };
+        }
+
         async function descargarPDF() {
             const btn = document.getElementById('btn-descargar-pdf');
             const label = document.getElementById('btn-descargar-pdf-label');
@@ -4429,16 +4577,11 @@
                 const el = document.body;
                 const ancho = Math.max(el.scrollWidth, document.documentElement.clientWidth);
                 const alto = el.scrollHeight;
-                // Los navegadores limitan el tamaño del canvas (~16,000 px por lado): se ajusta la escala.
-                const escala = Math.min(2, 15000 / alto, 15000 / ancho);
-                const canvas = await window.htmlToImage.toCanvas(el, {
-                    pixelRatio: escala, backgroundColor: '#f8fafc', width: ancho, height: alto,
-                    ...(cssFuentes ? { fontEmbedCSS: cssFuentes } : {}),
-                    filter: (n) => !(n.id === 'nube-overlay' || n.id === 'toast-notification' || n.id === 'nube-estado')
-                });
+                const { canvas, escala } = await capturarPantallaPDF(el, ancho, alto, 2, cssFuentes);
+                const altoFinal = canvas.height / escala;
                 const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF({ orientation: ancho > alto ? 'landscape' : 'portrait', unit: 'px', format: [ancho, alto], compress: true });
-                pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, ancho, alto);
+                const pdf = new jsPDF({ orientation: ancho > altoFinal ? 'landscape' : 'portrait', unit: 'px', format: [ancho, altoFinal], compress: true });
+                pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, ancho, altoFinal);
                 const nombre = `Tablero_Revision_Diaria_${estadoApp.mesActivo}_corte_${estadoApp.fechaCorte}.pdf`;
                 pdf.save(nombre);
                 mostrarNotificacion('📄 PDF descargado.');
