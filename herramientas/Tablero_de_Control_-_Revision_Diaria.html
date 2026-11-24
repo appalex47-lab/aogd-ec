@@ -4366,6 +4366,39 @@
         // =====================================================================
         // DESCARGA DE PDF: captura de toda la pantalla (vista actual completa) en una sola página
         // =====================================================================
+        // Incrusta la fuente Inter (solo subconjuntos latinos) como datos para que la captura use la misma tipografía
+        // que la pantalla. Si la tipografía de la captura difiere, los textos se desacomodan y se encima el contenido.
+        let _cssFuentesPDF = null;
+        async function obtenerCSSFuentesPDF() {
+            if (_cssFuentesPDF !== null) return _cssFuentesPDF;
+            _cssFuentesPDF = '';
+            try {
+                const link = document.querySelector('link[href*="fonts.googleapis.com/css"]');
+                if (!link) return _cssFuentesPDF;
+                const css = await (await fetch(link.href)).text();
+                const bloques = css.split('@font-face').slice(1).map(b => '@font-face' + b);
+                const latinos = [];
+                for (const b of bloques) {
+                    const m = b.match(/url\((https:[^)]+)\)/);
+                    if (!m) continue;
+                    const rangoLatino = /unicode-range:[^;]*U\+0000-00FF/i.test(b) || /unicode-range:[^;]*U\+0100-02/i.test(b);
+                    if (rangoLatino) latinos.push({ bloque: b, url: m[1] });
+                }
+                const cacheUrl = {};
+                for (const { bloque, url } of latinos) {
+                    if (!cacheUrl[url]) {
+                        const blob = await (await fetch(url)).blob();
+                        cacheUrl[url] = await new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(blob); });
+                    }
+                    _cssFuentesPDF += bloque.replace(url, cacheUrl[url]) + '\n';
+                }
+            } catch (e) {
+                console.warn('No se pudieron incrustar las fuentes para el PDF; se usará el método por defecto.', e);
+                _cssFuentesPDF = '';
+            }
+            return _cssFuentesPDF;
+        }
+
         async function descargarPDF() {
             const btn = document.getElementById('btn-descargar-pdf');
             const label = document.getElementById('btn-descargar-pdf-label');
@@ -4388,6 +4421,8 @@
                         if (tr.dataset.fecha > ultimaConDatos) { tr.style.display = 'none'; filasOcultas.push(tr); }
                     });
                 }
+                const cssFuentes = await obtenerCSSFuentesPDF();
+                if (document.fonts && document.fonts.ready) await document.fonts.ready;
                 document.body.classList.add('pdf-modo');
                 await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
@@ -4398,6 +4433,7 @@
                 const escala = Math.min(2, 15000 / alto, 15000 / ancho);
                 const canvas = await window.htmlToImage.toCanvas(el, {
                     pixelRatio: escala, backgroundColor: '#f8fafc', width: ancho, height: alto,
+                    ...(cssFuentes ? { fontEmbedCSS: cssFuentes } : {}),
                     filter: (n) => !(n.id === 'nube-overlay' || n.id === 'toast-notification' || n.id === 'nube-estado')
                 });
                 const { jsPDF } = window.jspdf;
