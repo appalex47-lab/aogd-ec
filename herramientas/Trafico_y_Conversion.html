@@ -339,6 +339,41 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
         return grupos;
     }
 
+    // ---- Diagnóstico de brecha ----
+    // Para cada segmento (fuente, campaña, dispositivo o el total) se calcula, contra su propio benchmark:
+    //  - el paso del funnel más débil (mayor caída con impacto) y
+    //  - los pedidos "perdidos": cuántos pedidos habría tenido de mantener su benchmark.
+    function diagnosticoGrupo(g, V) {
+        const vacio = { items: [], peor: null, perdidosCR: 0 };
+        if (!g.volumenOk || !g.baseOk || g.cr === null || g.crB === null) return vacio;
+        const pa = tasasPaso(g.t), pb = tasasPaso(g.b);
+        const minDen = Math.max(20, S.config.minSesDia * V.dias * 0.05);
+        const items = [];
+        PASOS.forEach(p => {
+            const den = g.t[p.de], denB = g.b[p.de];
+            if (den < minDen || denB < minDen || pa[p.k] === null || pb[p.k] === null || pb[p.k] === 0) return;
+            const eventosPerdidos = (p.razon ? (pb[p.k] - pa[p.k]) : (pb[p.k] - pa[p.k]) / 100) * den;
+            const aPedido = g.t[p.k] > 0 ? g.t.ped / g.t[p.k] : (g.b[p.k] > 0 ? g.b.ped / g.b[p.k] : 0);
+            items.push({ paso: p, act: pa[p.k], base: pb[p.k], delta: deltaRel(pa[p.k], pb[p.k]), perdidos: p.k === 'ped' ? eventosPerdidos : eventosPerdidos * aPedido });
+        });
+        const peor = items.filter(x => x.delta <= -S.config.umbral).sort((a, b) => b.perdidos - a.perdidos)[0] || null;
+        return { items, peor, perdidosCR: (g.crB - g.cr) / 100 * g.t.ses };
+    }
+    const perdidosDe = g => g.diag ? Math.max(g.diag.perdidosCR > 0 ? g.diag.perdidosCR : 0, g.diag.peor ? Math.max(g.diag.peor.perdidos, 0) : 0) : 0;
+
+    function alertaDeGrupo(dim, nombre, g) {
+        const d = g.diag, crBajo = g.delta !== null && g.delta <= -S.config.umbral;
+        if (!d || (!crBajo && !d.peor)) return null;
+        const delta = Math.min(...[g.delta, d.peor ? d.peor.delta : null].filter(x => x !== null));
+        const perdidos = perdidosDe(g);
+        const partes = [];
+        if (g.cr !== null && g.crB !== null) partes.push(`CR ${fmtP(g.cr)} vs benchmark ${fmtP(g.crB)} (${fmtP(g.delta, 1)})`);
+        if (d.peor) partes.push(`Paso más débil: ${d.peor.paso.n} ${fmtPaso(d.peor.paso, d.peor.act)} vs ${fmtPaso(d.peor.paso, d.peor.base)} (${fmtP(d.peor.delta, 1)})`);
+        if (perdidos >= 1) partes.push(`≈ ${fmtN(perdidos)} pedidos menos que su benchmark`);
+        partes.push(`${fmtN(g.t.ses)} sesiones`);
+        return { tipo: dim, sev: delta <= -S.config.umbral * 2 ? 'alta' : 'alerta', titulo: nombre, detalle: partes.join(' · '), perdidos };
+    }
+
     function analisis() {
         const V = ventanas();
         const total = evaluarGrupo(V.rows, V.bRows, V);
@@ -375,20 +410,58 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
             const delta = (total.volumenOk && total.baseOk) ? deltaRel(pasos[p.k], pasosB[p.k]) : null;
             return { ...p, act: pasos[p.k], base: pasosB[p.k], delta, estado: estadoDelta(delta), de: total.t[p.de], a: total.t[p.k] };
         });
+        // Diagnóstico por segmento y matriz de brecha (paso del funnel × dimensión)
+        const sinSub = porDisp.filter(d => !d.subtotal);
+        [...porFuente, ...porCampana, ...porDisp].forEach(g => { g.diag = diagnosticoGrupo(g, V); });
+        total.diag = diagnosticoGrupo(total, V);
+        const dimensiones = [
+            { dim: 'Dispositivo', grupos: sinSub.map(g => ({ nombre: g.dispositivo, g })) },
+            { dim: 'Fuente', grupos: porFuente.map(g => ({ nombre: g.fuente, g })) },
+            { dim: 'Campaña', grupos: porCampana.map(g => ({ nombre: `${g.campana} (${g.fuente})`, g })) }
+        ];
+        const topSegmento = (k) => {
+            const out = {};
+            dimensiones.forEach(({ dim, grupos }) => {
+                const cand = grupos.map(({ nombre, g }) => {
+                    if (k === 'cr') return (g.delta !== null && g.delta <= -S.config.umbral && g.diag.perdidosCR > 0) ? { nombre, delta: g.delta, perdidos: g.diag.perdidosCR } : null;
+                    const it = g.diag.items.find(x => x.paso.k === k);
+                    return (it && it.delta <= -S.config.umbral && it.perdidos > 0) ? { nombre, delta: it.delta, perdidos: it.perdidos } : null;
+                }).filter(Boolean).sort((a, b) => b.perdidos - a.perdidos)[0] || null;
+                out[dim] = cand;
+            });
+            return out;
+        };
+        const matrizBrecha = [{ k: 'cr', n: 'CR sesión → pedido', delta: total.delta, perdidos: total.diag.perdidosCR > 0 ? total.diag.perdidosCR : 0 }].concat(
+            total.diag.items.map(it => ({ k: it.paso.k, n: it.paso.n, paso: it.paso, act: it.act, base: it.base, delta: it.delta, perdidos: it.perdidos }))
+        ).map(r => ({ ...r, seg: topSegmento(r.k) }));
         const mejor = arr => arr.filter(x => x.volumenOk && x.efic !== null).sort((a, b) => b.efic - a.efic)[0] || null;
         const mejorTipo = mejor(porTipo), mejorCampana = mejor(porCampana);
         const revisarCampana = porCampana.filter(x => x.volumenOk && x.efic !== null && x.efic < 0.6).sort((a, b) => b.t.ses - a.t.ses)[0] || null;
-        const fuga = detPasos.filter(p => p.delta !== null && p.delta <= -S.config.umbral).sort((a, b) => a.delta - b.delta)[0] || null;
-        // Alertas
-        const alertas = [];
-        porFuente.forEach(f => { if (f.estado === 'alerta' || f.estado === 'alta') alertas.push({ tipo: 'Fuente', sev: f.estado, titulo: f.fuente, detalle: `CR ${fmtP(f.cr)} vs benchmark ${fmtP(f.crB)} (${fmtP(f.delta, 1)}). ${fmtN(f.t.ses)} sesiones.` }); });
-        detPasos.forEach(p => { if (p.estado === 'alerta' || p.estado === 'alta') alertas.push({ tipo: 'Funnel', sev: p.estado, titulo: p.n, detalle: `${fmtPaso(p, p.act)} vs benchmark ${fmtPaso(p, p.base)} (${fmtP(p.delta, 1)}).` }); });
-        porCampana.forEach(c => { if (c.estado === 'alerta' || c.estado === 'alta') alertas.push({ tipo: 'Campaña', sev: c.estado, titulo: `${c.campana} (${c.fuente})`, detalle: `CR ${fmtP(c.cr)} vs benchmark ${fmtP(c.crB)} (${fmtP(c.delta, 1)}). ${fmtN(c.t.ses)} sesiones.` }); });
-        porDisp.forEach(d => { if (!d.subtotal && (d.estado === 'alerta' || d.estado === 'alta')) alertas.push({ tipo: 'Dispositivo', sev: d.estado, titulo: d.dispositivo, detalle: `CR ${fmtP(d.cr)} vs benchmark ${fmtP(d.crB)} (${fmtP(d.delta, 1)}).` }); });
-        alertas.sort((a, b) => (a.sev === 'alta' ? 0 : 1) - (b.sev === 'alta' ? 0 : 1));
+        // Alertas por pestaña (cada una con su paso más débil y pedidos perdidos) y alertas del funnel con su segmento responsable
+        const textoSeg = seg => ['Dispositivo', 'Fuente', 'Campaña'].filter(d => seg[d]).map(d => `${d}: ${seg[d].nombre} (${fmtP(seg[d].delta, 1)})`).join(' · ');
+        const alertasFunnel = matrizBrecha.filter(r => r.k !== 'cr' && r.delta !== null && r.delta <= -S.config.umbral).map(r => {
+            const seg = textoSeg(r.seg);
+            return { tipo: 'Funnel', sev: r.delta <= -S.config.umbral * 2 ? 'alta' : 'alerta', titulo: r.n,
+                detalle: `${fmtPaso(r.paso, r.act)} vs benchmark ${fmtPaso(r.paso, r.base)} (${fmtP(r.delta, 1)})` + (r.perdidos >= 1 ? ` · ≈ ${fmtN(r.perdidos)} pedidos menos` : '') + (seg ? ` · Mayor brecha en → ${seg}` : ''),
+                perdidos: r.perdidos, seg: r.seg, fila: r };
+        });
+        const armar = (dim, grupos, nombreDe) => grupos.map(g => alertaDeGrupo(dim, nombreDe(g), g)).filter(Boolean).sort((a, b) => b.perdidos - a.perdidos);
+        const alertasPorDim = {
+            Fuente: armar('Fuente', porFuente, g => g.fuente),
+            Campaña: armar('Campaña', porCampana, g => `${g.campana} (${g.fuente})`),
+            Dispositivo: armar('Dispositivo', sinSub, g => g.dispositivo),
+            Funnel: alertasFunnel.sort((a, b) => b.perdidos - a.perdidos)
+        };
+        const alertas = [...alertasPorDim.Funnel, ...alertasPorDim.Fuente, ...alertasPorDim.Campaña, ...alertasPorDim.Dispositivo].sort((a, b) => b.perdidos - a.perdidos);
+        // Mayor fuga: el paso con más pedidos perdidos, ya sea a nivel total o concentrado en un segmento (dispositivo, fuente o campaña)
+        const fuga = matrizBrecha.filter(r => r.k !== 'cr').map(r => {
+            const bajoTotal = r.delta !== null && r.delta <= -S.config.umbral;
+            const impacto = Math.max(bajoTotal ? r.perdidos : 0, ...Object.values(r.seg).map(x => x ? x.perdidos : 0));
+            return { n: r.n, act: r.act, base: r.base, delta: r.delta, perdidos: r.perdidos, seg: r.seg, paso: r.paso, bajoTotal, impacto };
+        }).filter(x => x.impacto >= 1).sort((a, b) => b.impacto - a.impacto)[0] || null;
         const bajaIntencion = porFuente.filter(f => f.clase === 'Baja intención');
         const sesBaja = bajaIntencion.reduce((s, f) => s + f.t.ses, 0);
-        return { V, total, porFuente, porCampana, porTipo, porEtiqueta, totalC, mejorTipo, mejorCampana, revisarCampana, porDisp, pasos, pasosB, detPasos, fuga, alertas, bajaIntencion, pctBaja: div(sesBaja, total.t.ses) };
+        return { V, total, matrizBrecha, alertasPorDim, porFuente, porCampana, porTipo, porEtiqueta, totalC, mejorTipo, mejorCampana, revisarCampana, porDisp, pasos, pasosB, detPasos, fuga, alertas, bajaIntencion, pctBaja: div(sesBaja, total.t.ses) };
     }
 
     // =====================================================================
@@ -413,6 +486,30 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
     function botonAccion(tipo, titulo, detalle) {
         return `<button type="button" data-pdf-ocultar="true" onclick="abrirAccion(${esc(JSON.stringify(JSON.stringify({ titulo: `Revisar ${tipo.toLowerCase()}: ${titulo}`, detalle })))})" class="px-2.5 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-[11px] font-bold text-slate-700">+ Acción</button>`;
     }
+    function itemAlerta(a) {
+        return `<li class="flex items-start justify-between gap-3 p-3 rounded-xl border ${a.sev === 'alta' ? 'border-rose-200 bg-rose-50/60' : 'border-amber-200 bg-amber-50/60'}">
+            <div><div class="text-xs font-extrabold text-slate-900"><span class="text-[10px] uppercase text-slate-500 mr-1.5">${a.tipo}</span>${esc(a.titulo)}</div><div class="text-xs text-slate-600 mt-0.5">${esc(a.detalle)}</div></div>
+            ${botonAccion(a.tipo, a.titulo, a.detalle)}</li>`;
+    }
+    function panelAlertas(titulo, arr, vacio, max) {
+        const lista = max ? arr.slice(0, max) : arr;
+        return `<div class="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-sm">
+            <h3 class="text-sm font-extrabold text-slate-900 mb-3">${titulo} <span class="text-slate-400 font-semibold">(${arr.length})</span></h3>
+            <ul class="space-y-2">${lista.length ? lista.map(itemAlerta).join('') : `<li class="p-4 text-xs text-slate-500 rounded-xl bg-emerald-50 border border-emerald-200">${vacio}</li>`}</ul>
+            ${max && arr.length > max ? `<p class="text-[11px] text-slate-400 mt-2">Se muestran las ${max} con más pedidos perdidos. Todas están en la pestaña Alertas y acciones.</p>` : ''}</div>`;
+    }
+    const celdaPasoDebil = g => (g.diag && g.diag.peor) ? `<div class="text-[11px] font-bold text-slate-800">${g.diag.peor.paso.n}</div><div class="mt-0.5">${chipDelta(g.diag.peor.delta)}</div>` : '<span class="text-slate-300">—</span>';
+    const celdaPerdidos = g => { const p = perdidosDe(g); return p >= 1 ? `<span class="font-bold text-rose-700 num-tabular">≈ ${fmtN(p)}</span>` : '<span class="text-slate-300">—</span>'; };
+    function textoBenchmark(V) {
+        return `<details class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm text-xs text-slate-600 leading-relaxed" data-pdf-ocultar="true">
+            <summary class="cursor-pointer font-bold text-slate-800">ⓘ ¿De dónde sale el benchmark?</summary>
+            <div class="mt-2 space-y-1.5">
+                <p><strong>Es tu propio rendimiento reciente, no una meta ni un estándar externo.</strong> Para cada segmento (canal, fuente, campaña o dispositivo) se toman los <strong>28 días anteriores</strong> al inicio de la ventana que estás viendo.</p>
+                <p>Con la ventana actual (${fechaCorta(V.ini)} – ${fechaCorta(V.fin)}), el benchmark usa <strong>${fechaCorta(V.bIni)} – ${fechaCorta(V.bFin)}</strong>. Se calcula con los mismos datos que cargas: total de pedidos ÷ total de sesiones (o de eventos, según el paso) de esos 28 días, es decir, un promedio ponderado y no un promedio de tasas diarias.</p>
+                <p><strong>Pedidos perdidos</strong> = lo que el segmento habría vendido de mantener su benchmark con el mismo tráfico actual. Sirve para ordenar las alertas por impacto y no solo por porcentaje.</p>
+                <p class="text-slate-500">Límites: no corrige estacionalidad ni promociones del periodo base (si hubo un Buen Fin en esos 28 días, el benchmark sale inflado), y necesita historia: sin 28 días previos con volumen suficiente verás "Sin base".</p>
+            </div></details>`;
+    }
     function textoVentana(V) {
         const n = S.ventana === 'mtd' ? 'Mes a la fecha' : S.ventana === 1 || S.ventana === '1' ? 'Día de corte' : `Últimos ${S.ventana} días`;
         return `${n}: ${fechaCorta(V.ini)} – ${fechaCorta(V.fin)} · Benchmark propio: ${fechaCorta(V.bIni)} – ${fechaCorta(V.bFin)}`;
@@ -426,13 +523,11 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
             tarjeta('CR sesión → pedido', fmtP(total.cr), `Benchmark propio ${fmtP(total.crB)}`, total.delta),
             tarjeta('Pedidos', fmtN(total.t.ped), `${fmtN(total.t.chk)} checkouts · ${fmtN(total.t.car)} carritos`),
             tarjeta('Tráfico de baja intención', fmtP(A.pctBaja, 1), A.bajaIntencion.length ? `${A.bajaIntencion.length} fuente(s) con CR < 50% del global` : 'Ninguna fuente bajo 50% del CR global'),
-            tarjeta('Mayor fuga vs benchmark', fuga ? fuga.n : 'Sin fuga relevante', fuga ? `${fmtP(fuga.act)} vs ${fmtP(fuga.base)}` : `Ninguna etapa cae ${S.config.umbral}% o más contra su benchmark`, fuga ? fuga.delta : undefined)
+            tarjeta('Mayor fuga vs benchmark', fuga ? fuga.n : 'Sin fuga relevante',
+                fuga ? `${fmtPaso(fuga.paso, fuga.act)} vs ${fmtPaso(fuga.paso, fuga.base)}${fuga.bajoTotal ? ` · ≈ ${fmtN(fuga.perdidos)} pedidos menos` : ' · dentro del umbral a nivel total, pero concentrada en un segmento'}` : `Ninguna etapa ni segmento cae ${S.config.umbral}% o más contra su benchmark`,
+                fuga ? fuga.delta : undefined,
+                fuga ? `<div class="mt-2 pt-2 border-t border-slate-100 text-[11px] text-slate-600 space-y-0.5">${['Dispositivo', 'Fuente', 'Campaña'].map(d => `<div><span class="text-slate-400">${d}:</span> ${fuga.seg[d] ? `<strong>${esc(fuga.seg[d].nombre)}</strong> (${fmtP(fuga.seg[d].delta, 1)})` : '—'}</div>`).join('')}</div>` : '')
         ].join('');
-        const lista = alertas.length ? alertas.slice(0, 6).map(a => `
-            <li class="flex items-start justify-between gap-3 p-3 rounded-xl border ${a.sev === 'alta' ? 'border-rose-200 bg-rose-50/60' : 'border-amber-200 bg-amber-50/60'}">
-                <div><div class="text-xs font-extrabold text-slate-900"><span class="text-[10px] uppercase text-slate-500 mr-1.5">${a.tipo}</span>${esc(a.titulo)}</div><div class="text-xs text-slate-600 mt-0.5">${esc(a.detalle)}</div></div>
-                ${botonAccion(a.tipo, a.titulo, a.detalle)}
-            </li>`).join('') : '<li class="p-4 text-xs text-slate-500 rounded-xl bg-emerald-50 border border-emerald-200">Sin alertas: ninguna fuente, etapa o dispositivo cae por debajo del umbral contra su benchmark.</li>';
         document.getElementById('panel-resumen').innerHTML = `
             <p class="text-[11px] text-slate-500">${textoVentana(V)} · Canal: <strong>${ETIQ_CANAL[S.canal]}</strong></p>
             <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">${cards}</div>
@@ -441,10 +536,8 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
                 <p class="text-[11px] text-slate-500 mb-3">Sesiones (barras) y CR sesión → pedido (línea) hasta el corte</p>
                 <div class="relative h-64"><canvas id="chart-diario"></canvas></div>
             </div>
-            <div class="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-sm">
-                <h3 class="text-sm font-extrabold text-slate-900 mb-3">Alertas activas <span class="text-slate-400 font-semibold">(${alertas.length})</span></h3>
-                <ul class="space-y-2">${lista}</ul>
-            </div>`;
+            ${panelAlertas('Alertas activas · ordenadas por pedidos perdidos', alertas, 'Sin alertas: ninguna fuente, campaña, etapa o dispositivo cae por debajo del umbral contra su benchmark.', 8)}
+            ${textoBenchmark(V)}`;
         dibujarGraficoDiario();
     }
 
@@ -482,11 +575,13 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
                 <td class="px-3 py-2.5 text-right num-tabular text-slate-500">${fmtP(f.crB)}</td>
                 <td class="px-3 py-2.5 text-right">${chipDelta(f.delta)}</td>
                 <td class="px-3 py-2.5">${chipClase(f.clase)}</td>
-                <td class="px-3 py-2.5 text-right">${(f.estado === 'alerta' || f.estado === 'alta') ? botonAccion('Fuente', f.fuente, `CR ${fmtP(f.cr)} vs benchmark ${fmtP(f.crB)} (${fmtP(f.delta, 1)}).`) : ''}</td>
+                <td class="px-3 py-2.5 text-right">${celdaPasoDebil(f)}</td><td class="px-3 py-2.5 text-right">${celdaPerdidos(f)}</td>
+                <td class="px-3 py-2.5 text-right">${(f.estado === 'alerta' || f.estado === 'alta' || (f.diag && f.diag.peor)) ? botonAccion('Fuente', f.fuente, `CR ${fmtP(f.cr)} vs benchmark ${fmtP(f.crB)} (${fmtP(f.delta, 1)}).`) : ''}</td>
             </tr>`).join('');
         document.getElementById('panel-fuentes').innerHTML = `
             <p class="text-[11px] text-slate-500">${textoVentana(A.V)} · Canal: <strong>${ETIQ_CANAL[S.canal]}</strong></p>
             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">${tarjetasG}</div>
+            ${panelAlertas('Alertas por fuente de tráfico', A.alertasPorDim.Fuente, 'Ninguna fuente cae por debajo del umbral contra su benchmark.')}
             <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
                 <div class="px-4 sm:px-5 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
                     <div><h3 class="text-sm font-extrabold text-slate-900">Calidad de fuentes: ¿tráfico con intención de compra?</h3>
@@ -496,8 +591,8 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
                 <div class="overflow-x-auto"><table class="w-full text-left text-xs sm:text-sm">
                     <thead class="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500"><tr>
                         <th class="px-3 py-2">Fuente / medio</th><th class="px-3 py-2 text-right">Sesiones</th><th class="px-3 py-2 text-right">% mix</th><th class="px-3 py-2 text-right">Pedidos</th>
-                        <th class="px-3 py-2 text-right">CR</th><th class="px-3 py-2 text-right">CR benchmark</th><th class="px-3 py-2 text-right">Δ vs bench</th><th class="px-3 py-2">Calidad</th><th class="px-3 py-2"></th></tr></thead>
-                    <tbody class="divide-y divide-slate-100">${filas || '<tr><td colspan="9" class="px-3 py-8 text-center text-slate-500">Sin datos en esta ventana.</td></tr>'}</tbody>
+                        <th class="px-3 py-2 text-right">CR</th><th class="px-3 py-2 text-right">CR benchmark</th><th class="px-3 py-2 text-right">Δ vs bench</th><th class="px-3 py-2">Calidad</th><th class="px-3 py-2 text-right">Paso más débil</th><th class="px-3 py-2 text-right" title="Pedidos que habría tenido de mantener su benchmark">Pedidos menos</th><th class="px-3 py-2"></th></tr></thead>
+                    <tbody class="divide-y divide-slate-100">${filas || '<tr><td colspan="11" class="px-3 py-8 text-center text-slate-500">Sin datos en esta ventana.</td></tr>'}</tbody>
                 </table></div>
             </div>`;
     }
@@ -539,10 +634,12 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
             <td class="px-3 py-2.5 text-right num-tabular">${fmtN(c.t.ses)}</td><td class="px-3 py-2.5 text-right num-tabular">${fmtN(c.t.ped)}</td>
             <td class="px-3 py-2.5 text-right num-tabular font-bold">${fmtP(c.cr)}</td><td class="px-3 py-2.5 text-right num-tabular text-slate-500">${fmtP(c.crB)}</td>
             <td class="px-3 py-2.5 text-right">${chipDelta(c.delta)}</td><td class="px-3 py-2.5 text-right">${chipEfic(c.efic)}</td>
-            <td class="px-3 py-2.5 text-right">${(c.estado === 'alerta' || c.estado === 'alta') ? botonAccion('Campaña', `${c.campana} (${c.fuente})`, `CR ${fmtP(c.cr)} vs benchmark ${fmtP(c.crB)} (${fmtP(c.delta, 1)}).`) : ''}</td></tr>`).join('');
+            <td class="px-3 py-2.5 text-right">${celdaPasoDebil(c)}</td><td class="px-3 py-2.5 text-right">${celdaPerdidos(c)}</td>
+            <td class="px-3 py-2.5 text-right">${(c.estado === 'alerta' || c.estado === 'alta' || (c.diag && c.diag.peor)) ? botonAccion('Campaña', `${c.campana} (${c.fuente})`, `CR ${fmtP(c.cr)} vs benchmark ${fmtP(c.crB)} (${fmtP(c.delta, 1)}).`) : ''}</td></tr>`).join('');
         el.innerHTML = `
             <p class="text-[11px] text-slate-500">${textoVentana(A.V)} · Canal: <strong>${ETIQ_CANAL[S.canal]}</strong> · Campañas = tráfico de pago, correo/CRM y filas con nombre de campaña (orgánico y directo se ven en Fuentes de tráfico).</p>
             ${cards}
+            ${panelAlertas('Alertas por campaña', A.alertasPorDim.Campaña, 'Ninguna campaña cae por debajo del umbral contra su benchmark.', 10)}
             ${bloque('Por tipo de campaña', 'Tipo según el medio de GA4 (búsqueda de pago, social de pago, display y video, shopping, correo/CRM…). Eficiencia = % de pedidos ÷ % de sesiones: arriba de 1 x convierte más de lo que pesa.', 'Tipo', A.porTipo)}
             ${bloque('Por intención de la campaña', 'Etiqueta detectada por palabras del nombre: Marca, Genérica, Remarketing, Promoción, Prospección. "Sin etiqueta" = el nombre no contiene ninguna de esas palabras.', 'Intención', A.porEtiqueta)}
             <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
@@ -550,9 +647,20 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
                 <p class="text-[11px] text-slate-500">Δ compara el CR de la campaña contra sus propios 28 días previos. Una campaña nueva aparece "Sin base".${A.porCampana.length > maxFilas ? ` Se muestran las ${maxFilas} con más sesiones de ${A.porCampana.length}.` : ''}</p></div>
                 <div class="overflow-x-auto"><table class="w-full text-left text-xs sm:text-sm"><thead class="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500"><tr>
                     <th class="px-3 py-2">Campaña</th><th class="px-3 py-2">Tipo</th><th class="px-3 py-2">Intención</th><th class="px-3 py-2 text-right">Sesiones</th><th class="px-3 py-2 text-right">Pedidos</th>
-                    <th class="px-3 py-2 text-right">CR</th><th class="px-3 py-2 text-right">CR bench</th><th class="px-3 py-2 text-right">Δ</th><th class="px-3 py-2 text-right">Eficiencia</th><th class="px-3 py-2"></th></tr></thead>
+                    <th class="px-3 py-2 text-right">CR</th><th class="px-3 py-2 text-right">CR bench</th><th class="px-3 py-2 text-right">Δ</th><th class="px-3 py-2 text-right">Eficiencia</th><th class="px-3 py-2 text-right">Paso más débil</th><th class="px-3 py-2 text-right" title="Pedidos que habría tenido de mantener su benchmark">Pedidos menos</th><th class="px-3 py-2"></th></tr></thead>
                     <tbody class="divide-y divide-slate-100">${filas}</tbody></table></div>
             </div>`;
+    }
+
+    function matrizBrechaHTML(A) {
+        const celda = x => x ? `<div class="text-xs font-bold text-slate-900">${esc(x.nombre)}</div><div class="mt-0.5 flex items-center gap-1.5">${chipDelta(x.delta)}<span class="text-[11px] text-rose-700 font-bold num-tabular">≈ ${fmtN(x.perdidos)} ped.</span></div>` : '<span class="text-slate-300">—</span>';
+        const filas = A.matrizBrecha.map(r => `<tr><td class="px-3 py-3 align-top"><div class="font-bold text-xs sm:text-sm text-slate-900">${r.n}</div><div class="mt-0.5">${chipDelta(r.delta)}</div></td>
+            <td class="px-3 py-3 align-top">${celda(r.seg.Dispositivo)}</td><td class="px-3 py-3 align-top">${celda(r.seg.Fuente)}</td><td class="px-3 py-3 align-top">${celda(r.seg['Campaña'])}</td></tr>`).join('');
+        return `<div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+            <div class="px-4 sm:px-5 py-3 border-b border-slate-200"><h3 class="text-sm font-extrabold text-slate-900">¿Dónde está la brecha?</h3>
+            <p class="text-[11px] text-slate-500">Para cada paso del funnel (y para el CR total), el dispositivo/plataforma, la fuente y la campaña que más pedidos pierden contra su propio benchmark. Si un paso está bajo, aquí ves quién lo explica.</p></div>
+            <div class="overflow-x-auto"><table class="w-full text-left"><thead class="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500"><tr><th class="px-3 py-2">Paso</th><th class="px-3 py-2">Dispositivo / plataforma</th><th class="px-3 py-2">Fuente</th><th class="px-3 py-2">Campaña</th></tr></thead>
+            <tbody class="divide-y divide-slate-100">${filas}</tbody></table></div></div>`;
     }
 
     function renderFunnel(A) {
@@ -586,9 +694,11 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
         document.getElementById('panel-funnel').innerHTML = `
             <p class="text-[11px] text-slate-500">${textoVentana(A.V)} · Canal: <strong>${ETIQ_CANAL[S.canal]}</strong></p>
             <div class="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-sm space-y-2.5"><h3 class="text-sm font-extrabold text-slate-900">Funnel de eventos (GA4)</h3><p class="text-[11px] text-slate-500 mb-1">${fmtN(T.ses)} sesiones · ${fmtN(T.pdp)} vistas de producto (${fmtPaso(PASOS[0], T.pdp / (T.ses || 1))} por sesión). Las barras comparan cada evento contra las vistas de producto.</p>${etapas}</div>
+            ${panelAlertas('Alertas por etapa del funnel', A.alertasPorDim.Funnel, 'Ninguna etapa cae por debajo del umbral a nivel total. Revisa "¿Dónde está la brecha?" para ver si algún dispositivo, fuente o campaña sí está por debajo.')}
+            ${matrizBrechaHTML(A)}
             <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
                 <div class="px-4 sm:px-5 py-3 border-b border-slate-200"><h3 class="text-sm font-extrabold text-slate-900">Conversión entre etapas vs benchmark propio</h3>
-                <p class="text-[11px] text-slate-500">${A.fuga ? `Mayor fuga contra su benchmark: <strong>${A.fuga.n}</strong> (${fmtP(A.fuga.delta, 1)}).` : 'Ninguna etapa cae por debajo del umbral contra su benchmark (o falta base suficiente).'}</p></div>
+                <p class="text-[11px] text-slate-500">${A.fuga ? `Mayor fuga contra su benchmark: <strong>${A.fuga.n}</strong> (${fmtP(A.fuga.delta, 1)} a nivel total).` : 'Ninguna etapa ni segmento cae por debajo del umbral contra su benchmark (o falta base suficiente).'}</p></div>
                 <div class="overflow-x-auto"><table class="w-full text-left text-xs sm:text-sm"><thead class="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500"><tr><th class="px-3 py-2">Paso</th><th class="px-3 py-2 text-right">Volumen</th><th class="px-3 py-2 text-right">Tasa</th><th class="px-3 py-2 text-right">Benchmark</th><th class="px-3 py-2 text-right">Δ</th><th class="px-3 py-2"></th></tr></thead><tbody class="divide-y divide-slate-100">${filasP}</tbody></table></div>
             </div>
             ${porCanal ? `<div class="grid grid-cols-1 md:grid-cols-2 gap-3">${porCanal}</div>` : ''}`;
@@ -601,16 +711,18 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
                 ${PASOS.map(p => `<td class="px-3 py-2.5 text-right num-tabular">${fmtPaso(p, d.pasos[p.k], 1)}<div class="text-[10px] text-slate-400">bench ${fmtPaso(p, d.pasosB[p.k], 1)}</div></td>`).join('')}
                 <td class="px-3 py-2.5 text-right num-tabular font-bold">${fmtP(d.cr)}</td><td class="px-3 py-2.5 text-right num-tabular text-slate-500">${fmtP(d.crB)}</td>
                 <td class="px-3 py-2.5 text-right">${chipDelta(d.delta)}</td>
-                <td class="px-3 py-2.5 text-right">${(!d.subtotal && (d.estado === 'alerta' || d.estado === 'alta')) ? botonAccion('Dispositivo', d.dispositivo, `CR ${fmtP(d.cr)} vs benchmark ${fmtP(d.crB)} (${fmtP(d.delta, 1)}).`) : ''}</td></tr>`).join('');
+                <td class="px-3 py-2.5 text-right">${celdaPasoDebil(d)}</td><td class="px-3 py-2.5 text-right">${celdaPerdidos(d)}</td>
+                <td class="px-3 py-2.5 text-right">${(!d.subtotal && (d.estado === 'alerta' || d.estado === 'alta' || (d.diag && d.diag.peor))) ? botonAccion('Dispositivo', d.dispositivo, `CR ${fmtP(d.cr)} vs benchmark ${fmtP(d.crB)} (${fmtP(d.delta, 1)}).`) : ''}</td></tr>`).join('');
         document.getElementById('panel-dispositivo').innerHTML = `
             <p class="text-[11px] text-slate-500">${textoVentana(A.V)} · Canal: <strong>${ETIQ_CANAL[S.canal]}</strong></p>
+            ${panelAlertas('Alertas por dispositivo / plataforma', A.alertasPorDim.Dispositivo, 'Ningún dispositivo ni plataforma cae por debajo del umbral contra su benchmark.')}
             <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
                 <div class="px-4 sm:px-5 py-3 border-b border-slate-200"><h3 class="text-sm font-extrabold text-slate-900">Conversión por dispositivo</h3>
                 <p class="text-[11px] text-slate-500">Web: móvil, escritorio, tablet y Smart TV. App: sistema operativo (iOS / Android) y, dentro de cada uno, móvil y tablet. Tasa por etapa y CR de cada grupo contra su propio benchmark. Para bugs técnicos por navegador revisa la pestaña Checkout del Master Dashboard.</p></div>
                 <div class="overflow-x-auto"><table class="w-full text-left text-xs sm:text-sm"><thead class="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500"><tr>
                     <th class="px-3 py-2">Plataforma / dispositivo</th><th class="px-3 py-2 text-right">Sesiones</th><th class="px-3 py-2 text-right">% mix</th>
-                    ${PASOS.map(p => `<th class="px-3 py-2 text-right">${p.n}</th>`).join('')}<th class="px-3 py-2 text-right">CR</th><th class="px-3 py-2 text-right">CR bench</th><th class="px-3 py-2 text-right">Δ</th><th class="px-3 py-2"></th></tr></thead>
-                    <tbody class="divide-y divide-slate-100">${filas || '<tr><td colspan="11" class="px-3 py-8 text-center text-slate-500">Sin datos en esta ventana.</td></tr>'}</tbody></table></div>
+                    ${PASOS.map(p => `<th class="px-3 py-2 text-right">${p.n}</th>`).join('')}<th class="px-3 py-2 text-right">CR</th><th class="px-3 py-2 text-right">CR bench</th><th class="px-3 py-2 text-right">Δ</th><th class="px-3 py-2 text-right">Paso más débil</th><th class="px-3 py-2 text-right" title="Pedidos que habría tenido de mantener su benchmark">Pedidos menos</th><th class="px-3 py-2"></th></tr></thead>
+                    <tbody class="divide-y divide-slate-100">${filas || '<tr><td colspan="13" class="px-3 py-8 text-center text-slate-500">Sin datos en esta ventana.</td></tr>'}</tbody></table></div>
             </div>`;
     }
 
@@ -626,12 +738,9 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
                     <select onchange="cambiarEstatus('${a.id}', this.value)" class="rounded-lg border border-slate-300 px-2 py-1 text-xs font-bold ${color[a.estatus]}">${['Pendiente', 'En proceso', 'Completada'].map(e => `<option ${e === a.estatus ? 'selected' : ''}>${e}</option>`).join('')}</select>
                     <button type="button" onclick="eliminarAccion('${a.id}')" class="px-2 py-1 rounded-lg border border-slate-300 text-xs text-slate-500 hover:bg-slate-50" title="Eliminar">🗑</button>
                 </div></li>`).join('');
-        const alertas = A.alertas.length ? A.alertas.map(a => `<li class="flex items-start justify-between gap-3 p-3 rounded-xl border ${a.sev === 'alta' ? 'border-rose-200 bg-rose-50/60' : 'border-amber-200 bg-amber-50/60'}">
-            <div><div class="text-xs font-extrabold"><span class="text-[10px] uppercase text-slate-500 mr-1.5">${a.tipo}</span>${esc(a.titulo)}</div><div class="text-xs text-slate-600 mt-0.5">${esc(a.detalle)}</div></div>${botonAccion(a.tipo, a.titulo, a.detalle)}</li>`).join('')
-            : '<li class="p-4 text-xs text-slate-500 rounded-xl bg-emerald-50 border border-emerald-200">Sin alertas activas.</li>';
         document.getElementById('panel-acciones').innerHTML = `
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                <div class="space-y-3"><h3 class="text-sm font-extrabold text-slate-900">Alertas activas (${A.alertas.length})</h3><ul class="space-y-2">${alertas}</ul></div>
+                <div class="space-y-3">${panelAlertas('Alertas activas · por pedidos perdidos', A.alertas, 'Sin alertas activas.')}</div>
                 <div class="space-y-3"><div class="flex items-center justify-between"><h3 class="text-sm font-extrabold text-slate-900">Acciones registradas (${S.acciones.length})</h3>
                     <button type="button" onclick="abrirAccion()" class="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold">+ Nueva acción</button></div>
                     <ul class="space-y-2">${lista || '<li class="p-4 text-xs text-slate-500 rounded-xl bg-slate-50 border border-slate-200">Aún no hay acciones registradas.</li>'}</ul></div>
@@ -903,8 +1012,9 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
                 let cr = crBase * fd * (0.9 + rnd() * 0.2) * (canal === 'Web' ? 1 : 1.3);
                 if (i <= 3 && camp === 'Prospección | Lookalike') cr *= 0.6;           // caída reciente en una fuente
                 if (i <= 4 && d === 'Móvil' && canal === 'Web') cr *= 0.88;        // fuga reciente en móvil
-                const ped = Math.round(ses * cr);
-                const chk = Math.round(ped / (0.42 + rnd() * 0.05)), car = Math.round(chk / (0.5 + rnd() * 0.05)), pdp = Math.max(car, Math.round(ses * (1.15 + rnd() * 0.25)));
+                const ped0 = Math.round(ses * cr);
+                const ped = (i <= 5 && canal === 'Android') ? Math.round(ped0 * 0.7) : ped0;   // fuga reciente en Checkout → Pedido de Android
+                const chk = Math.round(ped0 / (0.42 + rnd() * 0.05)), car = Math.round(chk / (0.5 + rnd() * 0.05)), pdp = Math.max(car, Math.round(ses * (1.15 + rnd() * 0.25)));
                 filas.push({ f, c: canal, s: fu, k: camp, d, ses, usr: Math.round(ses * 0.82), pdp, car, chk: Math.min(chk, car), ped: Math.min(ped, chk) });
             }
         }
