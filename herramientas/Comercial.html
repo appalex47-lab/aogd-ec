@@ -225,7 +225,8 @@
     <!-- MODAL: ACCIÓN -->
     <div id="modal-accion" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 p-4 overflow-y-auto">
         <form id="form-accion" class="w-full max-w-lg bg-white rounded-3xl shadow-2xl p-6 space-y-4 my-6" onsubmit="guardarAccion(event)">
-            <h3 class="text-base font-extrabold text-slate-900">Registrar acción</h3>
+            <h3 id="acc-modal-titulo" class="text-base font-extrabold text-slate-900">Registrar acción</h3>
+            <input type="hidden" id="acc-id">
             <div><label class="text-[11px] font-bold text-slate-600">Acción</label>
                 <input id="acc-titulo" required maxlength="140" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></div>
             <div><label class="text-[11px] font-bold text-slate-600">Origen / detalle</label>
@@ -235,6 +236,12 @@
                     <input id="acc-resp" maxlength="80" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></div>
                 <div><label class="text-[11px] font-bold text-slate-600">Estatus</label>
                     <select id="acc-estatus" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"><option>Pendiente</option><option>En proceso</option><option>Completada</option></select></div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="text-[11px] font-bold text-slate-600">Fecha compromiso</label>
+                    <input id="acc-fecha" type="date" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></div>
+                <div class="col-span-2"><label class="text-[11px] font-bold text-slate-600">Resultado observado (cuando se complete)</label>
+                    <textarea id="acc-resultado" rows="2" maxlength="400" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></textarea></div>
             </div>
             <div class="flex justify-end gap-2.5 pt-1">
                 <button type="button" onclick="cerrarAccion()" class="px-4 py-2 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-700">Cancelar</button>
@@ -791,8 +798,9 @@
         const lista = [...S.acciones].sort((a, b) => orden[a.estatus] - orden[b.estatus] || b.creada.localeCompare(a.creada)).map(a => `
             <li class="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                 <div class="min-w-0"><div class="text-sm font-extrabold text-slate-900">${esc(a.titulo)}</div>${a.detalle ? `<div class="text-xs text-slate-600 mt-0.5">${esc(a.detalle)}</div>` : ''}
-                    <div class="text-[11px] text-slate-400 mt-1">${esc(a.creada)}${a.responsable ? ' · ' + esc(a.responsable) : ''}</div></div>
+                    <div class="text-[11px] text-slate-400 mt-1">${esc(a.creada)}${a.responsable ? ' · ' + esc(a.responsable) : ''}${a.fechaCompromiso ? ' · Compromiso: ' + esc(a.fechaCompromiso) : ''}</div>${a.resultado ? `<div class="text-[11px] text-emerald-700 mt-0.5">Resultado: ${esc(a.resultado)}</div>` : ''}</div>
                 <div class="flex items-center gap-2 shrink-0"><select onchange="cambiarEstatus('${a.id}', this.value)" class="rounded-lg border border-slate-300 px-2 py-1 text-xs font-bold ${color[a.estatus]}">${['Pendiente', 'En proceso', 'Completada'].map(e => `<option ${e === a.estatus ? 'selected' : ''}>${e}</option>`).join('')}</select>
+                    <button type="button" onclick="editarAccion('${a.id}')" class="px-2 py-1 rounded-lg border border-slate-300 text-xs font-bold text-slate-600 hover:bg-slate-50">Editar</button>
                     <button type="button" onclick="eliminarAccion('${a.id}')" class="px-2 py-1 rounded-lg border border-slate-300 text-xs text-slate-500 hover:bg-slate-50" title="Eliminar">🗑</button></div></li>`).join('');
         document.getElementById('panel-acciones').innerHTML = `
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -850,16 +858,29 @@
         document.getElementById('acc-titulo').value = p.titulo || '';
         document.getElementById('acc-detalle').value = p.detalle || '';
         document.getElementById('acc-resp').value = ''; document.getElementById('acc-estatus').value = 'Pendiente';
+        document.getElementById('acc-id').value = ''; document.getElementById('acc-fecha').value = ''; document.getElementById('acc-resultado').value = '';
+        document.getElementById('acc-modal-titulo').textContent = 'Registrar acción';
         const m = document.getElementById('modal-accion'); m.classList.remove('hidden'); m.classList.add('flex');
         document.getElementById('acc-titulo').focus();
+    }
+    function editarAccion(id) {
+        const a = S.acciones.find(x => x.id === id); if (!a) return;
+        document.getElementById('acc-id').value = a.id; document.getElementById('acc-titulo').value = a.titulo || ''; document.getElementById('acc-detalle').value = a.detalle || '';
+        document.getElementById('acc-resp').value = a.responsable || ''; document.getElementById('acc-estatus').value = a.estatus || 'Pendiente';
+        document.getElementById('acc-fecha').value = a.fechaCompromiso || ''; document.getElementById('acc-resultado').value = a.resultado || '';
+        document.getElementById('acc-modal-titulo').textContent = 'Actualizar acción';
+        const m = document.getElementById('modal-accion'); m.classList.remove('hidden'); m.classList.add('flex');
     }
     function cerrarAccion() { const m = document.getElementById('modal-accion'); m.classList.add('hidden'); m.classList.remove('flex'); }
     function guardarAccion(e) {
         e.preventDefault();
-        S.acciones.unshift({ id: 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), creada: hoyISO(),
-            titulo: document.getElementById('acc-titulo').value.trim(), detalle: document.getElementById('acc-detalle').value.trim(),
-            responsable: document.getElementById('acc-resp').value.trim(), estatus: document.getElementById('acc-estatus').value });
-        cerrarAccion(); persistirEstado(); renderTodo(); toast('✅ Acción registrada.');
+        const datos = { titulo: document.getElementById('acc-titulo').value.trim(), detalle: document.getElementById('acc-detalle').value.trim(),
+            responsable: document.getElementById('acc-resp').value.trim(), estatus: document.getElementById('acc-estatus').value,
+            fechaCompromiso: document.getElementById('acc-fecha').value, resultado: document.getElementById('acc-resultado').value.trim() };
+        const id = document.getElementById('acc-id').value, existente = id ? S.acciones.find(x => x.id === id) : null;
+        if (existente) Object.assign(existente, datos);
+        else S.acciones.unshift({ id: 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), creada: hoyISO(), ...datos });
+        cerrarAccion(); persistirEstado(); renderTodo(); toast(existente ? '✅ Acción actualizada.' : '✅ Acción registrada.');
     }
     function cambiarEstatus(id, est) { const a = S.acciones.find(x => x.id === id); if (a) { a.estatus = est; persistirEstado(); renderTodo(); } }
     function eliminarAccion(id) { if (!confirm('¿Eliminar esta acción?')) return; S.acciones = S.acciones.filter(a => a.id !== id); persistirEstado(); renderTodo(); }
