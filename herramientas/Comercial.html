@@ -30,56 +30,32 @@
 </head>
 
 <body class="min-h-screen flex flex-col antialiased selection:bg-blue-100 selection:text-blue-900">
+    <style>
+        /* Pantallas de ~1280 px: tablas más compactas para que quepan sin desplazarse */
+        @media (max-width: 1399px) { main table { font-size: 11px; } main table td, main table th { padding-left: 5px !important; padding-right: 5px !important; } main table td:first-child { min-width: 7rem !important; } main table .w-14 { width: 2.5rem; } }
+    </style>
 
-    <!-- ENCABEZADO -->
+    <!-- ENCABEZADO: una barra compacta anclada (marca, mes y corte, filtros, acciones) y las pestañas debajo -->
     <header class="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 space-y-3">
-            <div class="flex flex-wrap items-center justify-between gap-3">
-                <div class="flex items-center gap-3">
-                    <div class="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center shrink-0 text-base" aria-hidden="true">🛒</div>
-                    <div>
-                        <div class="flex flex-wrap items-center gap-2">
-                            <h1 class="text-base sm:text-lg font-extrabold tracking-tight text-slate-900">Comercial</h1>
-                            <div class="inline-flex items-center gap-1 bg-blue-50 border border-blue-200/80 rounded-lg px-2 py-0.5">
-                                <select id="sel-mes" onchange="cambiarMes(this.value)" class="bg-transparent text-[11px] font-bold text-blue-800 focus:outline-none cursor-pointer" title="Mes"></select>
-                            </div>
-                            <div class="inline-flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-lg px-2 py-0.5" title="Fecha de corte del análisis">
-                                <span class="text-[10px] font-bold uppercase text-slate-500">Corte:</span>
-                                <input type="date" id="sel-corte" onchange="cambiarCorte(this.value)" class="bg-transparent text-[11px] font-bold text-slate-800 focus:outline-none cursor-pointer num-tabular">
-                            </div>
-                        </div>
-                        <p class="text-[11px] sm:text-xs text-slate-500 hidden sm:block">Categorías, productos estrella y ancla, ticket (AOV, UPT, AUR), cross-selling y bundling, contra benchmark propio (28 días previos) y metas por categoría</p>
+        <div class="w-full px-3 sm:px-5">
+            <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 py-2">
+                <div class="flex flex-wrap items-center gap-2 min-w-0">
+                    <div class="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center shrink-0 text-sm" aria-hidden="true">🛒</div>
+                    <h1 class="text-sm sm:text-base font-extrabold tracking-tight text-slate-900" title="Categorías, productos estrella y ancla, ticket (AOV, UPT, AUR), cross-selling y bundling, contra benchmark propio (28 días previos) y metas por categoría">Comercial</h1>
+                    <div class="inline-flex items-center gap-1 bg-blue-50 border border-blue-200/80 rounded-lg px-2 py-0.5">
+                        <select id="sel-mes" onchange="cambiarMes(this.value)" class="bg-transparent text-[11px] font-bold text-blue-800 focus:outline-none cursor-pointer" title="Mes"></select>
+                    </div>
+                    <div class="inline-flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-lg px-2 py-0.5" title="Fecha de corte del análisis">
+                        <span class="text-[10px] font-bold uppercase text-slate-500">Corte:</span>
+                        <input type="date" id="sel-corte" onchange="cambiarCorte(this.value)" class="bg-transparent text-[11px] font-bold text-slate-800 focus:outline-none cursor-pointer num-tabular">
                     </div>
                 </div>
                 <div class="flex flex-wrap items-center gap-2" data-pdf-ocultar="true">
-                    <button type="button" id="btn-pdf" onclick="descargarPDF()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs sm:text-sm font-semibold transition">
-                        <span aria-hidden="true">📄</span><span id="btn-pdf-label">Descargar PDF</span>
-                    </button>
-                    <label for="file-upload" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold shadow-sm transition cursor-pointer">
-                        <span aria-hidden="true">⬆️</span><span>Cargar CSV</span>
-                        <input id="file-upload" type="file" accept=".csv,.xlsx,.xls" class="hidden" onchange="procesarArchivo(event)">
-                    </label>
-                    <button type="button" onclick="descargarMachote()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs sm:text-sm font-semibold transition">
-                        <span aria-hidden="true">🧾</span><span>Machote CSV</span>
-                    </button>
-                    <button type="button" onclick="abrirBorrar()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-rose-50 text-rose-700 border border-rose-200 text-xs sm:text-sm font-semibold transition">
-                        <span aria-hidden="true">🗑</span><span>Borrar datos</span>
-                    </button>
-                </div>
-            </div>
-
-            <div class="flex flex-wrap items-center justify-between gap-3">
-                <div class="flex flex-wrap items-center gap-1.5" id="pills-canal"></div>
-                <div class="flex flex-wrap items-center gap-2 text-xs">
-                    <label class="text-[11px] font-bold uppercase text-slate-500">Ventana</label>
-                    <select id="sel-ventana" onchange="cambiarVentana(this.value)" class="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold">
-                        <option value="1">Día de corte</option>
-                        <option value="7" selected>Últimos 7 días</option>
-                        <option value="14">Últimos 14 días</option>
-                        <option value="mtd">Mes a la fecha</option>
-                    </select>
-                    <details class="relative" data-pdf-ocultar="true">
-                        <summary class="list-none cursor-pointer px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-700">⚙️ Alertas</summary>
+                    <label class="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase text-slate-500">Canal <select id="sel-canal" onchange="cambiarCanal(this.value)" class="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold normal-case text-slate-800 cursor-pointer"></select></label>
+                    <label class="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase text-slate-500">Ventana <select id="sel-ventana" onchange="cambiarVentana(this.value)" class="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold normal-case text-slate-800 cursor-pointer">
+                        <option value="1">Día de corte</option><option value="7" selected>Últimos 7 días</option><option value="14">Últimos 14 días</option><option value="mtd">Mes a la fecha</option></select></label>
+                    <details class="relative">
+                        <summary class="list-none cursor-pointer px-2.5 py-1.5 rounded-xl border border-slate-300 bg-white text-xs font-semibold text-slate-700">⚙️ Alertas</summary>
                         <div class="absolute right-0 mt-2 w-72 rounded-2xl bg-white border border-slate-200 shadow-xl p-4 z-40 space-y-3">
                             <div><label class="text-[11px] font-bold text-slate-600">Caída que dispara alerta (%)</label>
                                 <input id="cfg-umbral" type="number" min="1" max="90" step="1" value="5" onchange="guardarConfig()" class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1 text-sm">
@@ -97,14 +73,28 @@
                                 <input id="cfg-sinmov" type="number" min="30" max="365" step="10" value="90" onchange="guardarConfig()" class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1 text-sm"></div>
                         </div>
                     </details>
+                    <a id="chip-acciones" href="Acciones.html" target="_blank" rel="noopener" title="Acciones abiertas y vencidas de las tres herramientas. Abre el registro unificado" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 whitespace-nowrap transition hover:bg-slate-50"><span aria-hidden="true">✅</span><span id="chip-acciones-txt">Acciones</span></a>
+                    <label for="file-upload" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition cursor-pointer">
+                        <span aria-hidden="true">⬆️</span><span>Cargar CSV</span>
+                        <input id="file-upload" type="file" accept=".csv,.xlsx,.xls" class="hidden" onchange="procesarArchivo(event)">
+                    </label>
+                    <details class="relative">
+                        <summary class="list-none cursor-pointer w-8 h-8 flex items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-700 font-extrabold hover:bg-slate-50" title="Más acciones">⋯</summary>
+                        <div class="absolute right-0 mt-2 w-60 rounded-2xl bg-white border border-slate-200 shadow-xl py-1.5 z-40">
+                            <button type="button" id="btn-pdf" onclick="descargarPDF(); this.closest('details').removeAttribute('open')" class="w-full text-left flex items-center gap-2 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer">📄 <span id="btn-pdf-label">Descargar PDF</span></button>
+                            <button type="button"  onclick="descargarMachote(); this.closest('details').removeAttribute('open')" class="w-full text-left flex items-center gap-2 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer">🧾 Machote CSV</button>
+                            <a href="Acciones.html" target="_blank" rel="noopener" class="w-full text-left flex items-center gap-2 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer">✅ Ver todas las acciones ↗</a>
+                            <div class="my-1 border-t border-slate-100"></div>
+                            <button type="button"  onclick="abrirBorrar(); this.closest('details').removeAttribute('open')" class="w-full text-left flex items-center gap-2 px-4 py-2 text-xs font-semibold text-rose-700 hover:bg-slate-50 cursor-pointer">🗑 Borrar datos</button>
+                        </div>
+                    </details>
                 </div>
             </div>
-
-            <nav class="flex items-center gap-1.5 overflow-x-auto no-scrollbar" id="tabs-vista" data-pdf-ocultar="true"></nav>
+            <nav class="flex items-center gap-0.5 overflow-x-auto no-scrollbar -mb-px" id="tabs-vista" data-pdf-ocultar="true"></nav>
         </div>
     </header>
 
-    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-5">
+    <main class="flex-1 w-full px-3 sm:px-5 py-5 space-y-5">
         <div id="banner-demo" class="hidden rounded-2xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-xs text-amber-900 flex items-center justify-between gap-3">
             <span><strong>Modo demostración:</strong> datos de ejemplo generados al azar. No se guardan ni se mezclan con tus datos reales.</span>
             <button type="button" onclick="salirDemo()" class="shrink-0 px-3 py-1 rounded-lg bg-amber-200 hover:bg-amber-300 font-bold" data-pdf-ocultar="true">Salir</button>
@@ -352,7 +342,7 @@
         registros: [], dias: [], acciones: [], metas: {}, snap: { cross: null, recompra: null }, planDia: {}, planOk: false,
         config: { umbral: 5, impactoAlto: 1, impactoMedio: 0.3, cabeza: 50, crec: 5, sinMovDias: 90 },
         shareBase: {}, shareMes: {}, shareMesCargado: {}, metasCfg: {}, mm: null, sinMov: null, yoy: {}, realRev: {}, planPed: {}, mes: null, corte: null, canal: 'Total', ventana: 7, vista: 'resumen',
-        demo: false, rangoMin: null, rangoMax: null, chart: null, filtroTipo: 'todos', verTodosProd: false, masCols: false, detMeta: {}
+        demo: false, rangoMin: null, rangoMax: null, chart: null, filtroTipo: 'todos', verTodosProd: false, masCols: false, detMeta: {}, orden: {}
     };
 
     const fmtN = v => (v === null || v === undefined || isNaN(v)) ? '—' : new Intl.NumberFormat('es-MX', { maximumFractionDigits: 0 }).format(Math.round(v));
@@ -757,7 +747,18 @@
     }
     const estadoMeta = c => c >= 97 ? ['bg-emerald-100 text-emerald-800', 'En ritmo'] : c >= 90 ? ['bg-amber-100 text-amber-800', 'Atención'] : ['bg-rose-100 text-rose-800', 'Por debajo'];
     const chipMeta = c => c === null || c === undefined ? '<span class="text-slate-300">—</span>' : `<span class="inline-block whitespace-nowrap px-2 py-0.5 rounded-full text-[11px] font-bold num-tabular ${estadoMeta(c)[0]}">${fmtMeta(c)}</span>`;
-    const barraAvance = (av, esp) => `<span class="inline-block align-middle relative h-2 w-20 rounded-full bg-slate-200 ml-1.5"><span class="absolute left-0 top-0 bottom-0 rounded-full ${av >= esp ? 'bg-emerald-500' : 'bg-rose-500'}" style="width:${Math.min(100, av)}%"></span><span class="absolute -top-0.5 -bottom-0.5 w-0.5 bg-slate-900" style="left:${Math.min(100, esp)}%" title="Avance esperado al corte: ${esp.toFixed(1)}%"></span></span>`;
+    const barraAvance = (av, esp) => `<span class="inline-block align-middle relative h-2 w-14 rounded-full bg-slate-200 ml-1.5"><span class="absolute left-0 top-0 bottom-0 rounded-full ${av >= esp ? 'bg-emerald-500' : 'bg-rose-500'}" style="width:${Math.min(100, av)}%"></span><span class="absolute -top-0.5 -bottom-0.5 w-0.5 bg-slate-900" style="left:${Math.min(100, esp)}%" title="Avance esperado al corte: ${esp.toFixed(1)}%"></span></span>`;
+    // Todas las tablas se ordenan de mayor a menor por su cifra principal; un clic en el encabezado de cualquier columna cambia el orden
+    function ordenar(tabla, k, tipo) { const o = S.orden[tabla]; S.orden[tabla] = o && o.k === k ? { k, d: -o.d } : { k, d: tipo === 't' ? 1 : -1 }; renderTodo(); }
+    function thO(tabla, k, x, cls = '', tipo = 'n') {
+        const o = S.orden[tabla], act = o && o.k === k;
+        return `<th class="px-2 py-2 ${tipo === 't' ? 'text-left' : 'text-right'} cursor-pointer select-none hover:text-slate-900 ${act ? 'text-slate-900' : ''} ${cls}" onclick="ordenar('${tabla}','${k}','${tipo}')" title="Clic para ordenar">${x}<span class="text-[9px]">${act ? (o.d < 0 ? ' ▼' : ' ▲') : ''}</span></th>`;
+    }
+    function ordenarLista(tabla, filas, defK, acc) {
+        const o = S.orden[tabla] || { k: defK, d: -1 }, f = acc[o.k] || acc[defK], vacio = v => v === null || v === undefined || (typeof v === 'number' && isNaN(v));
+        return [...filas].sort((a, b) => { const x = f(a), y = f(b); if (vacio(x) && vacio(y)) return 0; if (vacio(x)) return 1; if (vacio(y)) return -1;
+            return typeof x === 'string' || typeof y === 'string' ? o.d * String(x).localeCompare(String(y), 'es') : o.d * (x - y); });
+    }
     function alternarDetalleMeta(k) { S.detMeta[k] = !S.detMeta[k]; renderTodo(); }
     function explicacionMeta(A, nombre, p) {
         // p: { v, metaV, cumplV, meta, sh, base, real, planMTD, pron, esp }
@@ -901,22 +902,23 @@
     function renderCategorias(A) {
         const { V } = A; const tieneMeta = A.planVent > 0, M = A.mes, mas = S.masCols;
         const mesPorCat = new Map((M ? M.cats : []).map(c => [c.n, c]));
-        const celda = (x, cls = '') => `<td class="px-3 py-2.5 text-right num-tabular ${cls}">${x}</td>`;
+        const celda = (x, cls = '') => `<td class="px-2 py-2 text-right num-tabular ${cls}">${x}</td>`;
         const th = (x, cls = '') => `<th class="px-3 py-2 text-right ${cls}">${x}</th>`;
         const nul = '<span class="text-slate-300">—</span>';
         // Se ordena por la brecha de cierre (pronóstico menos meta del mes): arriba lo que más necesita acción
-        const filasDatos = A.cats.map(c => ({ c, m: mesPorCat.get(c.n) || null })).sort((a, b) => M ? ((a.m && a.m.pron !== null ? a.m.pron - a.m.meta : Infinity) - (b.m && b.m.pron !== null ? b.m.pron - b.m.meta : Infinity)) : b.c.v - a.c.v);
+        const br = r => r.m && r.m.pron !== null ? r.m.pron - r.m.meta : null;
+        const filasDatos = ordenarLista('cat', A.cats.map(c => ({ c, m: mesPorCat.get(c.n) || null })), 'v', { n: r => r.c.n, v: r => r.c.v, mv: r => r.c.meta, cv: r => r.c.cumpl, mm: r => r.m && r.m.meta, av: r => r.m && r.m.pacingReal, ci: r => r.m && r.m.cumplPron, br, g: r => r.c.g, gy: r => r.c.gY, sh: r => r.c.sh, dsh: r => r.c.shb === null ? null : r.c.sh - r.c.shb, ctr: r => r.c.ctr, aur: r => r.c.aur });
         const analisis = c => `${celda(c.shb === null ? '—' : fmtPP(c.sh - c.shb), colorPP(c.shb === null ? null : c.sh - c.shb))}`;
         const extras = c => mas || !M ? `${celda(fmtP(c.sh))}${analisis(c)}${celda(fmtPP(c.ctr), `font-bold ${colorPP(c.ctr)}`)}${celda(fmtM(c.aur))}` : '';
         const filas = filasDatos.map(({ c, m }) => {
             const brecha = m && m.pron !== null ? m.pron - m.meta : null;
-            const presup = M ? (m ? `${celda(c.meta !== null ? fmtM(c.meta) : '—')}<td class="px-3 py-2.5 text-right">${chipMeta(c.cumpl)}</td>${celda(fmtM(m.meta), 'border-l border-slate-200')}<td class="px-3 py-2.5 text-right num-tabular whitespace-nowrap">${fmtMeta(m.pacingReal)}${barraAvance(m.pacingReal, m.meta > 0 ? m.planMTD / m.meta * 100 : 0)}<div class="text-[10px] text-slate-400">esperado ${fmtP(m.meta > 0 ? m.planMTD / m.meta * 100 : 0, 0)}</div></td><td class="px-3 py-2.5 text-right" title="Si mantiene su ritmo del mes cierra en ${m.pron !== null ? fmtM(m.pron) : '—'}">${chipMeta(m.cumplPron)}</td>${celda(brecha === null ? '—' : `${brecha >= 0 ? '+' : '−'}${fmtM(Math.abs(brecha)).replace('−', '')}`, brecha === null ? '' : brecha < 0 ? 'font-bold text-rose-700' : 'font-bold text-emerald-700')}` : celda('—').repeat(6)) : '';
+            const presup = M ? (m ? `${celda(c.meta !== null ? fmtM(c.meta) : '—')}<td class="px-2 py-2 text-right">${chipMeta(c.cumpl)}</td>${celda(fmtM(m.meta), 'border-l border-slate-200')}<td class="px-2 py-2 text-right num-tabular whitespace-nowrap">${fmtMeta(m.pacingReal)}${barraAvance(m.pacingReal, m.meta > 0 ? m.planMTD / m.meta * 100 : 0)}<div class="text-[10px] text-slate-400">esperado ${fmtP(m.meta > 0 ? m.planMTD / m.meta * 100 : 0, 0)}</div></td><td class="px-2 py-2 text-right" title="Si mantiene su ritmo del mes cierra en ${m.pron !== null ? fmtM(m.pron) : '—'}">${chipMeta(m.cumplPron)}</td>${celda(brecha === null ? '—' : `${brecha >= 0 ? '+' : '−'}${fmtM(Math.abs(brecha)).replace('−', '')}`, brecha === null ? '' : brecha < 0 ? 'font-bold text-rose-700' : 'font-bold text-emerald-700')}` : celda('—').repeat(6)) : '';
             const k = 'c:' + c.n, abierta = !!S.detMeta[k];
             const det = M && m ? `<tr class="${abierta ? '' : 'hidden'}"><td colspan="20" class="p-0">${abierta ? explicacionMeta(A, c.n, { v: c.v, metaV: c.meta, cumplV: c.cumpl, meta: m.meta, sh: m.sh, presupuesto: M.total.presupuesto, real: m.real, planMTD: m.planMTD, pron: m.pron, esp: m.meta > 0 ? m.planMTD / m.meta * 100 : 0 }) : ''}</td></tr>` : '';
-            return `<tr class="hover:bg-slate-50 ${M && m ? 'cursor-pointer' : ''}" ${M && m ? `onclick="alternarDetalleMeta('${esc(k).replace(/'/g, '&#39;')}')" title="Clic para ver cómo se calculó"` : ''}><td class="px-3 py-2.5 font-bold text-slate-900 whitespace-normal min-w-[9rem]">${M && m ? `<span class="text-slate-400 mr-1">${abierta ? '▾' : '▸'}</span>` : ''}${esc(c.n)}</td>${celda(fmtM(c.v))}${presup}
-                <td class="px-3 py-2.5 text-right ${M ? 'border-l border-slate-200' : ''}">${chipRitmo(c.g)}</td><td class="px-3 py-2.5 text-right">${c.gY === null ? nul : chipRitmo(c.gY)}</td>${extras(c)}</tr>${det}`; }).join('');
+            return `<tr class="hover:bg-slate-50 ${M && m ? 'cursor-pointer' : ''}" ${M && m ? `onclick="alternarDetalleMeta('${esc(k).replace(/'/g, '&#39;')}')" title="Clic para ver cómo se calculó"` : ''}><td class="px-2 py-2 font-bold text-slate-900 whitespace-normal min-w-[9rem]">${M && m ? `<span class="text-slate-400 mr-1">${abierta ? '▾' : '▸'}</span>` : ''}${esc(c.n)}</td>${celda(fmtM(c.v))}${presup}
+                <td class="px-2 py-2 text-right ${M ? 'border-l border-slate-200' : ''}">${chipRitmo(c.g)}</td><td class="px-2 py-2 text-right">${c.gY === null ? nul : chipRitmo(c.gY)}</td>${extras(c)}</tr>${det}`; }).join('');
         const tm = M ? M.total : null, brT = tm && tm.pron !== null ? tm.pron - tm.presupuesto : null;
-        const totPres = M ? `${celda(tieneMeta ? fmtM(A.planVent) : '—')}<td class="px-3 py-2.5 text-right">${tieneMeta ? chipMeta(A.vRows / A.planVent * 100) : nul}</td>${celda(fmtM(tm.presupuesto), 'border-l border-slate-200')}<td class="px-3 py-2.5 text-right whitespace-nowrap">${fmtMeta(tm.pacingReal)}${barraAvance(tm.pacingReal, tm.pacingEsp)}</td><td class="px-3 py-2.5 text-right">${chipMeta(tm.cumplPron)}</td>${celda(brT === null ? '—' : `${brT >= 0 ? '+' : '−'}${fmtM(Math.abs(brT)).replace('−', '')}`, brT === null ? '' : brT < 0 ? 'font-bold text-rose-700' : 'font-bold text-emerald-700')}` : '';
+        const totPres = M ? `${celda(tieneMeta ? fmtM(A.planVent) : '—')}<td class="px-2 py-2 text-right">${tieneMeta ? chipMeta(A.vRows / A.planVent * 100) : nul}</td>${celda(fmtM(tm.presupuesto), 'border-l border-slate-200')}<td class="px-2 py-2 text-right whitespace-nowrap">${fmtMeta(tm.pacingReal)}${barraAvance(tm.pacingReal, tm.pacingEsp)}</td><td class="px-2 py-2 text-right">${chipMeta(tm.cumplPron)}</td>${celda(brT === null ? '—' : `${brT >= 0 ? '+' : '−'}${fmtM(Math.abs(brT)).replace('−', '')}`, brT === null ? '' : brT < 0 ? 'font-bold text-rose-700' : 'font-bold text-emerald-700')}` : '';
         const totExtras = mas || !M ? `${celda('100%')}${celda('—')}${celda(A.vbRows ? fmtPP((A.vRows - A.vbRows) / A.vbRows * 100) : '—', colorPP(A.vbRows ? (A.vRows - A.vbRows) : null))}${celda(fmtM(razon(A.vRows, A.T.u)))}` : '';
         const nExtra = mas || !M ? 4 : 0;
         document.getElementById('panel-categorias').innerHTML = `
@@ -924,15 +926,15 @@
             <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
                 <div class="p-4 sm:p-5 flex flex-wrap items-start justify-between gap-3">
                     <div class="max-w-2xl"><h3 class="text-sm font-extrabold text-slate-900">Venta y meta por categoría</h3>
-                        <p class="text-[11px] text-slate-500 mt-0.5">${M ? `Ordenado por la <strong>brecha de cierre</strong> (pronóstico menos meta del mes): lo que más necesita acción, arriba. ` : ''}<strong>Meta en la ventana</strong> = plan de la Revisión Diaria de esos días × la participación que “Metas por categoría” asigna a la categoría; cambia con la ventana. Verde, ámbar y rojo comparan contra el presupuesto; azul y gris, contra su ritmo normal. <strong>Haz clic en una fila para ver paso a paso cómo se calculó su meta, su avance y su cierre.</strong></p></div>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Ordenado de mayor a menor venta; <strong>haz clic en el encabezado de cualquier columna para ordenar</strong>${M ? ' (por ejemplo, “Brecha de cierre” para ver arriba lo que más necesita acción)' : ''}. <strong>Meta en la ventana</strong> = plan de la Revisión Diaria de esos días × la participación que “Metas por categoría” asigna a la categoría; cambia con la ventana. Verde, ámbar y rojo comparan contra el presupuesto; azul y gris, contra su ritmo normal. <strong>Haz clic en una fila para ver paso a paso cómo se calculó su meta, su avance y su cierre.</strong></p></div>
                     <div class="flex flex-wrap items-center gap-2" data-pdf-ocultar="true">${M ? `<button type="button" onclick="S.masCols=!S.masCols;renderTodo()" class="text-xs font-bold text-blue-700 hover:underline">${mas ? '− Ocultar share, contribución y AUR' : '+ Ver más columnas (share, contribución, AUR)'}</button>` : ''}
                     <button type="button" onclick="abrirMetas()" class="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold">🎯 Metas por categoría</button></div>
                 </div>
                 <div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular whitespace-nowrap"><thead class="bg-slate-50 text-[10px] uppercase text-slate-500">
                     ${M ? `<tr><th></th><th class="px-3 pt-2 text-left text-[10px] font-bold text-emerald-700" colspan="3">Ventana · ${nombreVentana()} · contra presupuesto</th><th class="px-3 pt-2 text-left text-[10px] font-bold text-emerald-700 border-l border-slate-200" colspan="5">${etiquetaMes(S.mes)} · contra presupuesto</th><th class="px-3 pt-2 text-left text-[10px] font-bold text-slate-400 border-l border-slate-200" colspan="${2 + nExtra}">Diagnóstico · contra su ritmo normal</th></tr>` : ''}
-                    <tr><th class="px-3 py-2">Categoría</th>${th('Venta')}${M ? th('Meta en la ventana') + th('Cumpl. ventana') + th('Meta del mes', 'border-l border-slate-200') + th('Avance del mes') + th('% meta al cierre') + th('Brecha de cierre') : ''}${th('vs. benchmark', M ? 'border-l border-slate-200' : '')}${th('vs. año ant.')}${mas || !M ? th('Share') + th('Δ share') + th('Contribución') + th('AUR') : ''}</tr></thead>
+                    <tr>${thO('cat', 'n', 'Categoría', '', 't')}${thO('cat', 'v', 'Venta')}${M ? thO('cat', 'mv', 'Meta en la ventana') + thO('cat', 'cv', 'Cumpl. ventana') + thO('cat', 'mm', 'Meta del mes', 'border-l border-slate-200') + thO('cat', 'av', 'Avance del mes') + thO('cat', 'ci', '% meta al cierre') + thO('cat', 'br', 'Brecha de cierre') : ''}${thO('cat', 'g', 'vs. benchmark', M ? 'border-l border-slate-200' : '')}${thO('cat', 'gy', 'vs. año ant.')}${mas || !M ? thO('cat', 'sh', 'Share') + thO('cat', 'dsh', 'Δ share') + thO('cat', 'ctr', 'Contribución') + thO('cat', 'aur', 'AUR') : ''}</tr></thead>
                     <tbody class="divide-y divide-slate-100">${filas || '<tr><td class="px-3 py-6 text-center text-slate-500" colspan="13">Sin ventas en la ventana.</td></tr>'}
-                    <tr class="bg-slate-50 font-extrabold"><td class="px-3 py-2.5">Total</td>${celda(fmtM(A.vRows))}${totPres}<td class="px-3 py-2.5 text-right ${M ? 'border-l border-slate-200' : ''}">${chipRitmo(A.vbRows ? deltaRel(A.vRows, A.vbRows) : null)}</td><td class="px-3 py-2.5 text-right">${A.Y ? chipRitmo(deltaRel(A.vRows, A.Y.v)) : nul}</td>${totExtras}</tr>
+                    <tr class="bg-slate-50 font-extrabold"><td class="px-2 py-2">Total</td>${celda(fmtM(A.vRows))}${totPres}<td class="px-2 py-2 text-right ${M ? 'border-l border-slate-200' : ''}">${chipRitmo(A.vbRows ? deltaRel(A.vRows, A.vbRows) : null)}</td><td class="px-2 py-2 text-right">${A.Y ? chipRitmo(deltaRel(A.vRows, A.Y.v)) : nul}</td>${totExtras}</tr>
                 </tbody></table></div>
             </div>
             <details class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm text-xs text-slate-600 leading-relaxed" data-pdf-ocultar="true"><summary class="cursor-pointer font-bold text-slate-800">ⓘ ¿Cómo se calcula la meta por categoría?</summary>
@@ -947,7 +949,8 @@
 
     function renderProductos(A) {
         const q = S.filtroTipo; const prods = A.productos.filter(p => q === 'todos' || p.tipo === q);
-        const lista = S.verTodosProd ? prods : prods.slice(0, 30);
+        const prodsO = ordenarLista('prod', prods, 'v', { n: p => p.n, tipo: p => p.tipo, v: p => p.v, sh: p => p.sh, g: p => p.g, rec: p => p.rec });
+        const lista = S.verTodosProd ? prodsO : prodsO.slice(0, 30);
         const conteo = t => A.productos.filter(p => p.tipo === t).length;
         const chips = ['todos', 'Estrella', 'Ancla', 'Promesa', 'Rezagado', 'Estable'].map(t => `<button type="button" onclick="S.filtroTipo='${t}';S.verTodosProd=false;renderTodo()" class="px-2.5 py-1 rounded-lg text-[11px] font-bold border ${q === t ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}">${t === 'todos' ? 'Todos' : t} ${t === 'todos' ? '' : '(' + conteo(t) + ')'}</button>`).join('');
         const filaMini = x => `<li class="flex items-start justify-between gap-2 py-1.5"><span class="min-w-0 text-xs"><strong class="text-slate-900 break-words">${esc(x.n)}</strong><span class="block text-[10px] text-slate-400">${esc(x.sku)} · ${esc(x.cat)}</span></span><span class="shrink-0 text-xs font-bold num-tabular ${colorPP(x.d)}">${x.d >= 0 ? '+' : ''}${fmtM(x.d)}</span></li>`;
@@ -962,8 +965,8 @@
                         <span><span class="px-1.5 py-0.5 rounded-md font-extrabold ${TIPOS_PROD.Rezagado}">Rezagado</span> pierde venta</span></div>
                     <p class="text-[11px] text-slate-500 mt-1.5">“Sostiene la venta” = los productos que juntos suman el primer ${S.config.cabeza}% de la venta. Crecer = ${S.config.crec}% o más contra su ritmo normal.</p>
                     <div class="mt-2.5 flex flex-wrap gap-1.5" data-pdf-ocultar="true">${chips}</div></div>
-                <div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular"><thead class="bg-slate-50 text-[10px] uppercase text-slate-500"><tr><th class="px-3 py-2">Producto</th><th class="px-3 py-2">Tipo</th><th class="px-3 py-2 text-right">Venta</th><th class="px-3 py-2 text-right">Share</th><th class="px-3 py-2 text-right">vs. benchmark</th><th class="px-3 py-2 text-right">Recompra</th></tr></thead>
-                    <tbody class="divide-y divide-slate-100">${lista.map(p => `<tr class="hover:bg-slate-50"><td class="px-3 py-2.5"><strong class="text-slate-900 break-words">${esc(p.n)}</strong><span class="block text-[10px] text-slate-400">${esc(p.sku)} · ${esc(p.cat)}</span></td><td class="px-3 py-2.5"><span class="inline-block px-2 py-0.5 rounded-md text-[10px] font-extrabold ${TIPOS_PROD[p.tipo]}">${p.tipo}</span></td><td class="px-3 py-2.5 text-right">${fmtM(p.v)}</td><td class="px-3 py-2.5 text-right">${fmtP(p.sh, 2)}</td><td class="px-3 py-2.5 text-right">${chipDelta(p.g)}</td><td class="px-3 py-2.5 text-right">${p.rec === null ? '<span class="text-slate-300">—</span>' : fmtP(p.rec, 0)}</td></tr>`).join('') || '<tr><td class="px-3 py-6 text-center text-slate-500" colspan="6">Sin productos en esta clasificación.</td></tr>'}</tbody></table></div>
+                <div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular"><thead class="bg-slate-50 text-[10px] uppercase text-slate-500"><tr>${thO('prod', 'n', 'Producto', '', 't')}${thO('prod', 'tipo', 'Tipo', '', 't')}${thO('prod', 'v', 'Venta')}${thO('prod', 'sh', 'Share')}${thO('prod', 'g', 'vs. benchmark')}${thO('prod', 'rec', 'Recompra')}</tr></thead>
+                    <tbody class="divide-y divide-slate-100">${lista.map(p => `<tr class="hover:bg-slate-50"><td class="px-2 py-2"><strong class="text-slate-900 break-words">${esc(p.n)}</strong><span class="block text-[10px] text-slate-400">${esc(p.sku)} · ${esc(p.cat)}</span></td><td class="px-2 py-2"><span class="inline-block px-2 py-0.5 rounded-md text-[10px] font-extrabold ${TIPOS_PROD[p.tipo]}">${p.tipo}</span></td><td class="px-2 py-2 text-right">${fmtM(p.v)}</td><td class="px-2 py-2 text-right">${fmtP(p.sh, 2)}</td><td class="px-2 py-2 text-right">${chipDelta(p.g)}</td><td class="px-2 py-2 text-right">${p.rec === null ? '<span class="text-slate-300">—</span>' : fmtP(p.rec, 0)}</td></tr>`).join('') || '<tr><td class="px-3 py-6 text-center text-slate-500" colspan="6">Sin productos en esta clasificación.</td></tr>'}</tbody></table></div>
                 ${prods.length > 30 ? `<div class="p-3 text-center" data-pdf-ocultar="true"><button type="button" onclick="S.verTodosProd=!S.verTodosProd;renderTodo()" class="text-xs font-bold text-blue-700 hover:underline">${S.verTodosProd ? 'Ver solo los 30 principales' : `Ver los ${prods.length} productos`}</button></div>` : ''}
                 <p class="px-4 pb-4 text-[11px] text-slate-400">La recompra (clientes que lo compraron 2 veces o más) se calcula al cargar el CSV con cliente_id y se muestra solo si el producto tiene al menos 20 clientes${S.snap.recompra ? ` (periodo ${fechaCorta(S.snap.recompra.desde)} – ${fechaCorta(S.snap.recompra.hasta)})` : ' (aún no hay datos de recompra)'}.</p>
             </div>
@@ -976,28 +979,29 @@
 
     function renderCanales(A) {
         const M = A.mes, mas = S.masCols, porMes = new Map((M ? M.canalesTodos : []).map(c => [c.c, c]));
-        const celda = (x, cls = '') => `<td class="px-3 py-2.5 text-right num-tabular ${cls}">${x}</td>`;
+        const celda = (x, cls = '') => `<td class="px-2 py-2 text-right num-tabular ${cls}">${x}</td>`;
         const th = (x, cls = '') => `<th class="px-3 py-2 text-right ${cls}">${x}</th>`;
         const nul = '<span class="text-slate-300">—</span>';
         const brechaDe = c => { const m = porMes.get(c.c); return m && m.pron !== null ? m.pron - m.presupuesto : null; };
-        const orden = [...A.canales].sort((a, b) => M ? ((brechaDe(a) ?? Infinity) - (brechaDe(b) ?? Infinity)) : b.v - a.v);
+        const pm = c => porMes.get(c.c) || null;
+        const orden = ordenarLista('can', A.canales, 'v', { n: c => c.c, v: c => c.v, mv: c => c.plan > 0 ? c.plan : null, cv: c => c.cumpl, mm: c => pm(c) && pm(c).presupuesto, av: c => pm(c) && pm(c).pacingReal, ci: c => pm(c) && pm(c).cumplPron, br: brechaDe, g: c => c.g, gy: c => c.gY, p: c => c.p, aov: c => c.aov, dif: c => c.integ ? c.integ.dif : null, sh: c => c.sh });
         const sig = v => v === null ? '—' : `${v >= 0 ? '+' : '−'}${fmtM(Math.abs(v)).replace('−', '')}`;
         const filas = orden.map(c => { const m = porMes.get(c.c), br = brechaDe(c);
-            const presup = M ? (m ? `${celda(c.plan > 0 ? fmtM(c.plan) : '—')}<td class="px-3 py-2.5 text-right">${chipMeta(c.cumpl)}</td>${celda(fmtM(m.presupuesto), 'border-l border-slate-200')}<td class="px-3 py-2.5 text-right num-tabular whitespace-nowrap">${fmtMeta(m.pacingReal)}${barraAvance(m.pacingReal, m.presupuesto > 0 ? m.planMTD / m.presupuesto * 100 : 0)}<div class="text-[10px] text-slate-400">esperado ${fmtP(m.presupuesto > 0 ? m.planMTD / m.presupuesto * 100 : 0, 0)}</div></td><td class="px-3 py-2.5 text-right" title="Si mantiene su ritmo del mes cierra en ${m.pron !== null ? fmtM(m.pron) : '—'}">${chipMeta(m.cumplPron)}</td>${celda(sig(br), br === null ? '' : br < 0 ? 'font-bold text-rose-700' : 'font-bold text-emerald-700')}` : celda('—').repeat(6)) : '';
+            const presup = M ? (m ? `${celda(c.plan > 0 ? fmtM(c.plan) : '—')}<td class="px-2 py-2 text-right">${chipMeta(c.cumpl)}</td>${celda(fmtM(m.presupuesto), 'border-l border-slate-200')}<td class="px-2 py-2 text-right num-tabular whitespace-nowrap">${fmtMeta(m.pacingReal)}${barraAvance(m.pacingReal, m.presupuesto > 0 ? m.planMTD / m.presupuesto * 100 : 0)}<div class="text-[10px] text-slate-400">esperado ${fmtP(m.presupuesto > 0 ? m.planMTD / m.presupuesto * 100 : 0, 0)}</div></td><td class="px-2 py-2 text-right" title="Si mantiene su ritmo del mes cierra en ${m.pron !== null ? fmtM(m.pron) : '—'}">${chipMeta(m.cumplPron)}</td>${celda(sig(br), br === null ? '' : br < 0 ? 'font-bold text-rose-700' : 'font-bold text-emerald-700')}` : celda('—').repeat(6)) : '';
             const k = 'k:' + c.c, abierta = !!S.detMeta[k];
             const det = M && m ? `<tr class="${abierta ? '' : 'hidden'}"><td colspan="20" class="p-0">${abierta ? explicacionMeta(A, c.c, { v: c.v, metaV: c.plan > 0 ? c.plan : null, cumplV: c.cumpl, meta: m.presupuesto, sh: null, presupuesto: m.presupuesto, real: m.real, planMTD: m.planMTD, pron: m.pron, esp: m.presupuesto > 0 ? m.planMTD / m.presupuesto * 100 : 0 }) : ''}</td></tr>` : '';
-            return `<tr class="hover:bg-slate-50 ${M && m ? 'cursor-pointer' : ''}" ${M && m ? `onclick="alternarDetalleMeta('${k}')" title="Clic para ver cómo se calculó"` : ''}><td class="px-3 py-2.5 font-bold text-slate-900">${M && m ? `<span class="text-slate-400 mr-1">${abierta ? '▾' : '▸'}</span>` : ''}${c.c}</td>${celda(fmtM(c.v))}${presup}<td class="px-3 py-2.5 text-right ${M ? 'border-l border-slate-200' : ''}">${chipRitmo(c.g)}</td><td class="px-3 py-2.5 text-right">${c.gY === null ? nul : chipRitmo(c.gY)}</td>
+            return `<tr class="hover:bg-slate-50 ${M && m ? 'cursor-pointer' : ''}" ${M && m ? `onclick="alternarDetalleMeta('${k}')" title="Clic para ver cómo se calculó"` : ''}><td class="px-2 py-2 font-bold text-slate-900">${M && m ? `<span class="text-slate-400 mr-1">${abierta ? '▾' : '▸'}</span>` : ''}${c.c}</td>${celda(fmtM(c.v))}${presup}<td class="px-2 py-2 text-right ${M ? 'border-l border-slate-200' : ''}">${chipRitmo(c.g)}</td><td class="px-2 py-2 text-right">${c.gY === null ? nul : chipRitmo(c.gY)}</td>
                 ${celda(fmtN(c.p))}${celda(fmtM(c.aov))}${celda(c.integ ? txtDelta(c.integ.dif) : '—', c.integ && Math.abs(c.integ.dif) > 3 ? 'font-bold text-rose-700' : c.integ && Math.abs(c.integ.dif) > 1 ? 'font-bold text-amber-700' : 'text-emerald-700')}${mas || !M ? celda(fmtP(c.sh)) : ''}</tr>${det}`; }).join('');
         const tv = A.canales.reduce((s, c) => s + c.v, 0), tp = A.canales.reduce((s, c) => s + c.p, 0), T0 = M ? M.totalTodos : null, planT = A.canales.reduce((s, c) => s + c.plan, 0), brT = T0 && T0.pron !== null ? T0.pron - T0.presupuesto : null;
-        const totPres = M ? `${celda(planT > 0 ? fmtM(planT) : '—')}<td class="px-3 py-2.5 text-right">${planT > 0 ? chipMeta(tv / planT * 100) : nul}</td>${celda(fmtM(T0.presupuesto), 'border-l border-slate-200')}<td class="px-3 py-2.5 text-right whitespace-nowrap">${fmtMeta(T0.pacingReal)}${barraAvance(T0.pacingReal, T0.pacingEsp)}</td><td class="px-3 py-2.5 text-right">${chipMeta(T0.cumplPron)}</td>${celda(sig(brT), brT === null ? '' : brT < 0 ? 'font-bold text-rose-700' : 'font-bold text-emerald-700')}` : '';
+        const totPres = M ? `${celda(planT > 0 ? fmtM(planT) : '—')}<td class="px-2 py-2 text-right">${planT > 0 ? chipMeta(tv / planT * 100) : nul}</td>${celda(fmtM(T0.presupuesto), 'border-l border-slate-200')}<td class="px-2 py-2 text-right whitespace-nowrap">${fmtMeta(T0.pacingReal)}${barraAvance(T0.pacingReal, T0.pacingEsp)}</td><td class="px-2 py-2 text-right">${chipMeta(T0.cumplPron)}</td>${celda(sig(brT), brT === null ? '' : brT < 0 ? 'font-bold text-rose-700' : 'font-bold text-emerald-700')}` : '';
         document.getElementById('panel-canales').innerHTML = `
             <p class="text-[11px] text-slate-500">${textoVentana(A.V)}${A.YD ? ` · Año anterior (mismo día de la semana): ${fechaCorta(A.YD.ini)} – ${fechaCorta(A.YD.fin)}` : ''}</p>${sinBase(A)}
-            <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden"><div class="p-4 sm:p-5 flex flex-wrap items-start justify-between gap-3"><div class="max-w-2xl"><h3 class="text-sm font-extrabold text-slate-900">Venta y meta por canal</h3><p class="text-[11px] text-slate-500 mt-0.5">Siempre se muestran los cuatro canales, sin importar el filtro de canal.${M ? ' Ordenado por la <strong>brecha de cierre</strong> (pronóstico menos meta del mes): lo que más necesita acción, arriba.' : ''} <strong>Meta en la ventana</strong> = plan de la Revisión Diaria de esos días; cambia con la ventana. Verde, ámbar y rojo comparan contra el presupuesto; azul y gris, contra su ritmo normal. <strong>Haz clic en un canal para ver cómo se calculó.</strong></p></div>
+            <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden"><div class="p-4 sm:p-5 flex flex-wrap items-start justify-between gap-3"><div class="max-w-2xl"><h3 class="text-sm font-extrabold text-slate-900">Venta y meta por canal</h3><p class="text-[11px] text-slate-500 mt-0.5">Siempre se muestran los cuatro canales, sin importar el filtro de canal.Ordenado de mayor a menor venta; <strong>haz clic en el encabezado de cualquier columna para ordenar</strong>. <strong>Meta en la ventana</strong> = plan de la Revisión Diaria de esos días; cambia con la ventana. Verde, ámbar y rojo comparan contra el presupuesto; azul y gris, contra su ritmo normal. <strong>Haz clic en un canal para ver cómo se calculó.</strong></p></div>
                 ${M ? `<button type="button" data-pdf-ocultar="true" onclick="S.masCols=!S.masCols;renderTodo()" class="text-xs font-bold text-blue-700 hover:underline">${mas ? '− Ocultar share' : '+ Ver más columnas (share)'}</button>` : ''}</div>
             <div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular whitespace-nowrap"><thead class="bg-slate-50 text-[10px] uppercase text-slate-500">
                 ${M ? `<tr><th></th><th class="px-3 pt-2 text-left text-[10px] font-bold text-emerald-700" colspan="3">Ventana · ${nombreVentana()} · contra presupuesto</th><th class="px-3 pt-2 text-left text-[10px] font-bold text-emerald-700 border-l border-slate-200" colspan="5">${etiquetaMes(S.mes)} · contra presupuesto</th><th class="px-3 pt-2 text-left text-[10px] font-bold text-slate-400 border-l border-slate-200" colspan="${5 + (mas ? 1 : 0)}">Diagnóstico · contra su ritmo normal</th></tr>` : ''}
-                <tr><th class="px-3 py-2">Canal</th>${th('Venta')}${M ? th('Meta en la ventana') + th('Cumpl. ventana') + th('Meta del mes', 'border-l border-slate-200') + th('Avance del mes') + th('% meta al cierre') + th('Brecha de cierre') : ''}${th('vs. benchmark', M ? 'border-l border-slate-200' : '')}${th('vs. año ant.')}${th('Pedidos')}${th('Ticket')}${th('Vs. Rev. Diaria')}${mas || !M ? th('Share') : ''}</tr></thead>
-            <tbody class="divide-y divide-slate-100">${filas}<tr class="bg-slate-50 font-extrabold"><td class="px-3 py-2.5">Total</td>${celda(fmtM(tv))}${totPres}<td class="px-3 py-2.5 text-right ${M ? 'border-l border-slate-200' : ''}">${nul}</td><td class="px-3 py-2.5 text-right">${nul}</td>${celda(fmtN(tp))}${celda(fmtM(razon(tv, tp)))}${celda('—')}${mas || !M ? celda('100%') : ''}</tr></tbody></table></div></div>
+                <tr>${thO('can', 'n', 'Canal', '', 't')}${thO('can', 'v', 'Venta')}${M ? thO('can', 'mv', 'Meta en la ventana') + thO('can', 'cv', 'Cumpl. ventana') + thO('can', 'mm', 'Meta del mes', 'border-l border-slate-200') + thO('can', 'av', 'Avance del mes') + thO('can', 'ci', '% meta al cierre') + thO('can', 'br', 'Brecha de cierre') : ''}${thO('can', 'g', 'vs. benchmark', M ? 'border-l border-slate-200' : '')}${thO('can', 'gy', 'vs. año ant.')}${thO('can', 'p', 'Pedidos')}${thO('can', 'aov', 'Ticket')}${thO('can', 'dif', 'Vs. Rev. Diaria')}${mas || !M ? thO('can', 'sh', 'Share') : ''}</tr></thead>
+            <tbody class="divide-y divide-slate-100">${filas}<tr class="bg-slate-50 font-extrabold"><td class="px-2 py-2">Total</td>${celda(fmtM(tv))}${totPres}<td class="px-2 py-2 text-right ${M ? 'border-l border-slate-200' : ''}">${nul}</td><td class="px-2 py-2 text-right">${nul}</td>${celda(fmtN(tp))}${celda(fmtM(razon(tv, tp)))}${celda('—')}${mas || !M ? celda('100%') : ''}</tr></tbody></table></div></div>
             ${bannerIntegridad(A)}
             <p class="text-[11px] text-slate-500">WhatsApp y Llamadas se miden con sus propios pedidos; su conversión contra oportunidades atendidas se documenta aparte, como define el KPI de CR.</p>`;
     }
@@ -1008,8 +1012,8 @@
             <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden"><div class="p-4 sm:p-5"><h3 class="text-sm font-extrabold text-slate-900">Cross-selling: parejas con más potencial para el ticket</h3>
                 <p class="text-[11px] text-slate-500 mt-0.5">Confianza: de los pedidos con el producto ancla, cuántos llevan también el complemento. Lift mayor a 1: se compran juntos más de lo esperado. Efecto: cuánto subiría el ticket si la adjunción del complemento aumenta 5 puntos.</p>
                 ${c ? `<p class="text-[11px] text-slate-400 mt-1">Calculado con ${fmtN(c.total)} pedidos del ${fechaCorta(c.desde)} al ${fechaCorta(c.hasta)}. Se recalcula con cada carga de CSV.</p>` : ''}</div>
-            <div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular"><thead class="bg-slate-50 text-[10px] uppercase text-slate-500"><tr><th class="px-3 py-2">Producto ancla</th><th class="px-3 py-2">Complemento</th><th class="px-3 py-2 text-right">Pedidos juntos</th><th class="px-3 py-2 text-right">Confianza</th><th class="px-3 py-2 text-right">Lift</th><th class="px-3 py-2 text-right">Efecto en AOV (+5 pp)</th><th class="px-3 py-2" data-pdf-ocultar="true"></th></tr></thead>
-            <tbody class="divide-y divide-slate-100">${A.cross.map(p => `<tr class="hover:bg-slate-50"><td class="px-3 py-2.5 font-bold text-slate-900 break-words">${esc(p.na)}</td><td class="px-3 py-2.5 break-words">${esc(p.nb)}</td><td class="px-3 py-2.5 text-right">${fmtN(p.j)}</td><td class="px-3 py-2.5 text-right">${fmtP(p.conf)}</td><td class="px-3 py-2.5 text-right">${p.lift.toFixed(1)}×</td><td class="px-3 py-2.5 text-right font-bold text-emerald-700">${p.d5 !== null ? '+' + fmtM(p.d5) : '—'}</td><td class="px-3 py-2.5" data-pdf-ocultar="true">${botonAccion('cross-selling', `${p.na} + ${p.nb}`, `Pareja con lift ${p.lift.toFixed(1)}× y ${fmtP(p.conf)} de confianza.`)}</td></tr>`).join('') || `<tr><td class="px-3 py-8 text-center text-slate-500" colspan="7">${c ? 'No hay parejas con suficiente volumen.' : 'Aún no hay análisis. Carga un CSV con pedido_id y varios productos por pedido (mínimo 14 días).'}</td></tr>`}</tbody></table></div></div>`;
+            <div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular"><thead class="bg-slate-50 text-[10px] uppercase text-slate-500"><tr>${thO('cross', 'na', 'Producto ancla', '', 't')}${thO('cross', 'nb', 'Complemento', '', 't')}${thO('cross', 'j', 'Pedidos juntos')}${thO('cross', 'conf', 'Confianza')}${thO('cross', 'lift', 'Lift')}${thO('cross', 'd5', 'Efecto en AOV (+5 pp)')}<th class="px-2 py-2" data-pdf-ocultar="true"></th></tr></thead>
+            <tbody class="divide-y divide-slate-100">${ordenarLista('cross', A.cross, 'd5', { na: p => p.na, nb: p => p.nb, j: p => p.j, conf: p => p.conf, lift: p => p.lift, d5: p => p.d5 }).map(p => `<tr class="hover:bg-slate-50"><td class="px-2 py-2 font-bold text-slate-900 break-words">${esc(p.na)}</td><td class="px-2 py-2 break-words">${esc(p.nb)}</td><td class="px-2 py-2 text-right">${fmtN(p.j)}</td><td class="px-2 py-2 text-right">${fmtP(p.conf)}</td><td class="px-2 py-2 text-right">${p.lift.toFixed(1)}×</td><td class="px-2 py-2 text-right font-bold text-emerald-700">${p.d5 !== null ? '+' + fmtM(p.d5) : '—'}</td><td class="px-2 py-2" data-pdf-ocultar="true">${botonAccion('cross-selling', `${p.na} + ${p.nb}`, `Pareja con lift ${p.lift.toFixed(1)}× y ${fmtP(p.conf)} de confianza.`)}</td></tr>`).join('') || `<tr><td class="px-3 py-8 text-center text-slate-500" colspan="7">${c ? 'No hay parejas con suficiente volumen.' : 'Aún no hay análisis. Carga un CSV con pedido_id y varios productos por pedido (mínimo 14 días).'}</td></tr>`}</tbody></table></div></div>`;
     }
 
     function comboSugerido(x, A) {
@@ -1022,8 +1026,8 @@
             <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden"><div class="p-4 sm:p-5"><h3 class="text-sm font-extrabold text-slate-900">Productos sin movimiento (+${S.config.sinMovDias} días) y bundling</h3>
                 <p class="text-[11px] text-slate-500 mt-0.5">Se detectan solo con el CSV de ventas: productos que sí vendían y llevan ${S.config.sinMovDias} días o más sin una venta. No incluye existencias; el Analista valida en el ERP cuáles tienen inventario antes de armar el combo.</p>
                 ${!suficiente ? `<p class="mt-2 text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">Aún no hay suficiente historial (se recomiendan al menos ${S.config.sinMovDias + 90} días): la lista puede estar incompleta.</p>` : ''}</div>
-            <div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular"><thead class="bg-slate-50 text-[10px] uppercase text-slate-500"><tr><th class="px-3 py-2">Producto</th><th class="px-3 py-2">Categoría</th><th class="px-3 py-2 text-right">Última venta</th><th class="px-3 py-2 text-right">Días sin venta</th><th class="px-3 py-2 text-right">Vendía por trimestre</th><th class="px-3 py-2">Combo sugerido con</th><th class="px-3 py-2" data-pdf-ocultar="true"></th></tr></thead>
-            <tbody class="divide-y divide-slate-100">${lista.map(x => `<tr class="hover:bg-slate-50"><td class="px-3 py-2.5"><strong class="text-slate-900 break-words">${esc(x.n)}</strong><span class="block text-[10px] text-slate-400">${esc(x.sku)}</span></td><td class="px-3 py-2.5">${esc(x.cat)}</td><td class="px-3 py-2.5 text-right">${fechaCorta(x.ultima)}</td><td class="px-3 py-2.5 text-right font-bold text-rose-700">${x.dias}</td><td class="px-3 py-2.5 text-right">${fmtM(x.prev)}</td><td class="px-3 py-2.5 break-words">${esc(comboSugerido(x, A))}</td><td class="px-3 py-2.5" data-pdf-ocultar="true">${botonAccion('producto sin movimiento', x.n, `${x.dias} días sin venta; combo sugerido con ${comboSugerido(x, A)}.`)}</td></tr>`).join('') || '<tr><td class="px-3 py-8 text-center text-slate-500" colspan="7">Ningún producto cumple el criterio.</td></tr>'}</tbody></table></div></div>`;
+            <div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular"><thead class="bg-slate-50 text-[10px] uppercase text-slate-500"><tr>${thO('sm', 'n', 'Producto', '', 't')}${thO('sm', 'cat', 'Categoría', '', 't')}${thO('sm', 'ultima', 'Última venta')}${thO('sm', 'dias', 'Días sin venta')}${thO('sm', 'prev', 'Vendía por trimestre')}${thO('sm', 'combo', 'Combo sugerido con', '', 't')}<th class="px-2 py-2" data-pdf-ocultar="true"></th></tr></thead>
+            <tbody class="divide-y divide-slate-100">${ordenarLista('sm', lista, 'prev', { n: x => x.n, cat: x => x.cat, ultima: x => x.ultima, dias: x => x.dias, prev: x => x.prev, combo: x => comboSugerido(x, A) }).map(x => `<tr class="hover:bg-slate-50"><td class="px-2 py-2"><strong class="text-slate-900 break-words">${esc(x.n)}</strong><span class="block text-[10px] text-slate-400">${esc(x.sku)}</span></td><td class="px-2 py-2">${esc(x.cat)}</td><td class="px-2 py-2 text-right">${fechaCorta(x.ultima)}</td><td class="px-2 py-2 text-right font-bold text-rose-700">${x.dias}</td><td class="px-2 py-2 text-right">${fmtM(x.prev)}</td><td class="px-2 py-2 break-words">${esc(comboSugerido(x, A))}</td><td class="px-2 py-2" data-pdf-ocultar="true">${botonAccion('producto sin movimiento', x.n, `${x.dias} días sin venta; combo sugerido con ${comboSugerido(x, A)}.`)}</td></tr>`).join('') || '<tr><td class="px-3 py-8 text-center text-slate-500" colspan="7">Ningún producto cumple el criterio.</td></tr>'}</tbody></table></div></div>`;
     }
 
     function renderAcciones(A) {
@@ -1039,15 +1043,15 @@
         document.getElementById('panel-acciones').innerHTML = `
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
                 <div class="space-y-3">${panelAlertas('Alertas activas · de mayor a menor impacto', A.alertas, 'Sin alertas activas.')}</div>
-                <div class="space-y-3"><div class="flex items-center justify-between"><h3 class="text-sm font-extrabold text-slate-900">Acciones registradas (${S.acciones.length})</h3>
+                <div class="space-y-3"><div class="flex items-center justify-between"><h3 class="text-sm font-extrabold text-slate-900">Acciones registradas (${S.acciones.length}) <a href="Acciones.html" target="_blank" rel="noopener" class="ml-2 text-[11px] font-bold text-blue-700 hover:underline">Ver todas las acciones ↗</a></h3>
                     <button type="button" onclick="abrirAccion()" class="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold">+ Nueva acción</button></div>
                     <ul class="space-y-2">${lista || '<li class="p-4 text-xs text-slate-500 rounded-xl bg-slate-50 border border-slate-200">Aún no hay acciones registradas.</li>'}</ul></div></div>`;
     }
 
     function renderTabsYFiltros() {
-        document.getElementById('pills-canal').innerHTML = FILTROS.map(c => `<button type="button" onclick="cambiarCanal('${c}')" class="px-3 py-1.5 rounded-xl text-xs font-bold transition ${S.canal === c ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'}">${ETIQ_CANAL[c]}</button>`).join('');
+        document.getElementById('sel-canal').innerHTML = FILTROS.map(x => `<option value="${x}" ${S.canal === x ? 'selected' : ''}>${ETIQ_CANAL[x]}</option>`).join('');
         const pend = S.acciones.filter(a => a.estatus !== 'Completada').length;
-        document.getElementById('tabs-vista').innerHTML = VISTAS.map(v => `<button type="button" onclick="cambiarVista('${v.id}')" class="shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition ${S.vista === v.id ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'}">${v.n}${v.id === 'acciones' && pend ? ` <span class="ml-1 px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[10px]">${pend}</span>` : ''}</button>`).join('');
+        document.getElementById('tabs-vista').innerHTML = VISTAS.map(v => `<button type="button" onclick="cambiarVista('${v.id}')" class="shrink-0 px-3.5 py-2.5 text-xs font-bold transition border-b-2 ${S.vista === v.id ? 'text-blue-600 border-blue-600' : 'text-slate-500 border-transparent hover:text-slate-900'}">${v.n}${v.id === 'acciones' && pend ? ` <span class="ml-1 px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[10px]">${pend}</span>` : ''}</button>`).join('');
         document.getElementById('sel-ventana').value = String(S.ventana);
         document.getElementById('cfg-umbral').value = S.config.umbral; document.getElementById('cfg-ialto').value = S.config.impactoAlto;
         document.getElementById('cfg-imedio').value = S.config.impactoMedio; document.getElementById('cfg-cabeza').value = S.config.cabeza;
@@ -1649,7 +1653,7 @@
             const { data, error } = await NUBE.client.from('comercial_estado').update({ acciones: S.acciones, config: { ...S.config, metas: S.metas, metasCfg: S.metasCfg }, snapshots: S.snap, version: NUBE.version + 1, actualizado_en: new Date().toISOString() })
                 .eq('id', 'principal').eq('version', NUBE.version).select('version'); if (error) throw error;
             if (!data || !data.length) { await cargarEstadoNube(); renderTodo(); nubeEstado('⚠️ Otro usuario modificó los datos', 'error'); toast('⚠️ Otra persona guardó cambios antes que tú. Se cargó la versión más reciente; repite tu último cambio.'); }
-            else { NUBE.version = data[0].version; nubeEstado('☁️ Sincronizado', 'ok'); }
+            else { NUBE.version = data[0].version; nubeEstado('☁️ Sincronizado', 'ok'); refrescarChipAcciones(); }
         } catch (e) { console.error(e); nubeEstado('⚠️ Sin conexión: guardado solo en este equipo', 'error'); } finally { NUBE.guardando = false; }
     }
         function nubeOverlay(mostrar, error) {
@@ -1657,9 +1661,24 @@
         const e = document.getElementById('nube-error'); e.textContent = error || ''; e.classList.toggle('hidden', !error);
         if (mostrar) document.getElementById('nube-clave').focus();
     }
+
+    // Chip de acciones: abiertas y vencidas de las tres herramientas, con enlace al registro unificado
+    async function refrescarChipAcciones() {
+        const el = document.getElementById('chip-acciones'), tx = document.getElementById('chip-acciones-txt');
+        if (!el || !tx || !NUBE.activo || !NUBE.client || S.demo) return;
+        try {
+            const res = await Promise.all(['tablero_estado', 'trafico_estado', 'comercial_estado'].map(t => NUBE.client.from(t).select('acciones').eq('id', 'principal').maybeSingle()));
+            let ab = 0, ve = 0; const hoy = hoyISO();
+            res.forEach(r => (r.data && Array.isArray(r.data.acciones) ? r.data.acciones : []).forEach(a => { if (a.estatus === 'Completada') return; ab++; if (a.fechaCompromiso && a.fechaCompromiso < hoy) ve++; }));
+            tx.textContent = ab ? `${ab} abierta${ab === 1 ? '' : 's'}${ve ? ` · ${ve} vencida${ve === 1 ? '' : 's'}` : ''}` : 'Sin acciones abiertas';
+            el.className = `inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold whitespace-nowrap transition ${ve ? 'bg-rose-50 border-rose-300 text-rose-700 hover:bg-rose-100' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'}`;
+        } catch (e) { console.error(e); }
+    }
+    document.addEventListener('click', e => document.querySelectorAll('header details[open]').forEach(d => { if (!d.contains(e.target)) d.removeAttribute('open'); }));
+
     async function nubeEntrar() {
         NUBE.activo = true; nubeOverlay(false);
-        await cargarEstadoNube(); await cargarRegistrosNube(); await cargarPlanNube(); renderTodo(); await cargarDerivados();
+        await cargarEstadoNube(); await cargarRegistrosNube(); await cargarPlanNube(); renderTodo(); refrescarChipAcciones(); await cargarDerivados();
         if (!S.dias.length) nubeEstado('☁️ Conectado (aún sin datos comerciales)', 'ok');
     }
         async function nubeArrancar() {
@@ -1770,7 +1789,7 @@
     // =====================================================================
     window.addEventListener('load', () => {
         cargarCacheLocal(); renderTodo(); nubeArrancar();
-        document.addEventListener('visibilitychange', async () => { if (!document.hidden && NUBE.activo && !S.demo && !NUBE.timer) { await cargarRegistrosNube(); await cargarPlanNube(); renderTodo(); } });
+        document.addEventListener('visibilitychange', async () => { if (!document.hidden && NUBE.activo && !S.demo && !NUBE.timer) { await cargarRegistrosNube(); await cargarPlanNube(); renderTodo(); refrescarChipAcciones(); } });
     });
 
     </script>
