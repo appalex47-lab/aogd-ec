@@ -201,6 +201,66 @@
 
     <!-- MODAL: METAS POR CATEGORÍA -->
     <div id="modal-metas" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 p-4 overflow-y-auto">
+        <div class="w-full max-w-5xl bg-white rounded-3xl shadow-2xl overflow-hidden my-6">
+            <div class="bg-slate-900 text-white px-6 py-4">
+                <h3 class="text-base font-extrabold">Metas por categoría</h3>
+                <p id="metas-sub" class="text-xs text-slate-300 mt-1"></p>
+            </div>
+            <div class="p-6 space-y-4">
+                <p class="text-xs text-slate-600">La meta de cada categoría es el plan del mes de la Revisión Diaria repartido según su participación en la venta. Elige la base del reparto (el tablero deja preseleccionada la que mejor habría acertado) y mueve puntos entre categorías con el ajuste: el resto se reajusta solo y las metas siempre suman el plan total.</p>
+                <div id="metas-base"></div>
+                <div class="border border-slate-200 rounded-xl overflow-hidden max-h-96 overflow-auto">
+                    <table class="w-full text-left text-xs num-tabular whitespace-nowrap">
+                        <thead class="bg-slate-50 text-[10px] uppercase text-slate-500 sticky top-0"><tr><th class="px-3 py-2">Categoría</th><th class="px-3 py-2 text-right">Últimos 3 meses</th><th class="px-3 py-2 text-right">Mismo mes año ant.</th><th class="px-3 py-2 text-right">Base elegida</th><th class="px-3 py-2 text-right">Ajuste (pp)</th><th class="px-3 py-2 text-right">Participación final</th><th class="px-3 py-2 text-right">Meta del mes</th><th class="px-3 py-2 text-right">vs. 3 meses</th><th class="px-3 py-2 text-right">% meta al cierre</th></tr></thead>
+                        <tbody id="metas-tbody" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2.5">
+                <button type="button" onclick="cerrarMetas()" class="px-4 py-2 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-700">Cancelar</button>
+                <button type="button" onclick="guardarMetas()" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold">Guardar metas</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: CATÁLOGO DE CATEGORÍAS -->
+    <div id="modal-catalogo" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 p-4 overflow-y-auto">
+        <div class="w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden my-6">
+            <div class="bg-slate-900 text-white px-6 py-4"><h3 class="text-base font-extrabold">Catálogo de categorías</h3><p id="cat-sub" class="text-xs text-slate-300 mt-1"></p></div>
+            <div class="p-6 space-y-3 text-xs text-slate-700">
+                <p>Este archivo trae solo SKU y categoría, así que se usa para completar las categorías que faltan en los datos ya cargados.</p>
+                <div id="cat-detalle"></div>
+                <label class="flex items-start gap-2"><input type="checkbox" id="cat-sobre" class="mt-0.5"><span>Reemplazar también las categorías que ya tienen valor (por defecto solo se completan las que dicen “Sin categoría”).</span></label>
+            </div>
+            <div class="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2.5">
+                <button type="button" onclick="cerrarCatalogo()" class="px-4 py-2 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-700">Cancelar</button>
+                <button type="button" id="cat-confirmar" onclick="confirmarCatalogo()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold">Aplicar catálogo</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: BORRAR DATOS -->
+    <div id="modal-borrar" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 p-4 overflow-y-auto">
+        <div class="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden my-6">
+            <div class="bg-rose-700 text-white px-6 py-4"><h3 class="text-base font-extrabold">Borrar datos comerciales</h3>
+                <p class="text-xs text-rose-100 mt-1">Se borran de la nube y de este equipo, para todos los que usan el tablero. No se puede deshacer.</p></div>
+            <div class="p-6 space-y-3 text-sm">
+                <label class="flex items-start gap-2"><input type="radio" name="bor-modo" id="bor-todo" checked onchange="alternarBorrado()" class="mt-1"><span><strong>Todo</strong> <span class="text-xs text-slate-500">(ventas, pedidos y los análisis de cross-selling y recompra)</span></span></label>
+                <label class="flex items-start gap-2"><input type="radio" name="bor-modo" id="bor-rango-r" onchange="alternarBorrado()" class="mt-1"><span><strong>Solo un rango de fechas</strong></span></label>
+                <div id="bor-rango" class="grid grid-cols-2 gap-2 pl-6"><input type="date" id="bor-desde" class="rounded-lg border border-slate-300 px-2 py-1 text-xs"><input type="date" id="bor-hasta" class="rounded-lg border border-slate-300 px-2 py-1 text-xs"></div>
+                <p class="text-[11px] text-slate-500">Se conservan las acciones registradas y los ajustes de metas por categoría.</p>
+                <div><label class="text-[11px] font-bold text-slate-600">Escribe BORRAR para confirmar</label><input id="bor-confirma" autocomplete="off" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></div>
+                <p id="bor-error" class="text-xs font-semibold text-rose-600"></p>
+            </div>
+            <div class="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2.5">
+                <button type="button" onclick="cerrarBorrar()" class="px-4 py-2 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-700">Cancelar</button>
+                <button type="button" id="bor-boton" onclick="confirmarBorrado()" class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold">Borrar definitivamente</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: METAS POR CATEGORÍA -->
+    <div id="modal-metas" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 p-4 overflow-y-auto">
         <div class="w-full max-w-3xl bg-white rounded-3xl shadow-2xl overflow-hidden my-6">
             <div class="bg-slate-900 text-white px-6 py-4">
                 <h3 class="text-base font-extrabold">Metas por categoría</h3>
@@ -291,7 +351,7 @@
     const S = {
         registros: [], dias: [], acciones: [], metas: {}, snap: { cross: null, recompra: null }, planDia: {}, planOk: false,
         config: { umbral: 5, impactoAlto: 1, impactoMedio: 0.3, cabeza: 50, crec: 5, sinMovDias: 90 },
-        shareBase: {}, sinMov: null, yoy: {}, realRev: {}, mes: null, corte: null, canal: 'Total', ventana: 7, vista: 'resumen',
+        shareBase: {}, shareMes: {}, shareMesCargado: {}, metasCfg: {}, mm: null, sinMov: null, yoy: {}, realRev: {}, planPed: {}, mes: null, corte: null, canal: 'Total', ventana: 7, vista: 'resumen',
         demo: false, rangoMin: null, rangoMax: null, chart: null, filtroTipo: 'todos', verTodosProd: false
     };
 
@@ -352,15 +412,46 @@
         return m;
     }
 
-    // Base para repartir la meta: share de venta por categoría (3 meses previos; si no hay, el benchmark)
+    // Base para repartir la meta mensual entre categorías: últimos 3 meses, mismo mes del año anterior o una mezcla.
+    // El tablero recomienda la base que menos se habría equivocado en los 3 meses anteriores y la deja preseleccionada.
+    const sumaMes = (m, n) => { const [y, mm] = m.split('-').map(Number); const k = y * 12 + (mm - 1) + n; return `${Math.floor(k / 12)}-${String(k % 12 + 1).padStart(2, '0')}`; };
+    function ventaMensualPorCategoria() {
+        if (NUBE.activo && !S.demo) return S.shareMes[S.canal] || null;
+        const o = {}; S.registros.filter(r => okC(r.c)).forEach(r => { const m = r.f.slice(0, 7); const x = o[m] = o[m] || {}; x[r.cat] = (x[r.cat] || 0) + r.v; }); return o;
+    }
+    const poolMeses = (mm, meses) => { const tot = {}; let n = 0; meses.forEach(m => { if (mm[m]) { n++; Object.entries(mm[m]).forEach(([c, v]) => { tot[c] = (tot[c] || 0) + v; }); } }); return { n, mapa: tot }; };
+    const aShare = mapa => { const s = Object.values(mapa).reduce((a, b) => a + b, 0), o = {}; if (s > 0) Object.entries(mapa).forEach(([c, v]) => { o[c] = v / s * 100; }); return o; };
+    const errShares = (a, b) => { let s = 0; new Set([...Object.keys(a), ...Object.keys(b)]).forEach(c => { s += Math.abs((a[c] || 0) - (b[c] || 0)); }); return s / 2; };
+    const mezclaShares = (l3, ly, w) => { const o = {}; new Set([...Object.keys(l3), ...Object.keys(ly)]).forEach(c => { o[c] = w * (ly[c] || 0) + (1 - w) * (l3[c] || 0); }); return o; };
+    function textoBase(modo, peso, M) {
+        const ly = etiquetaMes(sumaMes(M, -12));
+        return modo === '3m' ? 'los 3 meses anteriores' : modo === 'ly' ? `${ly} (mismo mes del año anterior)` : `una mezcla de ${peso}% de ${ly} y ${100 - peso}% de los 3 meses anteriores`;
+    }
+    function resolverBase() {
+        const mm = ventaMensualPorCategoria(); if (!mm || !S.mes) return null; const M = S.mes;
+        const p3 = poolMeses(mm, [1, 2, 3].map(k => sumaMes(M, -k))), pl = poolMeses(mm, [sumaMes(M, -12)]);
+        const L3 = p3.n >= 2 ? aShare(p3.mapa) : null, LY = pl.n === 1 ? aShare(pl.mapa) : null; if (!L3 && !LY) return null;
+        const back = [];
+        [3, 2, 1].forEach(k => {
+            const tt = sumaMes(M, -k), real = poolMeses(mm, [tt]); if (real.n !== 1) return;
+            const q3 = poolMeses(mm, [1, 2, 3].map(j => sumaMes(tt, -j))), ql = poolMeses(mm, [sumaMes(tt, -12)]); if (q3.n < 2 || ql.n !== 1) return;
+            const r = aShare(real.mapa), a3 = aShare(q3.mapa), al = aShare(ql.mapa);
+            back.push({ mes: tt, e3: errShares(a3, r), ey: errShares(al, r), em: errShares(mezclaShares(a3, al, 0.5), r) });
+        });
+        let recomendada = L3 ? '3m' : 'ly', errores = null;
+        if (back.length && L3 && LY) { const pr = k => back.reduce((s, b) => s + b[k], 0) / back.length; errores = { '3m': pr('e3'), 'ly': pr('ey'), 'mezcla': pr('em') }; recomendada = Object.entries(errores).sort((a, b) => a[1] - b[1])[0][0]; }
+        const cfg = S.metasCfg[M]; let modo = cfg ? cfg.modo : recomendada; const peso = cfg ? cfg.peso : 50;
+        if ((modo === '3m' && !L3) || (modo === 'ly' && !LY) || (modo === 'mezcla' && !(L3 && LY))) modo = recomendada;
+        const mezcla = L3 && LY ? mezclaShares(L3, LY, peso / 100) : null, sh = modo === '3m' ? L3 : modo === 'ly' ? LY : mezcla;
+        return { sh, L3, LY, mezcla, modo, peso, auto: !cfg, recomendada, errores, back, origen: `${textoBase(modo, peso, M)} · ${cfg ? 'base elegida por el Gerente' : 'base recomendada'}` };
+    }
     function baseDeShares(V, cats) {
-        const dato = S.shareBase[`${S.canal}|${S.mes}`];
-        let origen = '3 meses previos', mapa = {};
-        if (dato && Object.values(dato).some(v => v > 0)) { Object.entries(dato).forEach(([c, v]) => mapa[c] = v); }
-        else { origen = 'el benchmark de 28 días (aún no hay 3 meses de historia)'; V.rB.forEach(r => { mapa[r.cat] = (mapa[r.cat] || 0) + r.v; }); if (!Object.keys(mapa).length) V.rA.forEach(r => { mapa[r.cat] = (mapa[r.cat] || 0) + r.v; }); }
+        const r = resolverBase(); let mapa = {}, origen;
+        if (r && r.sh) { Object.entries(r.sh).forEach(([c, v]) => { mapa[c] = v; }); origen = r.origen; }
+        else { origen = 'el benchmark de 28 días (aún no hay historial mensual suficiente)'; V.rB.forEach(x => { mapa[x.cat] = (mapa[x.cat] || 0) + x.v; }); if (!Object.keys(mapa).length) V.rA.forEach(x => { mapa[x.cat] = (mapa[x.cat] || 0) + x.v; }); }
         const total = Object.values(mapa).reduce((a, b) => a + b, 0);
         const sh = {}; cats.forEach(c => { sh[c] = total > 0 ? (mapa[c] || 0) / total * 100 : 0; });
-        return { sh, origen };
+        return { sh, origen, info: r };
     }
     // Aplica los ajustes del Gerente (en puntos porcentuales) y normaliza para que sumen 100
     function shareFinal(cats, base) {
@@ -397,6 +488,37 @@
         const dif = rev > 0 ? (com - rev) / rev * 100 : null;
         const nivel = faltan.size ? 'rojo' : dif === null ? 'gris' : Math.abs(dif) <= 1 ? 'verde' : Math.abs(dif) <= 3 ? 'ambar' : 'rojo';
         return { por, rev, com, dif, faltan: [...faltan].sort(), nivel };
+    }
+    // Seguimiento de la meta mensual con las MISMAS fórmulas que la Revisión Diaria (pacing, plan equivalente observado y pronóstico de 4 componentes)
+    function completarMes(x, diasRest) {
+        x.indice = x.planEq > 0 ? x.real / x.planEq : null;
+        x.planFaltante = Math.max(0, x.planMTD - x.planEq);
+        x.estimSin = x.indice !== null ? x.planFaltante * x.indice : null;
+        x.proy = x.indice !== null ? x.restante * x.indice : null;
+        x.pron = x.indice !== null ? x.real + x.estimSin + x.proy : null;
+        x.cumplPron = x.pron !== null && x.presupuesto > 0 ? x.pron / x.presupuesto * 100 : null;
+        x.brecha = x.real - x.planMTD; x.cumplMTD = x.planMTD > 0 ? x.real / x.planMTD * 100 : null;
+        x.pacingReal = x.presupuesto > 0 ? x.real / x.presupuesto * 100 : 0; x.pacingEsp = x.presupuesto > 0 ? x.planMTD / x.presupuesto * 100 : 0;
+        x.faltaMeta = Math.max(0, x.presupuesto - x.real);
+        x.cuotaReq = diasRest > 0 ? x.faltaMeta / diasRest : 0; x.cuotaPlan = diasRest > 0 ? x.restante / diasRest : 0;
+        x.exigencia = x.cuotaPlan > 0 ? (x.cuotaReq - x.cuotaPlan) / x.cuotaPlan * 100 : 0;
+        x.aov = razon(x.real, x.pedReal); x.aovPlan = razon(x.planPedEq > 0 ? x.planEq : 0, x.planPedEq);
+        return x;
+    }
+    function calcularMes(canales) {
+        const mes = S.mes, corte = S.corte, dmap = new Map(S.dias.map(d => [`${d.c}|${d.f}`, d]));
+        const dias = []; for (let f = `${mes}-01`; f <= finMes(mes); f = addDias(f, 1)) dias.push(f);
+        const diasRest = dias.filter(f => f > corte).length, diasTrans = dias.length - diasRest;
+        const nuevo = () => ({ presupuesto: 0, planMTD: 0, planEq: 0, planPedEq: 0, restante: 0, real: 0, pedReal: 0, diasCaptura: 0 });
+        const total = nuevo(), por = [];
+        canales.forEach(c => {
+            const x = nuevo(); const cap = new Set();
+            dias.forEach(f => { const plan = S.planDia[`${c}|${f}`] || 0; x.presupuesto += plan;
+                if (f <= corte) { x.planMTD += plan; const d = dmap.get(`${c}|${f}`); if (d) { x.planEq += plan; x.planPedEq += S.planPed[`${c}|${f}`] || 0; x.real += d.v; x.pedReal += d.p; cap.add(f); } }
+                else x.restante += plan; });
+            x.diasCaptura = cap.size; Object.keys(total).forEach(k => { total[k] += x[k]; }); por.push({ c, ...completarMes(x, diasRest) });
+        });
+        return { total: completarMes(total, diasRest), por, diasRest, diasTrans, diasMes: dias.length };
     }
     // Variación normal semanal de una categoría: 4 bloques de 7 días del benchmark, escalados a la ventana
     function ruidoCategoria(V) {
@@ -464,7 +586,18 @@
         const conD = lista.filter(x => x.d !== null);
         const top = [...conD].sort((a, b) => b.d - a.d).slice(0, 10), bottom = [...conD].sort((a, b) => a.d - b.d).slice(0, 10);
 
-        const A = { Y, kY, YD, integridad: integridad(V), V, hay, T, B, k, kb, comp, cats, vRows, vbRows, planVent, planMes, baseOrigen: base.origen, productos: orden, top, bottom };
+        const A = { Y, kY, YD, integridad: integridad(V), V, hay, T, B, k, kb, comp, cats, vRows, vbRows, planVent, planMes, baseOrigen: base.origen, baseInfo: base.info, productos: orden, top, bottom };
+        if (S.planOk) {
+            const mes = calcularMes(CANALES_DATO.filter(okC)), todos = calcularMes(CANALES_DATO);
+            const ini = `${S.mes}-01`, enMes = r => r.f >= ini && r.f <= S.corte && okC(r.c), mapaMes = new Map();
+            S.registros.filter(enMes).forEach(r => mapaMes.set(r.cat, (mapaMes.get(r.cat) || 0) + r.v));
+            const nombresMes = [...new Set([...cats.map(c => c.n), ...mapaMes.keys()])], baseMes = baseDeShares(V, nombresMes), finalMes = shareFinal(nombresMes, baseMes.sh); A_BASE = baseMes.info;
+            const T2 = mes.total, fac = T2.real > 0 && T2.pron !== null ? T2.pron / T2.real : null;
+            const catsMes = nombresMes.map(n => { const real = mapaMes.get(n) || 0, sh = finalMes[n] / 100;
+                const meta = T2.presupuesto * sh, planMTD = T2.planMTD * sh, pron = fac !== null ? real * fac : null;
+                return { n, sh: finalMes[n], real, meta, planMTD, cumplMTD: planMTD > 0 ? real / planMTD * 100 : null, pacingReal: meta > 0 ? real / meta * 100 : null, pron, cumplPron: pron !== null && meta > 0 ? pron / meta * 100 : null, brecha: real - planMTD, faltaMeta: Math.max(0, meta - real) }; }).sort((a, b) => b.meta - a.meta);
+            A.mes = { ...mes, baseInfo: baseMes.info, cats: catsMes, canalesTodos: todos.por, totalTodos: todos.total, integridad: integridad({ ini, fin: S.corte }, false) };
+        } else A.mes = null;
         A.canales = porCanal(V);
         A.sinMov = sinMovimiento();
         A.cross = parejasCross();
@@ -512,7 +645,7 @@
         }).filter(p => p.lift !== null && p.lift > 1).sort((a, b) => (b.d5 ?? 0) - (a.d5 ?? 0)).slice(0, 15);
     }
     function nivelPorImpacto(pp) { return pp >= S.config.impactoAlto ? 'alta' : pp >= S.config.impactoMedio ? 'media' : 'baja'; }
-    let A_ULTIMO = null;
+    let A_ULTIMO = null, A_BASE = null;
 
     const bajarNivel = n => n === 'alta' ? 'media' : 'baja';
     const txtDelta = d => d === null || d === undefined ? '' : `${d >= 0 ? '+' : '−'}${Math.abs(d).toFixed(1)}%`;
@@ -524,6 +657,14 @@
             titular: ig.faltan.length ? `Faltan ${ig.faltan.length} día(s) en Comercial que sí tienen venta capturada en la Revisión Diaria.` : `La venta de Comercial difiere ${txtDelta(ig.dif)} de la venta real de la Revisión Diaria.`,
             lineas: [`Comercial ${fmtM(ig.com)} contra Revisión Diaria ${fmtM(ig.rev)} en los días que ambos tienen.`, ig.faltan.length ? `Días sin datos en Comercial: ${ig.faltan.slice(0, 6).map(fechaCorta).join(', ')}${ig.faltan.length > 6 ? '…' : ''}.` : 'Puede ser una carga incompleta o devoluciones tratadas distinto.'],
             revisar: 'Vuelve a cargar el CSV de esas fechas antes de confiar en las demás alertas.', detalle: 'Comercial no cuadra con la Revisión Diaria.' });
+        const mm = A.mes && A.mes.total;
+        if (mm && mm.cumplPron !== null && mm.cumplPron < 97 && A.mes.diasRest > 0) {
+            const imp = (mm.presupuesto - mm.pron) / mm.presupuesto * 100;
+            out.push({ nivel: mm.cumplPron < 90 ? 'alta' : 'media', imp: Math.max(imp, S.config.impactoAlto), tipo: 'Meta del mes', titulo: `${etiquetaMes(S.mes)}: pronóstico de cierre`,
+                titular: `Al ritmo actual el mes cierra en ${fmtP(mm.cumplPron)} de la meta (${fmtM(mm.pron)} contra ${fmtM(mm.presupuesto)}).`,
+                lineas: [`Va ${fmtM(mm.brecha)} contra el plan acumulado al corte (${fmtP(mm.cumplMTD)} de cumplimiento).`, `Para cerrar al 100% hay que vender ${fmtM(mm.cuotaReq)} por día; el plan pedía ${fmtM(mm.cuotaPlan)} (${mm.exigencia >= 0 ? '+' : '−'}${Math.abs(mm.exigencia).toFixed(0)}% más).`],
+                revisar: 'Pestaña Meta del mes: qué canales y categorías están por debajo y cuánto les falta.', detalle: `Pronóstico de cierre ${fmtP(mm.cumplPron)} de la meta del mes.` });
+        }
         A.cats.forEach(c => {
             const cae = c.g !== null && c.g <= -u && c.sh >= 1 && c.vb > 0;
             const bajoMeta = c.cumpl !== null && c.cumpl < 90;
@@ -589,6 +730,7 @@
         const cc = A.cats.filter(c => c.ctr !== null), mejor = [...cc].sort((a, b) => b.ctr - a.ctr)[0], peor = [...cc].sort((a, b) => a.ctr - b.ctr)[0];
         if (mejor && mejor.ctr > 0) partes.push(`La categoría que más aporta es ${mejor.n} (${fmtPP(mejor.ctr)})${peor && peor.ctr < 0 ? ` y la que más resta, ${peor.n} (${fmtPP(peor.ctr)})` : ''}.`);
         if (A.Y) { const gy = deltaRel(A.T.v, A.Y.v); if (gy !== null) partes.push(`Contra el mismo periodo del año anterior la venta va ${gy >= 0 ? `${gy.toFixed(1)}% arriba` : `${Math.abs(gy).toFixed(1)}% abajo`}.`); }
+        if (A.mes && A.mes.total.pron !== null) partes.push(`En el mes lleva ${fmtMeta(A.mes.total.pacingReal)} de la meta (esperado ${fmtP(A.mes.total.pacingEsp, 0)} al corte) y, al ritmo actual, cierra en ${fmtMeta(A.mes.total.cumplPron)}.`);
         const altas = A.alertas.filter(a => a.nivel === 'alta').length;
         partes.push(altas ? `Hay ${altas} alerta(s) de impacto alto.` : 'No hay alertas de impacto alto.');
         return partes.join(' ');
@@ -600,7 +742,7 @@
     function chipDelta(d) {
         if (d === null || d === undefined) return '<span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[11px] font-bold">Sin base</span>';
         const cls = d <= -S.config.umbral ? 'bg-rose-100 text-rose-800 border-rose-200' : d < 0 ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-emerald-100 text-emerald-800 border-emerald-200';
-        return `<span class="inline-block px-2 py-0.5 rounded-full border text-[11px] font-bold num-tabular ${cls}">${d >= 0 ? '▲' : '▼'} ${Math.abs(d).toFixed(1)}%</span>`;
+        return `<span class="inline-block whitespace-nowrap px-2 py-0.5 rounded-full border text-[11px] font-bold num-tabular ${cls}">${d >= 0 ? '▲' : '▼'} ${Math.abs(d).toFixed(1)}%</span>`;
     }
     const colorPP = v => v === null ? 'text-slate-400' : v >= 0 ? 'text-emerald-700' : 'text-rose-700';
     function chipYoY(y) { return y === undefined ? '' : y === null ? '<div class="mt-1.5 text-[10px] text-slate-400">Año anterior: sin datos</div>' : `<div class="mt-1.5 flex items-center gap-1.5 text-[11px] text-slate-500"><span>Vs. año anterior</span>${chipDelta(y)}</div>`; }
@@ -637,8 +779,8 @@
         const n = S.ventana === 'mtd' ? 'Mes a la fecha' : S.ventana === 1 ? 'Día de corte' : `Últimos ${S.ventana} días`;
         return `${n}: ${fechaCorta(V.ini)} – ${fechaCorta(V.fin)} · Benchmark propio: ${fechaCorta(V.bIni)} – ${fechaCorta(V.bFin)}`;
     }
-    function bannerIntegridad(A) {
-        const g = A.integridad; if (!g) return '<div class="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-[11px] text-slate-500">Control de integridad: no hay venta real capturada en la Revisión Diaria para estas fechas, así que no se puede comparar.</div>';
+    function bannerIntegridad(A, gExt) {
+        const g = gExt !== undefined ? gExt : A.integridad; if (!g) return '<div class="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-[11px] text-slate-500">Control de integridad: no hay venta real capturada en la Revisión Diaria para estas fechas, así que no se puede comparar.</div>';
         const est = { verde: ['border-emerald-200 bg-emerald-50 text-emerald-900', '✔ Cuadra con la Revisión Diaria'], ambar: ['border-amber-300 bg-amber-50 text-amber-900', '⚠ Diferencia moderada con la Revisión Diaria'], rojo: ['border-rose-300 bg-rose-50 text-rose-900', '✖ No cuadra con la Revisión Diaria'], gris: ['border-slate-200 bg-white text-slate-600', 'Control de integridad'] }[g.nivel];
         return `<details class="rounded-2xl border ${est[0]} px-4 py-2.5 text-xs"><summary class="cursor-pointer font-bold">${est[1]}: Comercial ${fmtM(g.com)} · Revisión Diaria ${fmtM(g.rev)}${g.dif !== null ? ` · diferencia ${txtDelta(g.dif)}` : ''}${g.faltan.length ? ` · faltan ${g.faltan.length} día(s) en Comercial` : ''}</summary>
             <div class="mt-2 space-y-0.5">${g.por.map(x => `<div>${x.c}: Comercial ${fmtM(x.com)} · Revisión Diaria ${fmtM(x.rev)} (${txtDelta(x.dif)})</div>`).join('')}
@@ -647,6 +789,29 @@
     }
     const sinBase = A => A.hay ? '' : '<div class="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-xs text-amber-900">Faltan datos de los 28 días previos (se necesitan al menos 7 con venta): por ahora no se pueden calcular comparativos ni alertas contra el benchmark.</div>';
 
+    function bloqueMeta(A) {
+        const M = A.mes;
+        if (!M) return '<div class="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-xs text-amber-900">Meta del mes: no hay plan de venta de la Revisión Diaria para este mes. Cárgalo allá (presupuesto diario por canal) y aparecerá aquí.</div>';
+        const t = M.total, bien = t.cumplPron !== null && t.cumplPron >= 100;
+        const mini = (titulo, valor, sub) => `<div class="min-w-0"><div class="text-[10px] font-bold uppercase tracking-wide text-slate-500">${titulo}</div><div class="mt-0.5 text-lg sm:text-xl font-extrabold text-slate-900 num-tabular break-words">${valor}</div><div class="mt-0.5 text-[11px] text-slate-500 break-words">${sub}</div></div>`;
+        return `<div class="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-sm space-y-3">
+            <div class="flex flex-wrap items-baseline justify-between gap-2"><h3 class="text-sm font-extrabold text-slate-900">Meta de ${etiquetaMes(S.mes)}</h3>
+                <span class="text-[11px] text-slate-500">Día ${M.diasTrans} de ${M.diasMes} · plan, pacing y pronóstico de la <a class="underline" href="Tablero_de_Control_-_Revision_Diaria.html" target="_blank" rel="noopener">Revisión Diaria ↗</a> · ${S.canal === 'Total' ? 'los 4 canales' : ETIQ_CANAL[S.canal]}</span></div>
+            ${bannerIntegridad(A, M.integridad)}
+            <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-x-4 gap-y-3">
+                ${mini('Meta del mes', fmtM(t.presupuesto), 'Presupuesto mensual')}
+                ${mini('Venta acumulada', fmtM(t.real), `${fmtMeta(t.pacingReal)} de la meta · esperado ${fmtP(t.pacingEsp, 0)}`)}
+                ${mini('Cumplimiento al corte', t.cumplMTD !== null ? fmtMeta(t.cumplMTD) : '—', `${t.brecha >= 0 ? '+' : '−'}${fmtM(Math.abs(t.brecha)).replace('−', '')} contra el plan al corte (${fmtM(t.planMTD)})`)}
+                ${mini('Pronóstico de cierre', t.pron !== null ? fmtM(t.pron) : '—', t.cumplPron !== null ? `${fmtMeta(t.cumplPron)} de la meta · ${bien ? 'cierra por encima' : 'cierra por debajo'}` : 'Sin datos suficientes')}
+                ${mini('Para cerrar al 100%', M.diasRest > 0 ? `${fmtM(t.cuotaReq)} / día` : 'Mes concluido', M.diasRest > 0 ? `Quedan ${M.diasRest} día(s); el plan pedía ${fmtM(t.cuotaPlan)} (${t.exigencia >= 0 ? '+' : '−'}${Math.abs(t.exigencia).toFixed(0)}%)` : `Cerró en ${fmtMeta(t.pacingReal)} de la meta`)}
+            </div>
+            ${barraPacing(t.pacingReal, t.pacingEsp)}
+            ${t.pron !== null ? `<div class="text-[11px] text-slate-500">Pronóstico = venta real ${fmtM(t.real)} + días pasados sin datos ${fmtM(t.estimSin)} + días que faltan ${fmtM(t.proy)}, con el ritmo observado (${(t.indice * 100).toFixed(1)}% del plan). La línea negra de la barra es el pacing esperado al corte.</div>` : ''}
+        </div>`;
+    }
+    function barraPacing(real, esp) {
+        return `<div class="relative h-3 rounded-full bg-slate-100 overflow-hidden"><div class="h-full rounded-full ${real >= esp ? 'bg-emerald-500' : 'bg-rose-500'}" style="width:${Math.min(100, real)}%"></div><div class="absolute -top-0.5 -bottom-0.5 w-0.5 bg-slate-900" style="left:${Math.min(100, esp)}%" title="Pacing esperado: ${esp.toFixed(1)}%"></div></div>`;
+    }
     function renderResumen(A) {
         const { V, T, B, k, kb } = A;
         const cumpl = A.planVent > 0 ? T.v / A.planVent * 100 : null;
@@ -668,8 +833,9 @@
         }
         document.getElementById('panel-resumen').innerHTML = `
             <p class="text-[11px] text-slate-500">${textoVentana(V)}${A.YD ? ` · Año anterior (mismo día de la semana): ${fechaCorta(A.YD.ini)} – ${fechaCorta(A.YD.fin)}` : ''} · Canal: <strong>${ETIQ_CANAL[S.canal]}</strong></p>
-            ${sinBase(A)}${bannerIntegridad(A)}
+            ${sinBase(A)}${A.mes ? '' : bannerIntegridad(A)}
             <div class="rounded-2xl bg-slate-900 text-slate-100 p-4 sm:p-5 text-xs sm:text-sm leading-relaxed"><strong class="text-white">Resumen:</strong> ${esc(resumenNarrativo(A))}</div>
+            ${bloqueMeta(A)}
             <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">${cards}</div>
             ${mov}
             <div class="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-sm">
@@ -693,38 +859,50 @@
             options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } }, scales: { y: { ticks: { callback: v => '$' + fmtN(v), font: { size: 10 } } }, x: { ticks: { font: { size: 10 }, maxRotation: 0, autoSkip: true } } } } });
     }
 
+    function barraPacing(real, esp) {
+        return `<div class="relative h-3 rounded-full bg-slate-100 overflow-hidden mt-2"><div class="h-full rounded-full ${real >= esp ? 'bg-emerald-500' : 'bg-rose-500'}" style="width:${Math.min(100, real)}%"></div><div class="absolute -top-0.5 -bottom-0.5 w-0.5 bg-slate-900" style="left:${Math.min(100, esp)}%" title="Pacing esperado: ${esp.toFixed(1)}%"></div></div>`;
+    }
     function renderCategorias(A) {
-        const { V } = A; const tieneMeta = A.planVent > 0;
-        const filas = A.cats.map(c => `<tr class="hover:bg-slate-50">
-            <td class="px-3 py-2.5 font-bold text-slate-900">${esc(c.n)}</td>
-            <td class="px-3 py-2.5 text-right num-tabular">${fmtM(c.v)}</td>
-            <td class="px-3 py-2.5 text-right num-tabular">${fmtP(c.sh)}</td>
-            <td class="px-3 py-2.5 text-right num-tabular ${colorPP(c.shb === null ? null : c.sh - c.shb)}">${c.shb === null ? '—' : fmtPP(c.sh - c.shb)}</td>
-            <td class="px-3 py-2.5 text-right">${chipDelta(c.g)}</td>
+        const { V } = A; const tieneMeta = A.planVent > 0, M = A.mes;
+        const mesPorCat = new Map((M ? M.cats : []).map(c => [c.n, c]));
+        const filasDatos = [...A.cats]; if (M) M.cats.forEach(m => { if (!A.cats.some(c => c.n === m.n) && m.real > 0) filasDatos.push({ n: m.n, v: 0, sh: 0, shb: null, g: null, gY: null, ctr: null, aur: null, meta: null, cumpl: null, vacia: true }); });
+        const celda = (x, cls = '') => `<td class="px-3 py-2.5 text-right num-tabular ${cls}">${x}</td>`;
+        const colMes = c => { if (!M) return ''; const m = mesPorCat.get(c.n); if (!m) return celda('—') .repeat(5);
+            return celda(fmtM(m.meta), 'border-l border-slate-200') + celda(fmtM(m.real)) + celda(m.cumplMTD !== null ? fmtMeta(m.cumplMTD) : '—', `font-bold ${m.cumplMTD !== null && m.cumplMTD < 90 ? 'text-rose-700' : ''}`) + celda(m.pron !== null ? fmtM(m.pron) : '—') +
+                celda(m.cumplPron !== null ? fmtMeta(m.cumplPron) : '—', `font-bold ${m.cumplPron !== null && m.cumplPron < 97 ? 'text-rose-700' : 'text-emerald-700'}`); };
+        const filas = filasDatos.map(c => `<tr class="hover:bg-slate-50">
+            <td class="px-3 py-2.5 font-bold text-slate-900 whitespace-normal min-w-[9rem]">${esc(c.n)}</td>
+            ${celda(c.vacia ? '—' : fmtM(c.v))}${celda(c.vacia ? '—' : fmtP(c.sh))}
+            ${celda(c.shb === null ? '—' : fmtPP(c.sh - c.shb), colorPP(c.shb === null ? null : c.sh - c.shb))}
+            <td class="px-3 py-2.5 text-right">${c.vacia ? '—' : chipDelta(c.g)}</td>
             <td class="px-3 py-2.5 text-right">${c.gY === null ? '<span class="text-slate-300">—</span>' : chipDelta(c.gY)}</td>
-            <td class="px-3 py-2.5 text-right num-tabular font-bold ${colorPP(c.ctr)}">${fmtPP(c.ctr)}</td>
-            <td class="px-3 py-2.5 text-right num-tabular">${fmtM(c.aur)}</td>
-            ${tieneMeta ? `<td class="px-3 py-2.5 text-right num-tabular">${fmtM(c.meta)}</td><td class="px-3 py-2.5 min-w-[7rem]"><div class="flex items-center gap-2"><div class="h-2 flex-1 rounded-full bg-slate-100 overflow-hidden"><div class="h-full rounded-full ${c.cumpl >= 100 ? 'bg-emerald-500' : c.cumpl >= 90 ? 'bg-amber-400' : 'bg-rose-500'}" style="width:${Math.min(100, c.cumpl || 0)}%"></div></div><span class="text-xs font-bold num-tabular ${c.cumpl >= 90 ? 'text-slate-700' : 'text-rose-700'}">${fmtMeta(c.cumpl)}</span></div></td>` : ''}
+            ${celda(fmtPP(c.ctr), `font-bold ${colorPP(c.ctr)}`)}${celda(fmtM(c.aur))}
+            ${tieneMeta && !c.vacia ? `${celda(fmtM(c.meta))}<td class="px-3 py-2.5 text-right num-tabular ${c.cumpl !== null && c.cumpl < 90 ? 'text-rose-700 font-bold' : ''}">${fmtMeta(c.cumpl)}</td>` : (tieneMeta ? celda('—') + celda('—') : '')}
+            ${colMes(c)}
         </tr>`).join('');
+        const tm = M ? M.total : null;
+        const totMes = M ? celda(fmtM(tm.presupuesto), 'border-l border-slate-200') + celda(fmtM(tm.real)) + celda(tm.cumplMTD !== null ? fmtMeta(tm.cumplMTD) : '—') + celda(tm.pron !== null ? fmtM(tm.pron) : '—') + celda(tm.cumplPron !== null ? fmtMeta(tm.cumplPron) : '—') : '';
+        const th = (x, cls = '') => `<th class="px-3 py-2 text-right ${cls}">${x}</th>`;
         document.getElementById('panel-categorias').innerHTML = `
-            <p class="text-[11px] text-slate-500">${textoVentana(V)} · Canal: <strong>${ETIQ_CANAL[S.canal]}</strong></p>${sinBase(A)}
+            <p class="text-[11px] text-slate-500">${textoVentana(V)}${A.YD ? ` · Año anterior (mismo día de la semana): ${fechaCorta(A.YD.ini)} – ${fechaCorta(A.YD.fin)}` : ''} · Canal: <strong>${ETIQ_CANAL[S.canal]}</strong></p>${sinBase(A)}
             <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
                 <div class="p-4 sm:p-5 flex flex-wrap items-start justify-between gap-3">
-                    <div class="max-w-2xl"><h3 class="text-sm font-extrabold text-slate-900">Venta, participación y contribución por categoría</h3>
-                        <p class="text-[11px] text-slate-500 mt-0.5">La contribución es cuánto aporta cada categoría, en puntos porcentuales, al crecimiento total de la venta contra su ritmo normal.</p></div>
+                    <div class="max-w-2xl"><h3 class="text-sm font-extrabold text-slate-900">Venta, contribución y meta por categoría</h3>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Las primeras columnas analizan la ventana contra su ritmo normal; la contribución es cuánto aporta cada categoría, en puntos porcentuales, al crecimiento de la venta.${M ? ` Las columnas de <strong>${etiquetaMes(S.mes)}</strong> (a la derecha) dan seguimiento a la meta del mes.` : ''}</p></div>
                     <button type="button" data-pdf-ocultar="true" onclick="abrirMetas()" class="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold">🎯 Metas por categoría</button>
                 </div>
-                <div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular"><thead class="bg-slate-50 text-[10px] uppercase text-slate-500"><tr>
-                    <th class="px-3 py-2">Categoría</th><th class="px-3 py-2 text-right">Venta</th><th class="px-3 py-2 text-right">Share</th><th class="px-3 py-2 text-right">Δ share</th><th class="px-3 py-2 text-right">vs. benchmark</th><th class="px-3 py-2 text-right">vs. año ant.</th><th class="px-3 py-2 text-right">Contribución</th><th class="px-3 py-2 text-right">AUR</th>
-                    ${tieneMeta ? '<th class="px-3 py-2 text-right">Meta ventana</th><th class="px-3 py-2">Cumplimiento</th>' : ''}</tr></thead>
-                    <tbody class="divide-y divide-slate-100">${filas || '<tr><td class="px-3 py-6 text-center text-slate-500" colspan="9">Sin ventas en la ventana.</td></tr>'}
-                    <tr class="bg-slate-50 font-extrabold"><td class="px-3 py-2.5">Total</td><td class="px-3 py-2.5 text-right">${fmtM(A.vRows)}</td><td class="px-3 py-2.5 text-right">100%</td><td class="px-3 py-2.5 text-right">—</td><td class="px-3 py-2.5 text-right">${chipDelta(A.vbRows ? deltaRel(A.vRows, A.vbRows) : null)}</td><td class="px-3 py-2.5 text-right">${A.Y ? chipDelta(deltaRel(A.vRows, A.Y.v)) : '<span class="text-slate-300">—</span>'}</td><td class="px-3 py-2.5 text-right ${colorPP(A.vbRows ? (A.vRows - A.vbRows) / A.vbRows * 100 : null)}">${A.vbRows ? fmtPP((A.vRows - A.vbRows) / A.vbRows * 100) : '—'}</td><td class="px-3 py-2.5 text-right">${fmtM(razon(A.vRows, A.T.u))}</td>${tieneMeta ? `<td class="px-3 py-2.5 text-right">${fmtM(A.planVent)}</td><td class="px-3 py-2.5">${fmtMeta(A.vRows / A.planVent * 100)}</td>` : ''}</tr>
+                <div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular whitespace-nowrap"><thead class="bg-slate-50 text-[10px] uppercase text-slate-500">
+                    ${M || tieneMeta ? `<tr><th colspan="8" class="px-3 pt-2 text-[10px] font-bold text-slate-400">Ventana</th>${tieneMeta ? '<th colspan="2" class="px-3 pt-2 text-[10px] font-bold text-slate-400 text-right">Meta de la ventana</th>' : ''}${M ? `<th colspan="5" class="px-3 pt-2 text-[10px] font-bold text-slate-500 border-l border-slate-200">Meta de ${etiquetaMes(S.mes)}</th>` : ''}</tr>` : ''}
+                    <tr><th class="px-3 py-2">Categoría</th>${th('Venta')}${th('Share')}${th('Δ share')}${th('vs. benchmark')}${th('vs. año ant.')}${th('Contribución')}${th('AUR')}${tieneMeta ? th('Meta') + th('Cumpl.') : ''}${M ? th('Meta del mes', 'border-l border-slate-200') + th('Acumulado') + th('Cumpl. al corte') + th('Pronóstico') + th('% meta al cierre') : ''}</tr></thead>
+                    <tbody class="divide-y divide-slate-100">${filas || '<tr><td class="px-3 py-6 text-center text-slate-500" colspan="15">Sin ventas en la ventana.</td></tr>'}
+                    <tr class="bg-slate-50 font-extrabold"><td class="px-3 py-2.5">Total</td>${celda(fmtM(A.vRows))}${celda('100%')}${celda('—')}<td class="px-3 py-2.5 text-right">${chipDelta(A.vbRows ? deltaRel(A.vRows, A.vbRows) : null)}</td><td class="px-3 py-2.5 text-right">${A.Y ? chipDelta(deltaRel(A.vRows, A.Y.v)) : '<span class="text-slate-300">—</span>'}</td>${celda(A.vbRows ? fmtPP((A.vRows - A.vbRows) / A.vbRows * 100) : '—', colorPP(A.vbRows ? (A.vRows - A.vbRows) : null))}${celda(fmtM(razon(A.vRows, A.T.u)))}${tieneMeta ? celda(fmtM(A.planVent)) + celda(fmtMeta(A.vRows / A.planVent * 100)) : ''}${totMes}</tr>
                 </tbody></table></div>
             </div>
             <details class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm text-xs text-slate-600 leading-relaxed" data-pdf-ocultar="true"><summary class="cursor-pointer font-bold text-slate-800">ⓘ ¿Cómo se calcula la meta por categoría?</summary>
                 <div class="mt-2 space-y-1.5">
-                    <p>${tieneMeta ? `La meta total es el <strong>plan de venta de la Revisión Diaria</strong> (${fmtM(A.planVent)} en esta ventana; ${fmtM(A.planMes)} en el mes). Se reparte entre categorías según su participación en la venta de <strong>${esc(A.baseOrigen)}</strong>.` : 'No hay plan de venta cargado en la Revisión Diaria para este mes, así que no se puede calcular la meta. Carga el plan allá y se verá aquí.'}</p>
+                    <p>${tieneMeta ? `La meta total es el <strong>plan de venta de la Revisión Diaria</strong> (${fmtM(A.planVent)} en esta ventana; ${fmtM(A.planMes)} en el mes). Se reparte entre categorías según su participación en la venta de <strong>${esc(A.baseOrigen)}</strong>.` : 'No hay plan de venta cargado en la Revisión Diaria para este mes, así que no se puede calcular la meta. Cárgalo allá y se verá aquí.'}</p>
                     <p>El Gerente puede mover puntos entre categorías en <strong>Metas por categoría</strong> (por ejemplo +2 pp a una categoría prioritaria); el resto se reajusta solo y las metas siempre suman el plan total.</p>
+                    <p>El pronóstico de cierre de cada categoría aplica el mismo ritmo observado del total (fórmula de la Revisión Diaria); la suma de las categorías es exactamente el pronóstico total.</p>
                     <p>El benchmark son los 28 días previos a la ventana, escalados a los mismos días. Es el ritmo propio reciente, no una meta ni un estándar externo, y no corrige estacionalidad ni promociones del periodo base.</p>
                 </div></details>`;
     }
@@ -759,11 +937,23 @@
     }
 
     function renderCanales(A) {
+        const M = A.mes, porMes = new Map((M ? M.canalesTodos : []).map(c => [c.c, c]));
+        const celda = (x, cls = '') => `<td class="px-3 py-2.5 text-right num-tabular ${cls}">${x}</td>`;
+        const th = (x, cls = '') => `<th class="px-3 py-2 text-right ${cls}">${x}</th>`;
+        const mesCols = c => { if (!M) return ''; const m = porMes.get(c.c); if (!m) return celda('—').repeat(5);
+            return celda(fmtM(m.presupuesto), 'border-l border-slate-200') + celda(fmtM(m.real)) + celda(m.cumplMTD !== null ? fmtMeta(m.cumplMTD) : '—', `font-bold ${m.cumplMTD !== null && m.cumplMTD < 90 ? 'text-rose-700' : ''}`) + celda(m.pron !== null ? fmtM(m.pron) : '—') +
+                celda(m.cumplPron !== null ? fmtMeta(m.cumplPron) : '—', `font-bold ${m.cumplPron !== null && m.cumplPron < 97 ? 'text-rose-700' : 'text-emerald-700'}`); };
+        const filas = A.canales.map(c => `<tr class="hover:bg-slate-50"><td class="px-3 py-2.5 font-bold text-slate-900">${c.c}</td>${celda(fmtM(c.v))}${celda(fmtP(c.sh))}<td class="px-3 py-2.5 text-right">${chipDelta(c.g)}</td><td class="px-3 py-2.5 text-right">${c.gY === null ? '<span class="text-slate-300">—</span>' : chipDelta(c.gY)}</td>${celda(fmtN(c.p))}${celda(fmtM(c.aov))}
+            ${celda(c.integ ? txtDelta(c.integ.dif) : '—', c.integ && Math.abs(c.integ.dif) > 3 ? 'font-bold text-rose-700' : c.integ && Math.abs(c.integ.dif) > 1 ? 'font-bold text-amber-700' : 'text-emerald-700')}${mesCols(c)}</tr>`).join('');
+        const tv = A.canales.reduce((s, c) => s + c.v, 0), tp = A.canales.reduce((s, c) => s + c.p, 0), T0 = M ? M.totalTodos : null;
+        const totMes = M ? celda(fmtM(T0.presupuesto), 'border-l border-slate-200') + celda(fmtM(T0.real)) + celda(T0.cumplMTD !== null ? fmtMeta(T0.cumplMTD) : '—') + celda(T0.pron !== null ? fmtM(T0.pron) : '—') + celda(T0.cumplPron !== null ? fmtMeta(T0.cumplPron) : '—') : '';
         document.getElementById('panel-canales').innerHTML = `
-            <p class="text-[11px] text-slate-500">${textoVentana(A.V)}</p>${sinBase(A)}
-            <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden"><div class="p-4 sm:p-5"><h3 class="text-sm font-extrabold text-slate-900">Los cuatro canales</h3><p class="text-[11px] text-slate-500 mt-0.5">Siempre se muestran todos, sin importar el filtro de canal. El plan de cada canal viene de la Revisión Diaria.</p></div>
-            <div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular"><thead class="bg-slate-50 text-[10px] uppercase text-slate-500"><tr><th class="px-3 py-2">Canal</th><th class="px-3 py-2 text-right">Venta</th><th class="px-3 py-2 text-right">Share</th><th class="px-3 py-2 text-right">vs. benchmark</th><th class="px-3 py-2 text-right">vs. año ant.</th><th class="px-3 py-2 text-right">Pedidos</th><th class="px-3 py-2 text-right">Ticket</th><th class="px-3 py-2 text-right">Plan</th><th class="px-3 py-2 text-right">Cumplimiento</th><th class="px-3 py-2 text-right">Vs. Revisión Diaria</th></tr></thead>
-            <tbody class="divide-y divide-slate-100">${A.canales.map(c => `<tr class="hover:bg-slate-50"><td class="px-3 py-2.5 font-bold text-slate-900">${c.c}</td><td class="px-3 py-2.5 text-right">${fmtM(c.v)}</td><td class="px-3 py-2.5 text-right">${fmtP(c.sh)}</td><td class="px-3 py-2.5 text-right">${chipDelta(c.g)}</td><td class="px-3 py-2.5 text-right">${c.gY === null ? '<span class="text-slate-300">—</span>' : chipDelta(c.gY)}</td><td class="px-3 py-2.5 text-right">${fmtN(c.p)}</td><td class="px-3 py-2.5 text-right">${fmtM(c.aov)}</td><td class="px-3 py-2.5 text-right">${c.plan > 0 ? fmtM(c.plan) : '—'}</td><td class="px-3 py-2.5 text-right font-bold ${c.cumpl !== null && c.cumpl < 90 ? 'text-rose-700' : 'text-slate-700'}">${c.cumpl !== null ? fmtMeta(c.cumpl) : '—'}</td><td class="px-3 py-2.5 text-right font-bold ${c.integ && Math.abs(c.integ.dif) > 3 ? 'text-rose-700' : c.integ && Math.abs(c.integ.dif) > 1 ? 'text-amber-700' : 'text-emerald-700'}">${c.integ ? txtDelta(c.integ.dif) : '—'}</td></tr>`).join('')}</tbody></table></div></div>
+            <p class="text-[11px] text-slate-500">${textoVentana(A.V)}${A.YD ? ` · Año anterior (mismo día de la semana): ${fechaCorta(A.YD.ini)} – ${fechaCorta(A.YD.fin)}` : ''}</p>${sinBase(A)}
+            <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden"><div class="p-4 sm:p-5"><h3 class="text-sm font-extrabold text-slate-900">Los cuatro canales</h3><p class="text-[11px] text-slate-500 mt-0.5">Siempre se muestran todos, sin importar el filtro de canal. Las primeras columnas analizan la ventana; las de <strong>${M ? etiquetaMes(S.mes) : 'la meta del mes'}</strong> dan seguimiento a la meta con el plan de la Revisión Diaria.</p></div>
+            <div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular"><thead class="bg-slate-50 text-[10px] uppercase text-slate-500">
+                ${M ? `<tr><th colspan="8" class="px-3 pt-2 text-[10px] font-bold text-slate-400">Ventana</th><th colspan="5" class="px-3 pt-2 text-[10px] font-bold text-slate-500 border-l border-slate-200">Meta de ${etiquetaMes(S.mes)}</th></tr>` : ''}
+                <tr><th class="px-3 py-2">Canal</th>${th('Venta')}${th('Share')}${th('vs. benchmark')}${th('vs. año ant.')}${th('Pedidos')}${th('Ticket')}${th('Vs. Rev. Diaria')}${M ? th('Meta del mes', 'border-l border-slate-200') + th('Acumulado') + th('Cumpl. al corte') + th('Pronóstico') + th('% meta al cierre') : ''}</tr></thead>
+            <tbody class="divide-y divide-slate-100">${filas}<tr class="bg-slate-50 font-extrabold"><td class="px-3 py-2.5">Total</td>${celda(fmtM(tv))}${celda('100%')}${celda('—')}${celda('—')}${celda(fmtN(tp))}${celda(fmtM(razon(tv, tp)))}${celda('—')}${totMes}</tr></tbody></table></div></div>
             ${bannerIntegridad(A)}
             <p class="text-[11px] text-slate-500">WhatsApp y Llamadas se miden con sus propios pedidos; su conversión contra oportunidades atendidas se documenta aparte, como define el KPI de CR.</p>`;
     }
@@ -893,23 +1083,59 @@
         if (n('cfg-sinmov') >= 30 && n('cfg-sinmov') <= 365) S.config.sinMovDias = n('cfg-sinmov');
         persistirEstado(); renderTodo();
     }
+    const NOMBRE_BASE = { '3m': 'Últimos 3 meses', 'ly': 'Mismo mes del año anterior', 'mezcla': 'Mezcla' };
     function abrirMetas() {
-        const A = A_ULTIMO; if (!A) return;
-        const aj = S.metas[S.mes] || {};
-        document.getElementById('metas-sub').textContent = `${etiquetaMes(S.mes)} · Canal: ${ETIQ_CANAL[S.canal]} · Plan del mes (Revisión Diaria): ${A.planMes > 0 ? fmtM(A.planMes) : 'sin plan cargado'} · Base: ${A.baseOrigen}`;
-        document.getElementById('metas-tbody').innerHTML = A.cats.map(c => `<tr><td class="px-3 py-2 font-bold text-slate-900">${esc(c.n)}</td><td class="px-3 py-2 text-right num-tabular">${fmtP(c.baseSh)}</td>
-            <td class="px-3 py-2 text-right"><input type="number" step="0.1" data-cat="${esc(c.n)}" value="${aj[c.n] || 0}" oninput="previsualizarMetas()" class="w-20 rounded-lg border border-slate-300 px-2 py-1 text-right text-sm"></td>
-            <td class="px-3 py-2 text-right num-tabular font-bold" data-final="${esc(c.n)}">${fmtP(c.finalSh)}</td><td class="px-3 py-2 text-right num-tabular" data-meta="${esc(c.n)}">${c.metaMes !== null ? fmtM(c.metaMes) : '—'}</td></tr>`).join('');
-        const m = document.getElementById('modal-metas'); m.classList.remove('hidden'); m.classList.add('flex');
+        const A = A_ULTIMO; if (!A) return; const r = A.baseInfo;
+        S.mm = { modo: r ? r.modo : '3m', peso: r ? r.peso : 50, auto: r ? r.auto : true, aj: { ...(S.metas[S.mes] || {}) } };
+        renderMetasEstructura(); const m = document.getElementById('modal-metas'); m.classList.remove('hidden'); m.classList.add('flex');
     }
-    function leerAjustesMetas() { const o = {}; document.querySelectorAll('#metas-tbody input').forEach(i => { const v = parseFloat(i.value); if (v) o[i.dataset.cat] = v; }); return o; }
-    function previsualizarMetas() {
-        const A = A_ULTIMO, aj = leerAjustesMetas(), cats = A.cats.map(c => c.n); const guardado = S.metas[S.mes]; S.metas[S.mes] = aj;
-        const fin = shareFinal(cats, Object.fromEntries(A.cats.map(c => [c.n, c.baseSh]))); S.metas[S.mes] = guardado;
-        cats.forEach(c => { const f = document.querySelector(`[data-final="${CSS.escape(c)}"]`), mm = document.querySelector(`[data-meta="${CSS.escape(c)}"]`); if (f) f.textContent = fmtP(fin[c]); if (mm) mm.textContent = A.planMes > 0 ? fmtM(A.planMes * fin[c] / 100) : '—'; });
+    function cambiarBaseMetas(modo) { S.mm.modo = modo; S.mm.auto = A_ULTIMO.baseInfo ? modo === A_ULTIMO.baseInfo.recomendada && S.mm.peso === 50 : true; renderMetasEstructura(); }
+    function cambiarPesoMetas(v) { S.mm.peso = Number(v); S.mm.auto = false; document.getElementById('metas-peso-txt').textContent = `${S.mm.peso}% año anterior · ${100 - S.mm.peso}% últimos 3 meses`; calcMetas(); }
+    function usarRecomendadaMetas() { const r = A_ULTIMO.baseInfo; if (!r) return; S.mm.modo = r.recomendada; S.mm.peso = 50; S.mm.auto = true; renderMetasEstructura(); }
+    function basesMetas(nombres) {
+        const A = A_ULTIMO, r = A.baseInfo, norm = (get) => { const v = nombres.map(get), s = v.reduce((a, b) => a + b, 0); return v.map(x => s > 0 ? x / s * 100 : 0); };
+        const l3 = r && r.L3 ? norm(n => r.L3[n] || 0) : null, ly = r && r.LY ? norm(n => r.LY[n] || 0) : null;
+        let el; if (!r) el = norm(n => (A.cats.find(c => c.n === n) || {}).baseSh || 0); else if (S.mm.modo === '3m') el = l3; else if (S.mm.modo === 'ly') el = ly; else el = l3.map((x, i) => (S.mm.peso / 100) * ly[i] + (1 - S.mm.peso / 100) * x);
+        return { l3, ly, el };
+    }
+    function renderMetasEstructura() {
+        const A = A_ULTIMO, r = A.baseInfo, M = A.mes, nombres = (M ? M.cats : A.cats).map(c => c.n), b = basesMetas(nombres);
+        document.getElementById('metas-sub').textContent = `${etiquetaMes(S.mes)} · Canal: ${ETIQ_CANAL[S.canal]} · Plan del mes (Revisión Diaria): ${A.planMes > 0 ? fmtM(A.planMes) : 'sin plan cargado'}`;
+        const disp = r ? { '3m': !!r.L3, 'ly': !!r.LY, 'mezcla': !!(r.L3 && r.LY) } : {};
+        document.getElementById('metas-base').innerHTML = !r ? '<div class="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">Aún no hay historial mensual suficiente: la base es el benchmark de 28 días. Con 3 meses de datos podrás elegir entre los últimos 3 meses, el mismo mes del año anterior o una mezcla.</div>' : `
+            <div class="flex flex-wrap items-center gap-3"><div class="inline-flex flex-wrap gap-1 bg-slate-100 border border-slate-200 rounded-xl p-1">${['3m', 'ly', 'mezcla'].map(k => `<button type="button" ${disp[k] ? '' : 'disabled'} onclick="cambiarBaseMetas('${k}')" class="px-3 py-1.5 rounded-lg text-xs font-bold ${S.mm.modo === k ? 'bg-slate-900 text-white' : disp[k] ? 'text-slate-600 hover:bg-white' : 'text-slate-300'}">${NOMBRE_BASE[k]}</button>`).join('')}</div>
+                ${S.mm.modo === 'mezcla' ? `<label class="flex items-center gap-2 text-[11px] text-slate-500">Peso del año anterior <input type="range" min="0" max="100" step="10" value="${S.mm.peso}" oninput="cambiarPesoMetas(this.value)" class="w-40"><b id="metas-peso-txt" class="text-slate-800">${S.mm.peso}% año anterior · ${100 - S.mm.peso}% últimos 3 meses</b></label>` : ''}</div>
+            <div class="mt-3 rounded-xl bg-blue-50 border border-blue-200 px-3 py-2 text-xs text-blue-900 leading-relaxed">${r.errores ? `<b>Recomendación:</b> ${r.recomendada === 'mezcla' ? 'Mezcla 50/50' : NOMBRE_BASE[r.recomendada]} — fue la que menos se equivocó en ${r.back.length === 1 ? 'el último mes' : `los últimos ${r.back.length} meses`} (error medio ${r.errores[r.recomendada].toFixed(1)} pp${r.recomendada !== '3m' ? ` frente a ${r.errores['3m'].toFixed(1)} pp de los últimos 3 meses` : ''}).` : '<b>Sin recomendación:</b> falta historial para comparar las bases (se necesitan los 3 meses previos y el mismo mes del año anterior). Se usa la base disponible.'}
+                ${S.mm.auto ? '<span class="ml-1 px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-extrabold">PRESELECCIONADA</span>' : `<button type="button" onclick="usarRecomendadaMetas()" class="ml-1 px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-bold">Usar la recomendada</button>`}</div>
+            ${r.errores ? `<div class="mt-3"><div class="text-[11px] font-bold text-slate-700 mb-1">¿Qué base habría acertado mejor? <span class="font-normal text-slate-500">Error = puntos de participación mal asignados (menos es mejor)</span></div>
+                <div class="overflow-x-auto border border-slate-200 rounded-xl"><table class="w-full text-xs num-tabular"><thead class="bg-slate-50 text-[10px] uppercase text-slate-500"><tr><th class="px-3 py-1.5 text-left">Mes</th><th class="px-3 py-1.5 text-right">Últimos 3 meses</th><th class="px-3 py-1.5 text-right">Mismo mes año ant.</th><th class="px-3 py-1.5 text-right">Mezcla 50/50</th></tr></thead><tbody class="divide-y divide-slate-100">
+                ${[...r.back.map(x => [etiquetaMes(x.mes), x.e3, x.ey, x.em]), ['Error medio', r.errores['3m'], r.errores.ly, r.errores.mezcla]].map((f, i, a) => { const mn = Math.min(f[1], f[2], f[3]); const c = v => `<td class="px-3 py-1.5 text-right ${v === mn ? 'font-bold text-emerald-700' : ''}">${v.toFixed(1)} pp${v === mn ? ' ✓' : ''}</td>`; return `<tr class="${i === a.length - 1 ? 'bg-slate-50 font-extrabold' : ''}"><td class="px-3 py-1.5">${f[0]}</td>${c(f[1])}${c(f[2])}${c(f[3])}</tr>`; }).join('')}</tbody></table></div></div>` : ''}`;
+        document.getElementById('metas-tbody').innerHTML = nombres.map((n, i) => `<tr><td class="px-3 py-2 font-bold text-slate-900">${esc(n)}</td><td class="px-3 py-2 text-right num-tabular">${b.l3 ? fmtP(b.l3[i]) : '—'}</td><td class="px-3 py-2 text-right num-tabular">${b.ly ? fmtP(b.ly[i]) : '—'}</td><td class="px-3 py-2 text-right num-tabular" data-b="${i}"></td>
+            <td class="px-3 py-2 text-right"><input type="number" step="0.1" data-i="${i}" value="${S.mm.aj[n] || 0}" oninput="editarAjusteMeta(${i}, this.value)" class="w-20 rounded-lg border border-slate-300 px-2 py-1 text-right text-sm"></td>
+            <td class="px-3 py-2 text-right num-tabular font-bold" data-f="${i}"></td><td class="px-3 py-2 text-right num-tabular font-bold" data-m="${i}"></td><td class="px-3 py-2 text-right num-tabular" data-v="${i}"></td><td class="px-3 py-2 text-right num-tabular font-bold" data-c="${i}"></td></tr>`).join('');
+        calcMetas();
+    }
+    function editarAjusteMeta(i, v) {
+        const A = A_ULTIMO, n = (A.mes ? A.mes.cats : A.cats)[i].n, x = parseFloat(v); if (x) S.mm.aj[n] = x; else delete S.mm.aj[n]; calcMetas();
+    }
+    function calcMetas() {
+        const A = A_ULTIMO, M = A.mes, cs = M ? M.cats : A.cats, nombres = cs.map(c => c.n), b = basesMetas(nombres), plan = M ? M.total.presupuesto : A.planMes;
+        const t0 = nombres.map((n, i) => Math.max(0, b.el[i] + (S.mm.aj[n] || 0))), s0 = t0.reduce((a, c) => a + c, 0), fin = t0.map(x => s0 > 0 ? x / s0 * 100 : 0);
+        nombres.forEach((n, i) => {
+            const set = (k, v) => { const e = document.querySelector(`[data-${k}="${i}"]`); if (e) e.textContent = v; };
+            set('b', fmtP(b.el[i])); set('f', fmtP(fin[i])); set('m', plan > 0 ? fmtM(plan * fin[i] / 100) : '—');
+            const d = b.l3 && plan > 0 ? plan * (fin[i] - b.l3[i]) / 100 : null; const ev = document.querySelector(`[data-v="${i}"]`);
+            if (ev) { ev.textContent = d === null ? '—' : `${d >= 0 ? '+' : '−'}${fmtM(Math.abs(d)).replace('−', '')}`; ev.className = `px-3 py-2 text-right num-tabular ${d === null ? '' : d >= 0 ? 'text-emerald-700' : 'text-rose-700'}`; }
+            const ec = document.querySelector(`[data-c="${i}"]`);
+            if (ec) { const real = M && M.total.real > 0 ? (cs[i].real / M.total.real * 100) : null, cp = M && M.total.cumplPron !== null && real !== null && fin[i] > 0 ? M.total.cumplPron * real / fin[i] : null; ec.textContent = cp === null ? '—' : fmtMeta(cp); ec.className = `px-3 py-2 text-right num-tabular font-bold ${cp === null ? '' : cp < 97 ? 'text-rose-700' : 'text-emerald-700'}`; }
+        });
     }
     function cerrarMetas() { const m = document.getElementById('modal-metas'); m.classList.add('hidden'); m.classList.remove('flex'); }
-    function guardarMetas() { const aj = leerAjustesMetas(); if (Object.keys(aj).length) S.metas[S.mes] = aj; else delete S.metas[S.mes]; cerrarMetas(); persistirEstado(); renderTodo(); toast('🎯 Metas por categoría guardadas.'); }
+    function guardarMetas() {
+        const aj = {}; Object.entries(S.mm.aj).forEach(([k, v]) => { if (v) aj[k] = v; }); if (Object.keys(aj).length) S.metas[S.mes] = aj; else delete S.metas[S.mes];
+        if (S.mm.auto) delete S.metasCfg[S.mes]; else S.metasCfg[S.mes] = { modo: S.mm.modo, peso: S.mm.peso };
+        cerrarMetas(); persistirEstado(); renderTodo(); toast('🎯 Metas por categoría guardadas.');
+    }
     function descargarTopBottom() {
         const A = A_ULTIMO; const f = [['Grupo', 'SKU', 'Producto', 'Categoría', 'Venta', 'Venta_benchmark', 'Cambio']];
         A.top.forEach(x => f.push(['Top 10', x.sku, x.n, x.cat, Math.round(x.v), Math.round(x.vb), Math.round(x.d)])); A.bottom.forEach(x => f.push(['Bottom 10', x.sku, x.n, x.cat, Math.round(x.v), Math.round(x.vb), Math.round(x.d)]));
@@ -945,7 +1171,7 @@
                 if (todo) { for (const tabla of ['comercial_registros', 'comercial_dia']) { const { error } = await NUBE.client.from(tabla).delete().lt('fecha', ini); if (error) throw error; const r2 = await NUBE.client.from(tabla).delete().gt('fecha', fin); if (r2.error) throw r2.error; } }
             }
             const dentro = r => r.f >= desde && r.f <= hasta;
-            S.registros = S.registros.filter(r => !dentro(r)); S.dias = S.dias.filter(r => !dentro(r)); S.sinMov = null; S.shareBase = {};
+            S.registros = S.registros.filter(r => !dentro(r)); S.dias = S.dias.filter(r => !dentro(r)); S.sinMov = null; S.shareBase = {}; S.shareMes = {}; S.shareMesCargado = {};
             if (todo) { S.snap = { cross: null, recompra: null }; S.rangoMin = null; S.rangoMax = null; S.mes = null; S.corte = null; }
             else if (S.dias.length) { S.rangoMin = S.dias.reduce((m, r) => r.f < m ? r.f : m, '9999'); S.rangoMax = S.dias.reduce((m, r) => r.f > m ? r.f : m, '0000'); }
             guardarCacheLocal(); persistirEstado(); cerrarBorrar(); renderTodo(); nubeEstado(NUBE.activo ? '☁️ Sincronizado' : 'Modo local', 'ok');
@@ -1138,7 +1364,7 @@
                     let q = NUBE.client.from('comercial_registros').update({ categoria: cat }).in('sku', skus.slice(i, i + 150)); if (!sobre) q = q.eq('categoria', 'Sin categoría');
                     const { error } = await q; if (error) throw error; nubeEstado(`☁️ Aplicando catálogo ${++hechas} / ${total}…`);
                 }
-                nubeEstado('☁️ Sincronizado', 'ok'); S.shareBase = {}; await cargarRegistrosNube();
+                nubeEstado('☁️ Sincronizado', 'ok'); S.shareBase = {}; S.shareMes = {}; S.shareMesCargado = {}; await cargarRegistrosNube();
             }
             cerrarCatalogo(); renderTodo(); await cargarDerivados(); toast('✅ Catálogo de categorías aplicado.');
         } catch (e) { console.error(e); toast('❌ No se pudo aplicar el catálogo en la nube. Inténtalo de nuevo.'); }
@@ -1250,19 +1476,22 @@
                 planDia[`${c}|${f}`] = Math.round(V * (i < 28 ? 1.03 : 1.0));
             }
         }
+        // Plan de los días que faltan del mes (el presupuesto de la Revisión Diaria cubre el mes completo)
+        canales.forEach(([c]) => { const ult = dias.filter(d => d.c === c).slice(-7); const prom = ult.reduce((s, d) => s + d.v, 0) / Math.max(1, ult.length);
+            for (let f = addDias(fin, 1); f <= finMes(fin.slice(0, 7)); f = addDias(f, 1)) planDia[`${c}|${f}`] = Math.round(prom * 1.03); });
         const pares = [['DER-007', 'DER-022', 210, 790, 500], ['BEB-003', 'BEB-011', 330, 600, 930], ['VIT-005', 'VIT-019', 150, 860, 390], ['MED-031', 'MED-014', 390, 1250, 2600], ['CUI-009', 'CUI-016', 95, 1020, 480]]
             .map(([a, b, j, pa, pb]) => ({ a, b, na: P.find(x => x[0] === a)[1], nb: P.find(x => x[0] === b)[1], j, pa, pb }));
         const recompra = {}; P.forEach(x => { if (x[4] > 0) recompra[x[0]] = [60 + Math.round(rnd() * 200), Math.round((10 + rnd() * 45) * 10) / 10]; });
-        const realRev = {}; dias.forEach(d => { realRev[`${d.c}|${d.f}`] = d.v; });
-        return { registros, dias, planDia, realRev, cross: { desde: addDias(fin, -27), hasta: fin, total: 4700, pares }, recompra: { desde: addDias(fin, -89), hasta: fin, porSku: recompra } };
+        const realRev = {}, planPed = {}; dias.forEach(d => { realRev[`${d.c}|${d.f}`] = d.v; planPed[`${d.c}|${d.f}`] = d.p; });
+        return { registros, dias, planDia, realRev, planPed, cross: { desde: addDias(fin, -27), hasta: fin, total: 4700, pares }, recompra: { desde: addDias(fin, -89), hasta: fin, porSku: recompra } };
     }
     function entrarDemo() {
-        const d = generarDemo(); S.demo = true; S.registros = d.registros; S.dias = d.dias; S.planDia = d.planDia; S.planOk = true; S.realRev = d.realRev; S.yoy = {};
-        S.snap = { cross: d.cross, recompra: d.recompra }; S.mes = hoyISO().slice(0, 7); S.corte = hoyISO(); S.rangoMin = null; S.rangoMax = null; S.shareBase = {}; S.sinMov = null;
+        const d = generarDemo(); S.demo = true; S.registros = d.registros; S.dias = d.dias; S.planDia = d.planDia; S.planOk = true; S.realRev = d.realRev; S.planPed = d.planPed; S.yoy = {};
+        S.snap = { cross: d.cross, recompra: d.recompra }; S.mes = hoyISO().slice(0, 7); S.corte = hoyISO(); S.rangoMin = null; S.rangoMax = null; S.shareBase = {}; S.shareMes = {}; S.shareMesCargado = {}; S.sinMov = null;
         renderTodo(); toast('Modo demostración activado.');
     }
     function salirDemo(silencioso) {
-        S.demo = false; S.registros = []; S.dias = []; S.planDia = {}; S.realRev = {}; S.yoy = {}; S.planOk = false; S.mes = null; S.corte = null; S.snap = { cross: null, recompra: null }; S.shareBase = {}; S.sinMov = null;
+        S.demo = false; S.registros = []; S.dias = []; S.planDia = {}; S.realRev = {}; S.yoy = {}; S.planOk = false; S.mes = null; S.corte = null; S.snap = { cross: null, recompra: null }; S.shareBase = {}; S.shareMes = {}; S.shareMesCargado = {}; S.sinMov = null;
         if (!silencioso) { cargarCacheLocal(); (async () => { await cargarRegistrosNube(); await cargarPlanNube(); renderTodo(); await cargarDerivados(); })(); renderTodo(); }
     }
 
@@ -1278,10 +1507,10 @@
         const el = document.getElementById('nube-estado'); el.textContent = texto;
         el.className = 'fixed bottom-5 left-5 z-40 px-2.5 py-1 rounded-lg bg-white/90 border text-[11px] font-semibold shadow-sm ' + (tono === 'error' ? 'border-rose-300 text-rose-700' : tono === 'ok' ? 'border-emerald-300 text-emerald-700' : 'border-slate-200 text-slate-600');
     }
-    function guardarCacheLocal() { if (S.demo) return; try { localStorage.setItem(CACHE_KEY, JSON.stringify({ a: S.acciones, c: S.config, m: S.metas, s: S.snap })); } catch (e) {} }
+    function guardarCacheLocal() { if (S.demo) return; try { localStorage.setItem(CACHE_KEY, JSON.stringify({ a: S.acciones, c: S.config, m: S.metas, mc: S.metasCfg, s: S.snap })); } catch (e) {} }
     function cargarCacheLocal() {
         try { const d = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); if (!d) return;
-            S.acciones = d.a || []; S.config = Object.assign(S.config, d.c || {}); S.metas = d.m || {}; S.snap = Object.assign({ cross: null, recompra: null }, d.s || {}); } catch (e) {}
+            S.acciones = d.a || []; S.config = Object.assign(S.config, d.c || {}); S.metas = d.m || {}; S.metasCfg = d.mc || {}; S.snap = Object.assign({ cross: null, recompra: null }, d.s || {}); } catch (e) {}
     }
     const filaRegDeBD = r => ({ f: r.fecha, c: r.canal, sku: r.sku, n: r.producto, cat: r.categoria, u: Number(r.unidades), v: Number(r.venta), p: r.pedidos });
     const filaDiaDeBD = r => ({ f: r.fecha, c: r.canal, p: r.pedidos, u: Number(r.unidades), v: Number(r.venta) });
@@ -1313,9 +1542,9 @@
         try {
             const { data, error } = await NUBE.client.from('tablero_estado').select('historico').eq('id', 'principal').maybeSingle(); if (error) throw error;
             const h = (data && data.historico) || {}; const plan = {}; let hay = false;
-            const real = {};
-            Object.values(h).forEach(mes => Object.entries(PLAN_KEY).forEach(([k, canal]) => (mes[k] || []).forEach(d => { if (d.ventaPlan > 0) { plan[`${canal}|${d.fecha}`] = d.ventaPlan; hay = true; } if (d.ventaReal > 0) real[`${canal}|${d.fecha}`] = d.ventaReal; })));
-            S.planDia = plan; S.planOk = hay; S.realRev = real;
+            const real = {}, pedPlan = {};
+            Object.values(h).forEach(mes => Object.entries(PLAN_KEY).forEach(([k, canal]) => (mes[k] || []).forEach(d => { if (d.ventaPlan > 0) { plan[`${canal}|${d.fecha}`] = d.ventaPlan; hay = true; } if (d.ventaReal > 0) real[`${canal}|${d.fecha}`] = d.ventaReal; if (d.pedidosPlan > 0) pedPlan[`${canal}|${d.fecha}`] = d.pedidosPlan; })));
+            S.planDia = plan; S.planOk = hay; S.realRev = real; S.planPed = pedPlan;
         } catch (e) { console.error(e); S.planOk = false; }
     }
     // Cálculos que se resuelven en la base: share para repartir la meta y productos sin movimiento
@@ -1323,9 +1552,9 @@
         if (!NUBE.activo || S.demo || !S.mes) return;
         try {
             const canales = S.canal === 'Total' ? CANALES_DATO : [S.canal], clave = `${S.canal}|${S.mes}`;
-            if (!S.shareBase[clave]) {
-                const { data, error } = await NUBE.client.rpc('comercial_share_categorias', { p_desde: addDias(`${S.mes}-01`, -90), p_hasta: addDias(`${S.mes}-01`, -1), p_canales: canales });
-                if (error) throw error; const o = {}; data.forEach(r => { o[r.categoria] = Number(r.venta); }); S.shareBase[clave] = o;
+            if (!S.shareMesCargado[clave]) {
+                const { data, error } = await NUBE.client.rpc('comercial_share_categorias_mensual', { p_desde: `${sumaMes(S.mes, -15)}-01`, p_hasta: addDias(`${S.mes}-01`, -1), p_canales: canales });
+                if (error) throw error; const o = S.shareMes[S.canal] || {}; data.forEach(r => { (o[r.mes] = o[r.mes] || {})[r.categoria] = Number(r.venta); }); S.shareMes[S.canal] = o; S.shareMesCargado[clave] = true;
             }
             if (S.corte) {
                 const V = ventanas(), ini = addDias(V.ini, -DESFASE_YOY), fin = addDias(V.fin, -DESFASE_YOY), k = `${ini}|${fin}`;
@@ -1360,8 +1589,8 @@
     }
     async function cargarEstadoNube() {
         const { data, error } = await NUBE.client.from('comercial_estado').select('*').eq('id', 'principal').maybeSingle(); if (error) throw error;
-        if (data) { S.acciones = data.acciones || []; const c = data.config || {}; S.metas = c.metas || {}; const { metas, ...resto } = c; S.config = Object.assign(S.config, resto); S.snap = Object.assign({ cross: null, recompra: null }, data.snapshots || {}); NUBE.version = data.version; return; }
-        const ins = await NUBE.client.from('comercial_estado').insert({ id: 'principal', acciones: S.acciones, config: { ...S.config, metas: S.metas }, snapshots: S.snap, version: 1 });
+        if (data) { S.acciones = data.acciones || []; const c = data.config || {}; S.metas = c.metas || {}; S.metasCfg = c.metasCfg || {}; const { metas, metasCfg, ...resto } = c; S.config = Object.assign(S.config, resto); S.snap = Object.assign({ cross: null, recompra: null }, data.snapshots || {}); NUBE.version = data.version; return; }
+        const ins = await NUBE.client.from('comercial_estado').insert({ id: 'principal', acciones: S.acciones, config: { ...S.config, metas: S.metas, metasCfg: S.metasCfg }, snapshots: S.snap, version: 1 });
         if (ins.error && ins.error.code !== '23505') throw ins.error; NUBE.version = 1;
     }
     function persistirEstado() { guardarCacheLocal(); if (!NUBE.activo || S.demo) return; clearTimeout(NUBE.timer); NUBE.timer = setTimeout(guardarEstadoNube, 800); }
@@ -1369,7 +1598,7 @@
         NUBE.timer = null; if (NUBE.guardando) { NUBE.timer = setTimeout(guardarEstadoNube, 1500); return; }
         NUBE.guardando = true; nubeEstado('☁️ Guardando…');
         try {
-            const { data, error } = await NUBE.client.from('comercial_estado').update({ acciones: S.acciones, config: { ...S.config, metas: S.metas }, snapshots: S.snap, version: NUBE.version + 1, actualizado_en: new Date().toISOString() })
+            const { data, error } = await NUBE.client.from('comercial_estado').update({ acciones: S.acciones, config: { ...S.config, metas: S.metas, metasCfg: S.metasCfg }, snapshots: S.snap, version: NUBE.version + 1, actualizado_en: new Date().toISOString() })
                 .eq('id', 'principal').eq('version', NUBE.version).select('version'); if (error) throw error;
             if (!data || !data.length) { await cargarEstadoNube(); renderTodo(); nubeEstado('⚠️ Otro usuario modificó los datos', 'error'); toast('⚠️ Otra persona guardó cambios antes que tú. Se cargó la versión más reciente; repite tu último cambio.'); }
             else { NUBE.version = data[0].version; nubeEstado('☁️ Sincronizado', 'ok'); }
