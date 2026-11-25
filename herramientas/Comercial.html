@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comercial - Revisión Semanal y Mensual</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background-color: #f8fafc; color: #0f172a; }
+        .num-tabular { font-variant-numeric: tabular-nums; }
+        main td, main th, main li, main p, main h3, main h4, main summary, #modal-accion label, #modal-import p { overflow-wrap: break-word; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        /* ===== Modo PDF: se activa solo durante la captura ===== */
+        .pdf-modo [data-pdf-ocultar], .pdf-modo #nube-estado, .pdf-modo #toast { display: none !important; }
+        .pdf-modo .panel-vista { display: block !important; margin-bottom: 1.5rem; }
+        .pdf-modo .panel-acciones { display: none !important; }
+        .pdf-modo .overflow-x-auto { overflow: visible !important; }
+        .pdf-modo header { position: static !important; }
+        .pdf-modo * { animation: none !important; transition: none !important; }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col antialiased selection:bg-blue-100 selection:text-blue-900">
+
+    <!-- ENCABEZADO -->
+    <header class="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center shrink-0 text-base" aria-hidden="true">🛒</div>
+                    <div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <h1 class="text-base sm:text-lg font-extrabold tracking-tight text-slate-900">Comercial</h1>
+                            <div class="inline-flex items-center gap-1 bg-blue-50 border border-blue-200/80 rounded-lg px-2 py-0.5">
+                                <select id="sel-mes" onchange="cambiarMes(this.value)" class="bg-transparent text-[11px] font-bold text-blue-800 focus:outline-none cursor-pointer" title="Mes"></select>
+                            </div>
+                            <div class="inline-flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-lg px-2 py-0.5" title="Fecha de corte del análisis">
+                                <span class="text-[10px] font-bold uppercase text-slate-500">Corte:</span>
+                                <input type="date" id="sel-corte" onchange="cambiarCorte(this.value)" class="bg-transparent text-[11px] font-bold text-slate-800 focus:outline-none cursor-pointer num-tabular">
+                            </div>
+                        </div>
+                        <p class="text-[11px] sm:text-xs text-slate-500 hidden sm:block">Categorías, productos estrella y ancla, ticket (AOV, UPT, AUR), cross-selling y bundling, contra benchmark propio (28 días previos) y metas por categoría</p>
+                    </div>
+                </div>
+                <div class="flex flex-wrap items-center gap-2" data-pdf-ocultar="true">
+                    <button type="button" id="btn-pdf" onclick="descargarPDF()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs sm:text-sm font-semibold transition">
+                        <span aria-hidden="true">📄</span><span id="btn-pdf-label">Descargar PDF</span>
+                    </button>
+                    <label for="file-upload" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold shadow-sm transition cursor-pointer">
+                        <span aria-hidden="true">⬆️</span><span>Cargar CSV</span>
+                        <input id="file-upload" type="file" accept=".csv,.xlsx,.xls" class="hidden" onchange="procesarArchivo(event)">
+                    </label>
+                    <button type="button" onclick="descargarMachote()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs sm:text-sm font-semibold transition">
+                        <span aria-hidden="true">🧾</span><span>Machote CSV</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="flex flex-wrap items-center gap-1.5" id="pills-canal"></div>
+                <div class="flex flex-wrap items-center gap-2 text-xs">
+                    <label class="text-[11px] font-bold uppercase text-slate-500">Ventana</label>
+                    <select id="sel-ventana" onchange="cambiarVentana(this.value)" class="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold">
+                        <option value="1">Día de corte</option>
+                        <option value="7" selected>Últimos 7 días</option>
+                        <option value="14">Últimos 14 días</option>
+                        <option value="mtd">Mes a la fecha</option>
+                    </select>
+                    <details class="relative" data-pdf-ocultar="true">
+                        <summary class="list-none cursor-pointer px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-700">⚙️ Alertas</summary>
+                        <div class="absolute right-0 mt-2 w-72 rounded-2xl bg-white border border-slate-200 shadow-xl p-4 z-40 space-y-3">
+                            <div><label class="text-[11px] font-bold text-slate-600">Caída que dispara alerta (%)</label>
+                                <input id="cfg-umbral" type="number" min="1" max="90" step="1" value="5" onchange="guardarConfig()" class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1 text-sm">
+                                <p class="text-[10px] text-slate-400 mt-1">Cuando una categoría o un producto estrella/ancla cae este % o más contra su benchmark.</p></div>
+                            <div><label class="text-[11px] font-bold text-slate-600">Impacto Alto desde (pp de la venta)</label>
+                                <input id="cfg-ialto" type="number" min="0.1" step="0.1" value="1" onchange="guardarConfig()" class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1 text-sm"></div>
+                            <div><label class="text-[11px] font-bold text-slate-600">Impacto Medio desde (pp de la venta)</label>
+                                <input id="cfg-imedio" type="number" min="0.05" step="0.05" value="0.3" onchange="guardarConfig()" class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1 text-sm">
+                                <p class="text-[10px] text-slate-400 mt-1">Lo que la alerta resta a la venta ÷ venta a su ritmo normal. Debajo del Medio es impacto Bajo.</p></div>
+                            <div><label class="text-[11px] font-bold text-slate-600">Productos que sostienen la venta (% acumulado)</label>
+                                <input id="cfg-cabeza" type="number" min="10" max="90" step="5" value="50" onchange="guardarConfig()" class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1 text-sm"></div>
+                            <div><label class="text-[11px] font-bold text-slate-600">Crecimiento mínimo para “estrella” (%)</label>
+                                <input id="cfg-crec" type="number" min="1" max="50" step="1" value="5" onchange="guardarConfig()" class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1 text-sm"></div>
+                            <div><label class="text-[11px] font-bold text-slate-600">Días sin venta para “sin movimiento”</label>
+                                <input id="cfg-sinmov" type="number" min="30" max="365" step="10" value="90" onchange="guardarConfig()" class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1 text-sm"></div>
+                        </div>
+                    </details>
+                </div>
+            </div>
+
+            <nav class="flex items-center gap-1.5 overflow-x-auto no-scrollbar" id="tabs-vista" data-pdf-ocultar="true"></nav>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-5">
+        <div id="banner-demo" class="hidden rounded-2xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-xs text-amber-900 flex items-center justify-between gap-3">
+            <span><strong>Modo demostración:</strong> datos de ejemplo generados al azar. No se guardan ni se mezclan con tus datos reales.</span>
+            <button type="button" onclick="salirDemo()" class="shrink-0 px-3 py-1 rounded-lg bg-amber-200 hover:bg-amber-300 font-bold" data-pdf-ocultar="true">Salir</button>
+        </div>
+
+        <div id="vacio" class="hidden rounded-3xl border border-dashed border-slate-300 bg-white p-8 sm:p-12 text-center space-y-4">
+            <div class="text-4xl" aria-hidden="true">📭</div>
+            <h2 class="text-lg font-extrabold text-slate-900">Todavía no hay datos comerciales</h2>
+            <p class="text-sm text-slate-600 max-w-xl mx-auto">Carga un CSV de líneas de pedido (una fila por producto de cada pedido) exportado del ERP o del e-commerce. La primera carga debe traer al menos 180 días. Descarga el machote para ver las columnas esperadas.</p>
+            <div class="flex flex-wrap justify-center gap-2.5">
+                <button type="button" onclick="descargarMachote()" class="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold">Descargar machote CSV</button>
+                <button type="button" onclick="entrarDemo()" class="px-4 py-2 rounded-xl bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-bold">Ver demostración</button>
+            </div>
+        </div>
+
+        <section id="panel-resumen" class="panel-vista space-y-5"></section>
+        <section id="panel-categorias" class="panel-vista hidden space-y-5"></section>
+        <section id="panel-productos" class="panel-vista hidden space-y-5"></section>
+        <section id="panel-canales" class="panel-vista hidden space-y-5"></section>
+        <section id="panel-cross" class="panel-vista hidden space-y-5"></section>
+        <section id="panel-sinmov" class="panel-vista hidden space-y-5"></section>
+        <section id="panel-acciones" class="panel-vista panel-acciones hidden space-y-5"></section>
+    </main>
+
+    <!-- MODAL: VISTA PREVIA DE IMPORTACIÓN -->
+    <div id="modal-import" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 p-4 overflow-y-auto">
+        <div class="w-full max-w-3xl bg-white rounded-3xl shadow-2xl overflow-hidden my-6">
+            <div class="bg-slate-900 text-white px-6 py-4">
+                <h3 class="text-base font-extrabold">Validación y vista previa de importación</h3>
+                <p id="imp-sub" class="text-xs text-slate-300 mt-1"></p>
+            </div>
+            <div class="p-6 space-y-4">
+                <div class="grid grid-cols-3 gap-3 text-center">
+                    <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-3"><div class="text-[10px] font-bold uppercase text-emerald-700">Registros día-canal-SKU</div><div id="imp-validos" class="text-2xl font-extrabold text-emerald-900 num-tabular">0</div></div>
+                    <div class="rounded-2xl border border-amber-200 bg-amber-50 p-3"><div class="text-[10px] font-bold uppercase text-amber-700">Advertencias</div><div id="imp-adv" class="text-2xl font-extrabold text-amber-900 num-tabular">0</div></div>
+                    <div class="rounded-2xl border border-rose-200 bg-rose-50 p-3"><div class="text-[10px] font-bold uppercase text-rose-700">Líneas omitidas</div><div id="imp-omit" class="text-2xl font-extrabold text-rose-900 num-tabular">0</div></div>
+                </div>
+                <div id="imp-warn" class="hidden rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 max-h-40 overflow-y-auto space-y-1"></div>
+                <div class="border border-slate-200 rounded-xl overflow-hidden max-h-56 overflow-y-auto">
+                    <table class="w-full text-left text-xs num-tabular">
+                        <thead class="bg-slate-50 text-[10px] uppercase text-slate-500"><tr><th class="px-3 py-2">Fecha</th><th class="px-3 py-2">Canal</th><th class="px-3 py-2">SKU</th><th class="px-3 py-2">Producto</th><th class="px-3 py-2">Categoría</th><th class="px-3 py-2 text-right">Unidades</th><th class="px-3 py-2 text-right">Venta</th></tr></thead>
+                        <tbody id="imp-tbody" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+                <p class="text-[11px] text-slate-500">Las líneas se procesan en tu navegador: a la nube solo se envían los totales por día, canal y producto, sin cliente_id ni pedido_id. Si una fecha y canal ya existen, se reemplazan por completo con este archivo.</p>
+            </div>
+            <div class="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2.5">
+                <button type="button" onclick="cerrarImport()" class="px-4 py-2 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-700">Cancelar</button>
+                <button type="button" id="imp-confirmar" onclick="confirmarImport()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold">Confirmar e importar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: METAS POR CATEGORÍA -->
+    <div id="modal-metas" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 p-4 overflow-y-auto">
+        <div class="w-full max-w-3xl bg-white rounded-3xl shadow-2xl overflow-hidden my-6">
+            <div class="bg-slate-900 text-white px-6 py-4">
+                <h3 class="text-base font-extrabold">Metas por categoría</h3>
+                <p id="metas-sub" class="text-xs text-slate-300 mt-1"></p>
+            </div>
+            <div class="p-6 space-y-3">
+                <p class="text-xs text-slate-600">La meta de cada categoría es el plan del mes de la Revisión Diaria repartido según su participación histórica. Mueve puntos entre categorías con el ajuste (por ejemplo +2 a una categoría prioritaria y −2 a otra): el resto se reajusta solo y las metas siempre suman el plan total.</p>
+                <div class="border border-slate-200 rounded-xl overflow-hidden max-h-80 overflow-y-auto">
+                    <table class="w-full text-left text-xs num-tabular">
+                        <thead class="bg-slate-50 text-[10px] uppercase text-slate-500"><tr><th class="px-3 py-2">Categoría</th><th class="px-3 py-2 text-right">Participación base</th><th class="px-3 py-2 text-right">Ajuste (pp)</th><th class="px-3 py-2 text-right">Participación final</th><th class="px-3 py-2 text-right">Meta del mes</th></tr></thead>
+                        <tbody id="metas-tbody" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2.5">
+                <button type="button" onclick="cerrarMetas()" class="px-4 py-2 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-700">Cancelar</button>
+                <button type="button" onclick="guardarMetas()" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold">Guardar metas</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: ACCIÓN -->
+    <div id="modal-accion" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 p-4 overflow-y-auto">
+        <form id="form-accion" class="w-full max-w-lg bg-white rounded-3xl shadow-2xl p-6 space-y-4 my-6" onsubmit="guardarAccion(event)">
+            <h3 class="text-base font-extrabold text-slate-900">Registrar acción</h3>
+            <div><label class="text-[11px] font-bold text-slate-600">Acción</label>
+                <input id="acc-titulo" required maxlength="140" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></div>
+            <div><label class="text-[11px] font-bold text-slate-600">Origen / detalle</label>
+                <textarea id="acc-detalle" rows="3" maxlength="600" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></textarea></div>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="text-[11px] font-bold text-slate-600">Responsable</label>
+                    <input id="acc-resp" maxlength="80" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></div>
+                <div><label class="text-[11px] font-bold text-slate-600">Estatus</label>
+                    <select id="acc-estatus" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"><option>Pendiente</option><option>En proceso</option><option>Completada</option></select></div>
+            </div>
+            <div class="flex justify-end gap-2.5 pt-1">
+                <button type="button" onclick="cerrarAccion()" class="px-4 py-2 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-700">Cancelar</button>
+                <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold">Guardar</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- ACCESO CON CLAVE COMPARTIDA -->
+    <div id="nube-overlay" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900 p-4">
+        <form id="nube-form" class="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6 space-y-4" autocomplete="off">
+            <div>
+                <h2 class="text-lg font-extrabold text-slate-900">Acceso</h2>
+                <p class="text-xs text-slate-500 mt-1">Escribe la clave de acceso compartida (es la misma del tablero de Revisión Diaria).</p>
+            </div>
+            <input id="nube-clave" type="password" required placeholder="Clave de acceso" autocomplete="current-password" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <p id="nube-error" class="hidden text-xs font-semibold text-rose-600"></p>
+            <button id="nube-boton" type="submit" class="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold transition">Entrar</button>
+        </form>
+    </div>
+    <div id="nube-estado" class="fixed bottom-5 left-5 z-40 hidden px-2.5 py-1 rounded-lg bg-white/90 border border-slate-200 text-[11px] font-semibold text-slate-600 shadow-sm"></div>
+    <div id="toast" class="fixed bottom-5 right-5 z-50 hidden max-w-sm bg-slate-900 text-white text-xs sm:text-sm font-medium px-4 py-3 rounded-xl shadow-xl border border-slate-700"></div>
+
+    <script>
+    // =====================================================================
+    // 1. CONSTANTES, ESTADO Y UTILIDADES
+    // =====================================================================
+    const CANALES_DATO = ['Web', 'App', 'WhatsApp', 'Llamadas'];
+    const FILTROS = ['Total', 'Web', 'App', 'WhatsApp', 'Llamadas'];
+    const ETIQ_CANAL = { Total: 'Consolidado', Web: 'Web', App: 'App', WhatsApp: 'WhatsApp', Llamadas: 'Llamadas' };
+    const VISTAS = [
+        { id: 'resumen', n: 'Resumen' }, { id: 'categorias', n: 'Categorías' }, { id: 'productos', n: 'Estrella vs. ancla' }, { id: 'canales', n: 'Canales' },
+        { id: 'cross', n: 'Cross-selling' }, { id: 'sinmov', n: 'Sin movimiento +90 días' }, { id: 'acciones', n: 'Alertas y acciones' }
+    ];
+    const CACHE_KEY = 'comercial_cache_v1';
+    const PLAN_KEY = { ecommerce: 'Web', app: 'App', whatsapp: 'WhatsApp', llamadas: 'Llamadas' };
+    const SEVERIDAD = {
+        alta: { etiqueta: 'Impacto alto', clase: 'border-rose-200 bg-rose-50/60', etiquetaClase: 'bg-rose-600 text-white', rank: 0 },
+        media: { etiqueta: 'Impacto medio', clase: 'border-amber-200 bg-amber-50/60', etiquetaClase: 'bg-amber-500 text-white', rank: 1 },
+        baja: { etiqueta: 'Impacto bajo', clase: 'border-slate-200 bg-white', etiquetaClase: 'bg-slate-500 text-white', rank: 2 }
+    };
+    const TIPOS_PROD = {
+        Estrella: 'bg-amber-100 text-amber-800', Ancla: 'bg-blue-100 text-blue-800', Promesa: 'bg-emerald-100 text-emerald-800',
+        Rezagado: 'bg-rose-100 text-rose-800', Estable: 'bg-slate-100 text-slate-600'
+    };
+
+    const S = {
+        registros: [], dias: [], acciones: [], metas: {}, snap: { cross: null, recompra: null }, planDia: {}, planOk: false,
+        config: { umbral: 5, impactoAlto: 1, impactoMedio: 0.3, cabeza: 50, crec: 5, sinMovDias: 90 },
+        shareBase: {}, sinMov: null, mes: null, corte: null, canal: 'Total', ventana: 7, vista: 'resumen',
+        demo: false, rangoMin: null, rangoMax: null, chart: null, filtroTipo: 'todos', verTodosProd: false
+    };
+
+    const fmtN = v => (v === null || v === undefined || isNaN(v)) ? '—' : new Intl.NumberFormat('es-MX', { maximumFractionDigits: 0 }).format(Math.round(v));
+    const fmtP = (v, d = 1) => (v === null || v === undefined || isNaN(v)) ? '—' : `${v.toFixed(d)}%`;
+    const fmtM = v => (v === null || v === undefined || isNaN(v)) ? '—' : `${v < 0 ? '−' : ''}$${fmtN(Math.abs(v))}`;
+    const fmtMeta = v => (v === null || v === undefined || isNaN(v)) ? '—' : `${Math.floor(v)}%`;
+    const fmtPP = v => (v === null || v === undefined || isNaN(v)) ? '—' : `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)} pp`;
+    const esc = t => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const okC = c => S.canal === 'Total' || c === S.canal;
+    const mayus = t => t ? t.charAt(0).toUpperCase() + t.slice(1) : t;
+    const razon = (a, b) => (b > 0 && a !== null && a !== undefined) ? a / b : null;
+
+    function toast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg; t.classList.remove('hidden');
+        clearTimeout(window._tt); window._tt = setTimeout(() => t.classList.add('hidden'), 4500);
+    }
+    function addDias(iso, n) {
+        const [y, m, d] = iso.split('-').map(Number);
+        const dt = new Date(Date.UTC(y, m - 1, d + n));
+        return dt.toISOString().slice(0, 10);
+    }
+    function hoyISO() { const h = new Date(); return `${h.getFullYear()}-${String(h.getMonth() + 1).padStart(2, '0')}-${String(h.getDate()).padStart(2, '0')}`; }
+    function finMes(mes) { const [y, m] = mes.split('-').map(Number); return `${mes}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`; }
+    const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    function etiquetaMes(k) { const [y, m] = k.split('-').map(Number); return `${MESES[m - 1]} ${y}`; }
+    function fechaCorta(iso) { const [y, m, d] = iso.split('-'); return `${d}/${m}`; }
+
+    // =====================================================================
+    // 2. CÁLCULOS
+    // =====================================================================
+    const sumaDias = rows => rows.reduce((t, r) => { t.p += r.p; t.u += r.u; t.v += r.v; return t; }, { p: 0, u: 0, v: 0 });
+    const deltaRel = (act, base) => (act === null || base === null || base === undefined || base === 0) ? null : ((act - base) / base) * 100;
+
+    function ventanas() {
+        const ini = S.ventana === 'mtd' ? `${S.mes}-01` : addDias(S.corte, -(S.ventana - 1));
+        const fin = S.corte, bFin = addDias(ini, -1), bIni = addDias(ini, -28);
+        const enA = r => r.f >= ini && r.f <= fin, enB = r => r.f >= bIni && r.f <= bFin;
+        const dA = S.dias.filter(r => enA(r) && okC(r.c)), dB = S.dias.filter(r => enB(r) && okC(r.c));
+        const dias = Math.max(1, new Set(dA.map(r => r.f)).size), bDias = new Set(dB.map(r => r.f)).size;
+        return { ini, fin, bIni, bFin, dA, dB, rA: S.registros.filter(r => enA(r) && okC(r.c)), rB: S.registros.filter(r => enB(r) && okC(r.c)),
+                 dias, bDias, hayBase: bDias >= 7, esc: bDias >= 7 ? dias / bDias : null };
+    }
+    // Plan de venta de la Revisión Diaria para un rango y los canales visibles
+    function planDe(desde, hasta, canales) {
+        const lista = canales || CANALES_DATO.filter(okC); let t = 0;
+        for (let f = desde; f <= hasta; f = addDias(f, 1)) lista.forEach(c => { t += S.planDia[`${c}|${f}`] || 0; });
+        return t;
+    }
+    function agruparPor(rows, clave, campos) {
+        const m = new Map();
+        for (const r of rows) {
+            const k = clave(r); let x = m.get(k);
+            if (!x) { x = { k, n: r.n, cat: r.cat, v: 0, u: 0, p: 0 }; m.set(k, x); }
+            x.v += r.v; x.u += r.u; x.p += r.p; if (r.n) x.n = r.n;
+        }
+        return m;
+    }
+
+    // Base para repartir la meta: share de venta por categoría (3 meses previos; si no hay, el benchmark)
+    function baseDeShares(V, cats) {
+        const dato = S.shareBase[`${S.canal}|${S.mes}`];
+        let origen = '3 meses previos', mapa = {};
+        if (dato && Object.values(dato).some(v => v > 0)) { Object.entries(dato).forEach(([c, v]) => mapa[c] = v); }
+        else { origen = 'el benchmark de 28 días (aún no hay 3 meses de historia)'; V.rB.forEach(r => { mapa[r.cat] = (mapa[r.cat] || 0) + r.v; }); if (!Object.keys(mapa).length) V.rA.forEach(r => { mapa[r.cat] = (mapa[r.cat] || 0) + r.v; }); }
+        const total = Object.values(mapa).reduce((a, b) => a + b, 0);
+        const sh = {}; cats.forEach(c => { sh[c] = total > 0 ? (mapa[c] || 0) / total * 100 : 0; });
+        return { sh, origen };
+    }
+    // Aplica los ajustes del Gerente (en puntos porcentuales) y normaliza para que sumen 100
+    function shareFinal(cats, base) {
+        const aj = S.metas[S.mes] || {}; const tmp = {}; let suma = 0;
+        cats.forEach(c => { tmp[c] = Math.max(0, base[c] + (aj[c] || 0)); suma += tmp[c]; });
+        cats.forEach(c => { tmp[c] = suma > 0 ? tmp[c] / suma * 100 : 0; });
+        return tmp;
+    }
+
+    function analizar() {
+        const V = ventanas(), hay = V.hayBase;
+        const T = sumaDias(V.dA), B0 = sumaDias(V.dB);
+        const B = hay ? { p: B0.p * V.esc, u: B0.u * V.esc, v: B0.v * V.esc } : null;
+        const kp = (t) => t ? { aov: razon(t.v, t.p), upt: razon(t.u, t.p), aur: razon(t.v, t.u) } : null;
+        const k = kp(T), kb = kp(B);
+        let comp = null;
+        if (B && T.v > 0 && B.v > 0 && T.p > 0 && B.p > 0 && T.u > 0 && B.u > 0) {
+            const dV = T.v - B.v, L = Math.log(T.v / B.v);
+            const parte = l => Math.abs(L) < 1e-9 ? 0 : dV * l / L;
+            comp = [
+                { id: 'ped', n: 'Más o menos pedidos', corto: 'el número de pedidos', v: parte(Math.log(T.p / B.p)) },
+                { id: 'upt', n: 'Unidades por pedido (UPT)', corto: 'las unidades por pedido', v: parte(Math.log(k.upt / kb.upt)) },
+                { id: 'aur', n: 'Precio por unidad (AUR)', corto: 'el precio por unidad', v: parte(Math.log(k.aur / kb.aur)) }];
+        }
+        // Categorías
+        const mA = agruparPor(V.rA, r => r.cat), mB = agruparPor(V.rB, r => r.cat);
+        const vRows = [...mA.values()].reduce((s, x) => s + x.v, 0), vbRows = hay ? [...mB.values()].reduce((s, x) => s + x.v * V.esc, 0) : null;
+        const nombres = [...new Set([...mA.keys(), ...mB.keys()])];
+        const planVent = S.planOk ? planDe(V.ini, V.fin) : 0, planMes = S.planOk ? planDe(`${S.mes}-01`, finMes(S.mes)) : 0;
+        const base = baseDeShares(V, nombres), final = shareFinal(nombres, base.sh);
+        const cats = nombres.map(n => {
+            const a = mA.get(n) || { v: 0, u: 0 }, b = mB.get(n); const vb = hay ? (b ? b.v * V.esc : 0) : null;
+            const meta = planVent > 0 ? planVent * final[n] / 100 : null;
+            return { n, v: a.v, u: a.u, vb, g: vb > 0 ? (a.v / vb - 1) * 100 : null, sh: vRows > 0 ? a.v / vRows * 100 : 0,
+                shb: vbRows > 0 && vb !== null ? vb / vbRows * 100 : null, ctr: vbRows > 0 && vb !== null ? (a.v - vb) / vbRows * 100 : null,
+                aur: razon(a.v, a.u), baseSh: base.sh[n], finalSh: final[n], meta, cumpl: meta > 0 ? a.v / meta * 100 : null,
+                metaMes: planMes > 0 ? planMes * final[n] / 100 : null };
+        }).sort((x, y) => y.v - x.v);
+        // Productos: estrella / ancla / promesa / rezagado
+        const sA = agruparPor(V.rA, r => r.sku), sB = agruparPor(V.rB, r => r.sku);
+        const lista = [...sA.values()].map(x => {
+            const b = sB.get(x.k); const vb = hay ? (b ? b.v * V.esc : 0) : null;
+            return { sku: x.k, n: x.n, cat: x.cat, v: x.v, u: x.u, vb, g: vb > 0 ? (x.v / vb - 1) * 100 : null, d: vb !== null ? x.v - vb : null, sh: vRows > 0 ? x.v / vRows * 100 : 0 };
+        });
+        if (hay) sB.forEach((b, sku) => { if (!sA.has(sku)) lista.push({ sku, n: b.n, cat: b.cat, v: 0, u: 0, vb: b.v * V.esc, g: -100, d: -b.v * V.esc, sh: 0 }); });
+        const orden = lista.filter(x => x.v > 0).sort((a, b) => b.v - a.v); let acum = 0;
+        const umbralCrec = Math.max(S.config.crec * 4, 20);
+        orden.forEach(x => {
+            const enCabeza = acum < vRows * S.config.cabeza / 100; acum += x.v;
+            const crece = x.g !== null && x.g >= S.config.crec;
+            if (enCabeza) x.tipo = crece ? 'Estrella' : 'Ancla';
+            else if (x.vb > 0 && x.sh >= 0.05 && x.g >= umbralCrec) x.tipo = 'Promesa';
+            else if (x.vb > 0 && x.vb / (vbRows || 1) * 100 >= 0.05 && x.g !== null && x.g <= -umbralCrec) x.tipo = 'Rezagado';
+            else x.tipo = 'Estable';
+            x.enCabeza = enCabeza;
+        });
+        lista.filter(x => x.v === 0).forEach(x => { x.tipo = 'Rezagado'; });
+        const recompra = (S.snap.recompra && S.snap.recompra.porSku) || {};
+        orden.forEach(x => { const r = recompra[x.sku]; x.rec = r && r[0] >= 20 ? r[1] : null; });
+        const conD = lista.filter(x => x.d !== null);
+        const top = [...conD].sort((a, b) => b.d - a.d).slice(0, 10), bottom = [...conD].sort((a, b) => a.d - b.d).slice(0, 10);
+
+        const A = { V, hay, T, B, k, kb, comp, cats, vRows, vbRows, planVent, planMes, baseOrigen: base.origen, productos: orden, top, bottom };
+        A.canales = porCanal(V);
+        A.sinMov = sinMovimiento();
+        A.cross = parejasCross();
+        A.alertas = construirAlertas(A);
+        A.oportunidades = construirOportunidades(A);
+        return A;
+    }
+    function porCanal(V) {
+        const base = S.dias.filter(r => r.f >= V.ini && r.f <= V.fin), ref = S.dias.filter(r => r.f >= V.bIni && r.f <= V.bFin);
+        const totA = sumaDias(base);
+        return CANALES_DATO.map(c => {
+            const a = sumaDias(base.filter(r => r.c === c)), b0 = sumaDias(ref.filter(r => r.c === c));
+            const b = V.hayBase ? { p: b0.p * V.esc, v: b0.v * V.esc } : null;
+            const plan = S.planOk ? planDe(V.ini, V.fin, [c]) : 0;
+            return { c, ...a, aov: razon(a.v, a.p), g: b ? deltaRel(a.v, b.v) : null, sh: totA.v > 0 ? a.v / totA.v * 100 : 0, plan, cumpl: plan > 0 ? a.v / plan * 100 : null };
+        });
+    }
+    // Productos que vendían y llevan 90+ días sin venta
+    function sinMovimiento() {
+        const dMin = S.config.sinMovDias;
+        if (NUBE.activo && !S.demo && S.sinMov === null) return { lista: [], suficiente: true, origen: 'cargando' };
+        if (S.sinMov && !S.demo) return { lista: S.sinMov.filter(x => x.dias >= dMin), suficiente: !S.rangoMin || addDias(S.corte, -dMin - 30) >= S.rangoMin, origen: 'nube' };
+        const ult = new Map(); const rows = S.registros.filter(r => r.f <= S.corte && r.u > 0);
+        rows.forEach(r => { const x = ult.get(r.sku) || { sku: r.sku, n: r.n, cat: r.cat, ultima: r.f, hist: [] }; if (r.f >= x.ultima) { x.ultima = r.f; x.n = r.n; x.cat = r.cat; } x.hist.push([r.f, r.v]); ult.set(r.sku, x); });
+        const lista = [];
+        ult.forEach(x => { const dias = Math.round((Date.parse(S.corte) - Date.parse(x.ultima)) / 86400000); if (dias < dMin) return;
+            const ini = addDias(x.ultima, -90); lista.push({ sku: x.sku, n: x.n, cat: x.cat, ultima: x.ultima, dias, prev: x.hist.filter(h => h[0] > ini).reduce((s, h) => s + h[1], 0) }); });
+        const minF = S.registros.length ? S.registros.reduce((m, r) => r.f < m ? r.f : m, '9999') : S.corte;
+        return { lista: lista.sort((a, b) => b.prev - a.prev).slice(0, 60), suficiente: addDias(S.corte, -dMin - 30) >= minF, origen: 'local' };
+    }
+    function parejasCross() {
+        const c = S.snap.cross; if (!c || !c.pares) return [];
+        const precio = new Map(); S.registros.forEach(r => { const x = precio.get(r.sku) || { v: 0, u: 0 }; x.v += r.v; x.u += r.u; precio.set(r.sku, x); });
+        return c.pares.map(p => {
+            const pr = precio.get(p.b), pu = pr && pr.u > 0 ? pr.v / pr.u : null;
+            return { ...p, conf: p.pa > 0 ? p.j / p.pa * 100 : null, lift: p.pa > 0 && p.pb > 0 ? p.j * c.total / (p.pa * p.pb) : null, precio: pu, d5: pu !== null && c.total > 0 ? pu * p.pa * 0.05 / c.total : null };
+        }).filter(p => p.lift !== null && p.lift > 1).sort((a, b) => (b.d5 ?? 0) - (a.d5 ?? 0)).slice(0, 15);
+    }
+    function nivelPorImpacto(pp) { return pp >= S.config.impactoAlto ? 'alta' : pp >= S.config.impactoMedio ? 'media' : 'baja'; }
+    let A_ULTIMO = null;
+
+    function construirAlertas(A) {
+        const out = [], u = S.config.umbral, VB = A.vbRows;
+        A.cats.forEach(c => {
+            const cae = c.g !== null && c.g <= -u && c.sh >= 1 && c.vb > 0;
+            const bajoMeta = c.cumpl !== null && c.cumpl < 90;
+            if (!cae && !bajoMeta) return;
+            const impCaida = cae && VB > 0 ? Math.abs(c.v - c.vb) / VB * 100 : 0;
+            const impMeta = bajoMeta && A.planVent > 0 ? (c.meta - c.v) / A.planVent * 100 : 0;
+            const imp = Math.max(impCaida, impMeta); const lineas = [];
+            if (cae) lineas.push(`Vendió ${fmtM(c.v)}; a su ritmo normal serían ${fmtM(c.vb)} (${fmtM(c.v - c.vb)}).`);
+            if (cae && c.shb !== null) lineas.push(`Su participación en la venta pasó de ${fmtP(c.shb)} a ${fmtP(c.sh)}.`);
+            if (bajoMeta) lineas.push(`Va al ${fmtMeta(c.cumpl)} de su meta de la ventana (${fmtM(c.meta)}).`);
+            out.push({ nivel: nivelPorImpacto(imp), imp, tipo: 'Categoría', titulo: c.n,
+                titular: cae ? `${c.n} vende ${Math.abs(c.g).toFixed(1)}% menos que su ritmo normal y resta ${Math.abs(c.ctr).toFixed(1)} pp al crecimiento de la venta.` : `${c.n} va al ${fmtMeta(c.cumpl)} de su meta y deja sin cubrir ${impMeta.toFixed(1)} pp de la meta total.`,
+                lineas, revisar: 'Disponibilidad, precio frente a competencia y exhibición de sus productos principales (pestaña Estrella vs. ancla).',
+                detalle: `Categoría ${c.n}: ${cae ? `${c.g.toFixed(1)}% vs benchmark` : ''}${bajoMeta ? ` · ${c.cumpl.toFixed(0)}% de la meta` : ''}.` });
+        });
+        A.productos.filter(p => (p.tipo === 'Estrella' || p.tipo === 'Ancla') && p.g !== null && p.g <= -u && VB > 0).forEach(p => {
+            const imp = Math.abs(p.v - p.vb) / VB * 100;
+            out.push({ nivel: nivelPorImpacto(imp), imp, tipo: p.tipo === 'Ancla' ? 'Producto ancla' : 'Producto estrella', titulo: p.n,
+                titular: `${p.n} es ${p.tipo.toLowerCase()} (${fmtP(p.sh)} de la venta) y vende ${Math.abs(p.g).toFixed(1)}% menos que su ritmo normal.`,
+                lineas: [`Vendió ${fmtM(p.v)}; lo normal eran ${fmtM(p.vb)} (${fmtM(p.v - p.vb)}).`, `Categoría: ${p.cat}.`],
+                revisar: 'Existencia, precio publicado frente a competencia y visibilidad en el sitio y la App.', detalle: `${p.sku} · ${p.n}: ${p.g.toFixed(1)}% vs benchmark.` });
+        });
+        if (A.comp && VB > 0) {
+            const [cp, cu, ca] = A.comp, pct = x => x.v / A.B.v * 100;
+            if (pct(cu) <= -S.config.impactoMedio) out.push({ nivel: nivelPorImpacto(Math.abs(pct(cu))), imp: Math.abs(pct(cu)), tipo: 'Ticket', titulo: 'Unidades por pedido',
+                titular: `Se llevan menos productos por pedido (UPT ${A.k.upt.toFixed(2)} contra ${A.kb.upt.toFixed(2)}) y eso resta ${fmtM(Math.abs(cu.v))} a la venta.`,
+                lineas: ['El pedido promedio trae menos unidades que en su ritmo normal.'], revisar: 'Parejas con más potencial en la pestaña Cross-selling y mecánicas de venta cruzada en carrito.', detalle: 'UPT a la baja.' });
+            if (pct(ca) <= -S.config.impactoMedio) out.push({ nivel: nivelPorImpacto(Math.abs(pct(ca))), imp: Math.abs(pct(ca)), tipo: 'Ticket', titulo: 'Precio por unidad',
+                titular: `El precio promedio por unidad baja y resta ${fmtM(Math.abs(ca.v))} a la venta.`,
+                lineas: ['Puede ser mezcla (se venden productos más baratos) o descuentos más profundos.'], revisar: 'Promociones activas, mezcla por categoría y precios frente a competencia.', detalle: 'AUR a la baja.' });
+            if (pct(cp) <= -S.config.impactoMedio) out.push({ nivel: nivelPorImpacto(Math.abs(pct(cp))), imp: Math.abs(pct(cp)), tipo: 'Pedidos', titulo: 'Menos pedidos',
+                titular: `Hay menos pedidos que en su ritmo normal y eso resta ${fmtM(Math.abs(cp.v))} a la venta.`,
+                lineas: ['La caída viene del volumen de pedidos, no del ticket.'], revisar: 'Tráfico y conversión: fuentes, campañas y funnel (herramienta Tráfico y Conversión).', detalle: 'Pedidos a la baja.' });
+        }
+        const sm = A.sinMov.lista;
+        if (sm.length) out.push({ nivel: 'media', imp: 0.5, tipo: 'Catálogo', titulo: 'Productos sin movimiento',
+            titular: `${sm.length} producto(s) que sí vendían llevan ${S.config.sinMovDias} días o más sin una venta.`,
+            lineas: sm.slice(0, 3).map(x => `${x.n}: ${x.dias} días sin venta (antes vendía ${fmtM(x.prev)} por trimestre).`),
+            revisar: 'Validar existencia en el ERP y, si hay, armar combo con un producto ancla (pestaña Sin movimiento).', detalle: `${sm.length} productos sin movimiento.` });
+        return out.sort((a, b) => SEVERIDAD[a.nivel].rank - SEVERIDAD[b.nivel].rank || b.imp - a.imp);
+    }
+    function construirOportunidades(A) {
+        const out = [];
+        A.cats.filter(c => c.g !== null && c.g >= S.config.crec * 2 && c.ctr >= S.config.impactoMedio).forEach(c => out.push({ nivel: 'baja', imp: c.ctr, tipo: 'Categoría', titulo: c.n,
+            titular: `${c.n} crece ${c.g.toFixed(1)}% y suma ${c.ctr.toFixed(1)} pp al crecimiento de la venta.`, lineas: [`Vendió ${fmtM(c.v)} contra ${fmtM(c.vb)} a su ritmo normal.`], detalle: `Categoría ${c.n} crece ${c.g.toFixed(1)}%.` }));
+        A.cross.slice(0, 2).forEach(p => out.push({ nivel: 'baja', imp: p.d5 || 0, tipo: 'Cross-selling', titulo: `${p.na} + ${p.nb}`,
+            titular: `${p.na} y ${p.nb} se compran juntos ${p.lift.toFixed(1)} veces más de lo esperado.`, lineas: [`Si la adjunción sube 5 puntos, el ticket sube ${fmtM(p.d5)}.`], detalle: `Cross-selling ${p.na} + ${p.nb}.` }));
+        return out;
+    }
+    function resumenNarrativo(A) {
+        if (!A.hay) return 'Todavía no hay 28 días previos con datos para comparar contra el ritmo normal.';
+        const g = deltaRel(A.T.v, A.B.v), partes = [];
+        partes.push(`${S.ventana === 'mtd' ? 'En lo que va del mes' : S.ventana === 1 ? 'En el día de corte' : `En los últimos ${S.ventana} días`} la venta fue ${fmtM(A.T.v)}, ${g >= 0 ? `${g.toFixed(1)}% arriba` : `${Math.abs(g).toFixed(1)}% abajo`} de su ritmo normal.`);
+        if (A.comp) { const s = [...A.comp].sort((a, b) => b.v - a.v); partes.push(`${s[0].v > 0 ? `Lo que más la empuja: ${s[0].corto} (${fmtM(s[0].v)})` : 'Ningún factor la empuja'}${s[2].v < 0 ? `; lo que más la frena: ${s[2].corto} (${fmtM(s[2].v)})` : ''}.`); }
+        const cc = A.cats.filter(c => c.ctr !== null), mejor = [...cc].sort((a, b) => b.ctr - a.ctr)[0], peor = [...cc].sort((a, b) => a.ctr - b.ctr)[0];
+        if (mejor && mejor.ctr > 0) partes.push(`La categoría que más aporta es ${mejor.n} (${fmtPP(mejor.ctr)})${peor && peor.ctr < 0 ? ` y la que más resta, ${peor.n} (${fmtPP(peor.ctr)})` : ''}.`);
+        const altas = A.alertas.filter(a => a.nivel === 'alta').length;
+        partes.push(altas ? `Hay ${altas} alerta(s) de impacto alto.` : 'No hay alertas de impacto alto.');
+        return partes.join(' ');
+    }
+
+    // =====================================================================
+    // 3. RENDER
+    // =====================================================================
+    function chipDelta(d) {
+        if (d === null || d === undefined) return '<span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[11px] font-bold">Sin base</span>';
+        const cls = d <= -S.config.umbral ? 'bg-rose-100 text-rose-800 border-rose-200' : d < 0 ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-emerald-100 text-emerald-800 border-emerald-200';
+        return `<span class="inline-block px-2 py-0.5 rounded-full border text-[11px] font-bold num-tabular ${cls}">${d >= 0 ? '▲' : '▼'} ${Math.abs(d).toFixed(1)}%</span>`;
+    }
+    const colorPP = v => v === null ? 'text-slate-400' : v >= 0 ? 'text-emerald-700' : 'text-rose-700';
+    function tarjeta(titulo, valor, sub, delta) {
+        return `<div class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm min-w-0">
+            <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">${titulo}</div>
+            <div class="mt-1 flex flex-wrap items-start justify-between gap-x-2 gap-y-1"><div class="max-w-full break-words text-xl sm:text-2xl font-extrabold text-slate-900 num-tabular">${valor}</div>${delta !== undefined ? `<div class="shrink-0">${chipDelta(delta)}</div>` : ''}</div>
+            <div class="mt-1 text-[11px] text-slate-500 break-words">${sub}</div></div>`;
+    }
+    function botonAccion(tipo, titulo, detalle) {
+        return `<button type="button" data-pdf-ocultar="true" onclick="abrirAccion(${esc(JSON.stringify(JSON.stringify({ titulo: `Revisar ${tipo.toLowerCase()}: ${titulo}`, detalle })))})" class="px-2.5 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-[11px] font-bold text-slate-700">+ Acción</button>`;
+    }
+    function itemAlerta(a) {
+        const sv = SEVERIDAD[a.nivel];
+        return `<li class="flex flex-col sm:flex-row sm:items-start justify-between gap-3 p-3 rounded-xl border ${sv.clase}">
+            <div class="min-w-0 flex-1">
+                <div class="text-xs"><span class="inline-block mr-1.5 px-1.5 py-0.5 rounded-md text-[10px] font-extrabold uppercase ${sv.etiquetaClase}">${sv.etiqueta}</span><span class="text-[10px] uppercase text-slate-500 mr-1.5">${esc(a.tipo)}</span><strong class="text-slate-900 break-words">${esc(a.titulo)}</strong></div>
+                <div class="mt-1 text-xs font-extrabold text-slate-900">${esc(a.titular)}</div>
+                <ul class="mt-1 text-xs text-slate-600 space-y-0.5 list-disc pl-4">${a.lineas.map(l => `<li>${esc(l)}</li>`).join('')}</ul>
+                ${a.revisar ? `<div class="mt-1.5 text-[11px] text-slate-500"><strong class="text-slate-700">Qué revisar:</strong> ${esc(a.revisar)}</div>` : ''}
+            </div>
+            <div class="shrink-0">${botonAccion(a.tipo, a.titulo, a.detalle || a.titular)}</div></li>`;
+    }
+    function panelAlertas(titulo, arr, vacio, max) {
+        const lista = max ? arr.slice(0, max) : arr;
+        return `<div class="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-sm">
+            <h3 class="text-sm font-extrabold text-slate-900 mb-3">${titulo} <span class="text-slate-400 font-semibold">(${arr.length})</span></h3>
+            <ul class="space-y-2">${lista.length ? lista.map(itemAlerta).join('') : `<li class="p-4 text-xs text-slate-500 rounded-xl bg-emerald-50 border border-emerald-200">${vacio}</li>`}</ul>
+            ${max && arr.length > max ? `<p class="text-[11px] text-slate-400 mt-2">Se muestran las ${max} de mayor impacto. Todas están en la pestaña Alertas y acciones.</p>` : ''}</div>`;
+    }
+    function textoVentana(V) {
+        const n = S.ventana === 'mtd' ? 'Mes a la fecha' : S.ventana === 1 ? 'Día de corte' : `Últimos ${S.ventana} días`;
+        return `${n}: ${fechaCorta(V.ini)} – ${fechaCorta(V.fin)} · Benchmark propio: ${fechaCorta(V.bIni)} – ${fechaCorta(V.bFin)}`;
+    }
+    const sinBase = A => A.hay ? '' : '<div class="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-xs text-amber-900">Faltan datos de los 28 días previos (se necesitan al menos 7 con venta): por ahora no se pueden calcular comparativos ni alertas contra el benchmark.</div>';
+
+    function renderResumen(A) {
+        const { V, T, B, k, kb } = A;
+        const cumpl = A.planVent > 0 ? T.v / A.planVent * 100 : null;
+        const cards = [
+            tarjeta('Venta', fmtM(T.v), B ? `A su ritmo normal serían ${fmtM(B.v)}.` : 'Sin base para comparar.', B ? deltaRel(T.v, B.v) : null),
+            tarjeta('Pedidos', fmtN(T.p), B ? `Lo normal eran ${fmtN(B.p)} pedidos.` : '—', B ? deltaRel(T.p, B.p) : null),
+            tarjeta('Ticket (AOV)', fmtM(k.aov), kb ? `Lo normal era ${fmtM(kb.aov)}.` : '—', kb ? deltaRel(k.aov, kb.aov) : null),
+            tarjeta('UPT', k.upt ? k.upt.toFixed(2) : '—', kb ? `Lo normal era ${kb.upt.toFixed(2)} unidades por pedido.` : '—', kb ? deltaRel(k.upt, kb.upt) : null),
+            tarjeta('AUR', fmtM(k.aur), kb ? `Lo normal era ${fmtM(kb.aur)} por unidad.` : '—', kb ? deltaRel(k.aur, kb.aur) : null),
+            tarjeta('Contra el plan', cumpl !== null ? fmtMeta(cumpl) : 'Sin plan', cumpl !== null ? `Plan de la ventana: ${fmtM(A.planVent)} (Revisión Diaria).` : 'No hay plan de venta cargado en la Revisión Diaria para este periodo.')
+        ].join('');
+        let mov = '';
+        if (A.comp) {
+            const mx = Math.max(...A.comp.map(c => Math.abs(c.v)), 1);
+            mov = `<div class="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-sm"><h3 class="text-sm font-extrabold text-slate-900">¿Qué movió la venta?</h3>
+                <p class="text-[11px] text-slate-500 mb-3">Venta = pedidos × unidades por pedido × precio por unidad. La suma de los tres factores es exactamente el cambio contra el ritmo normal (${fmtM(T.v - B.v)}).</p>
+                ${A.comp.map(c => `<div class="mb-2"><div class="text-xs"><span class="text-slate-700">${c.n}</span> <strong class="${colorPP(c.v)} num-tabular">${c.v >= 0 ? '+' : '−'}${fmtM(Math.abs(c.v)).replace('−', '')}</strong> <span class="text-slate-400">(${fmtPP(c.v / B.v * 100).replace(' pp', '%')} de la venta normal)</span></div>
+                    <div class="h-2.5 rounded-full bg-slate-100 relative mt-1"><div class="absolute top-0 bottom-0 w-px bg-slate-300 left-1/2"></div><div class="absolute top-0 bottom-0 rounded-full ${c.v >= 0 ? 'bg-emerald-500' : 'bg-rose-500'}" style="${c.v >= 0 ? 'left:50%' : `left:${50 - Math.abs(c.v) / mx * 50}%`};width:${Math.abs(c.v) / mx * 50}%"></div></div></div>`).join('')}</div>`;
+        }
+        document.getElementById('panel-resumen').innerHTML = `
+            <p class="text-[11px] text-slate-500">${textoVentana(V)} · Canal: <strong>${ETIQ_CANAL[S.canal]}</strong></p>
+            ${sinBase(A)}
+            <div class="rounded-2xl bg-slate-900 text-slate-100 p-4 sm:p-5 text-xs sm:text-sm leading-relaxed"><strong class="text-white">Resumen:</strong> ${esc(resumenNarrativo(A))}</div>
+            <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">${cards}</div>
+            ${mov}
+            <div class="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-sm">
+                <h3 class="text-sm font-extrabold text-slate-900">Venta diaria del mes</h3>
+                <p class="text-[11px] text-slate-500 mb-3">Venta real (barras) contra el plan de la Revisión Diaria (línea) hasta el corte</p>
+                <div class="relative h-64"><canvas id="chart-diario"></canvas></div>
+            </div>
+            ${panelAlertas('Alertas activas · de mayor a menor impacto', A.alertas, 'Sin alertas: ninguna categoría, producto o componente del ticket cae más de lo normal.', 6)}
+            ${A.oportunidades.length ? `<div class="rounded-2xl bg-white border border-emerald-200 p-4 sm:p-5 shadow-sm"><h3 class="text-sm font-extrabold text-slate-900 mb-3">Oportunidades <span class="text-slate-400 font-semibold">(${A.oportunidades.length})</span></h3><ul class="space-y-2">${A.oportunidades.map(itemAlerta).join('')}</ul></div>` : ''}`;
+        dibujarGrafico();
+    }
+    function dibujarGrafico() {
+        if (S.chart) { S.chart.destroy(); S.chart = null; }
+        const cv = document.getElementById('chart-diario'); if (!cv || !window.Chart) return;
+        const dias = []; for (let f = `${S.mes}-01`; f <= S.corte; f = addDias(f, 1)) dias.push(f);
+        const real = dias.map(f => S.dias.filter(r => r.f === f && okC(r.c)).reduce((s, r) => s + r.v, 0));
+        const plan = dias.map(f => S.planOk ? planDe(f, f) : null);
+        S.chart = new Chart(cv, { data: { labels: dias.map(fechaCorta), datasets: [
+            { type: 'bar', label: 'Venta', data: real, backgroundColor: '#3b82f6', borderRadius: 3 },
+            ...(S.planOk ? [{ type: 'line', label: 'Plan', data: plan, borderColor: '#0f172a', borderWidth: 2, pointRadius: 0, tension: 0.2 }] : [])] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } }, scales: { y: { ticks: { callback: v => '$' + fmtN(v), font: { size: 10 } } }, x: { ticks: { font: { size: 10 }, maxRotation: 0, autoSkip: true } } } } });
+    }
+
+    function renderCategorias(A) {
+        const { V } = A; const tieneMeta = A.planVent > 0;
+        const filas = A.cats.map(c => `<tr class="hover:bg-slate-50">
+            <td class="px-3 py-2.5 font-bold text-slate-900">${esc(c.n)}</td>
+            <td class="px-3 py-2.5 text-right num-tabular">${fmtM(c.v)}</td>
+            <td class="px-3 py-2.5 text-right num-tabular">${fmtP(c.sh)}</td>
+            <td class="px-3 py-2.5 text-right num-tabular ${colorPP(c.shb === null ? null : c.sh - c.shb)}">${c.shb === null ? '—' : fmtPP(c.sh - c.shb)}</td>
+            <td class="px-3 py-2.5 text-right">${chipDelta(c.g)}</td>
+            <td class="px-3 py-2.5 text-right num-tabular font-bold ${colorPP(c.ctr)}">${fmtPP(c.ctr)}</td>
+            <td class="px-3 py-2.5 text-right num-tabular">${fmtM(c.aur)}</td>
+            ${tieneMeta ? `<td class="px-3 py-2.5 text-right num-tabular">${fmtM(c.meta)}</td><td class="px-3 py-2.5 min-w-[7rem]"><div class="flex items-center gap-2"><div class="h-2 flex-1 rounded-full bg-slate-100 overflow-hidden"><div class="h-full rounded-full ${c.cumpl >= 100 ? 'bg-emerald-500' : c.cumpl >= 90 ? 'bg-amber-400' : 'bg-rose-500'}" style="width:${Math.min(100, c.cumpl || 0)}%"></div></div><span class="text-xs font-bold num-tabular ${c.cumpl >= 90 ? 'text-slate-700' : 'text-rose-700'}">${fmtMeta(c.cumpl)}</span></div></td>` : ''}
+        </tr>`).join('');
+        document.getElementById('panel-categorias').innerHTML = `
+            <p class="text-[11px] text-slate-500">${textoVentana(V)} · Canal: <strong>${ETIQ_CANAL[S.canal]}</strong></p>${sinBase(A)}
+            <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+                <div class="p-4 sm:p-5 flex flex-wrap items-start justify-between gap-3">
+                    <div class="max-w-2xl"><h3 class="text-sm font-extrabold text-slate-900">Venta, participación y contribución por categoría</h3>
+                        <p class="text-[11px] text-slate-500 mt-0.5">La contribución es cuánto aporta cada categoría, en puntos porcentuales, al crecimiento total de la venta contra su ritmo normal.</p></div>
+                    <button type="button" data-pdf-ocultar="true" onclick="abrirMetas()" class="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold">🎯 Metas por categoría</button>
+                </div>
+                <div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular"><thead class="bg-slate-50 text-[10px] uppercase text-slate-500"><tr>
+                    <th class="px-3 py-2">Categoría</th><th class="px-3 py-2 text-right">Venta</th><th class="px-3 py-2 text-right">Share</th><th class="px-3 py-2 text-right">Δ share</th><th class="px-3 py-2 text-right">vs. benchmark</th><th class="px-3 py-2 text-right">Contribución</th><th class="px-3 py-2 text-right">AUR</th>
+                    ${tieneMeta ? '<th class="px-3 py-2 text-right">Meta ventana</th><th class="px-3 py-2">Cumplimiento</th>' : ''}</tr></thead>
+                    <tbody class="divide-y divide-slate-100">${filas || '<tr><td class="px-3 py-6 text-center text-slate-500" colspan="9">Sin ventas en la ventana.</td></tr>'}
+                    <tr class="bg-slate-50 font-extrabold"><td class="px-3 py-2.5">Total</td><td class="px-3 py-2.5 text-right">${fmtM(A.vRows)}</td><td class="px-3 py-2.5 text-right">100%</td><td class="px-3 py-2.5 text-right">—</td><td class="px-3 py-2.5 text-right">${chipDelta(A.vbRows ? deltaRel(A.vRows, A.vbRows) : null)}</td><td class="px-3 py-2.5 text-right ${colorPP(A.vbRows ? (A.vRows - A.vbRows) / A.vbRows * 100 : null)}">${A.vbRows ? fmtPP((A.vRows - A.vbRows) / A.vbRows * 100) : '—'}</td><td class="px-3 py-2.5 text-right">${fmtM(razon(A.vRows, A.T.u))}</td>${tieneMeta ? `<td class="px-3 py-2.5 text-right">${fmtM(A.planVent)}</td><td class="px-3 py-2.5">${fmtMeta(A.vRows / A.planVent * 100)}</td>` : ''}</tr>
+                </tbody></table></div>
+            </div>
+            <details class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm text-xs text-slate-600 leading-relaxed" data-pdf-ocultar="true"><summary class="cursor-pointer font-bold text-slate-800">ⓘ ¿Cómo se calcula la meta por categoría?</summary>
+                <div class="mt-2 space-y-1.5">
+                    <p>${tieneMeta ? `La meta total es el <strong>plan de venta de la Revisión Diaria</strong> (${fmtM(A.planVent)} en esta ventana; ${fmtM(A.planMes)} en el mes). Se reparte entre categorías según su participación en la venta de <strong>${esc(A.baseOrigen)}</strong>.` : 'No hay plan de venta cargado en la Revisión Diaria para este mes, así que no se puede calcular la meta. Carga el plan allá y se verá aquí.'}</p>
+                    <p>El Gerente puede mover puntos entre categorías en <strong>Metas por categoría</strong> (por ejemplo +2 pp a una categoría prioritaria); el resto se reajusta solo y las metas siempre suman el plan total.</p>
+                    <p>El benchmark son los 28 días previos a la ventana, escalados a los mismos días. Es el ritmo propio reciente, no una meta ni un estándar externo, y no corrige estacionalidad ni promociones del periodo base.</p>
+                </div></details>`;
+    }
+
+    function renderProductos(A) {
+        const q = S.filtroTipo; const prods = A.productos.filter(p => q === 'todos' || p.tipo === q);
+        const lista = S.verTodosProd ? prods : prods.slice(0, 30);
+        const conteo = t => A.productos.filter(p => p.tipo === t).length;
+        const chips = ['todos', 'Estrella', 'Ancla', 'Promesa', 'Rezagado', 'Estable'].map(t => `<button type="button" onclick="S.filtroTipo='${t}';S.verTodosProd=false;renderTodo()" class="px-2.5 py-1 rounded-lg text-[11px] font-bold border ${q === t ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}">${t === 'todos' ? 'Todos' : t} ${t === 'todos' ? '' : '(' + conteo(t) + ')'}</button>`).join('');
+        const filaMini = x => `<li class="flex items-start justify-between gap-2 py-1.5"><span class="min-w-0 text-xs"><strong class="text-slate-900 break-words">${esc(x.n)}</strong><span class="block text-[10px] text-slate-400">${esc(x.sku)} · ${esc(x.cat)}</span></span><span class="shrink-0 text-xs font-bold num-tabular ${colorPP(x.d)}">${x.d >= 0 ? '+' : ''}${fmtM(x.d)}</span></li>`;
+        document.getElementById('panel-productos').innerHTML = `
+            <p class="text-[11px] text-slate-500">${textoVentana(A.V)} · Canal: <strong>${ETIQ_CANAL[S.canal]}</strong></p>${sinBase(A)}
+            <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+                <div class="p-4 sm:p-5"><h3 class="text-sm font-extrabold text-slate-900">Productos estrella vs. ancla</h3>
+                    <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-600">
+                        <span><span class="px-1.5 py-0.5 rounded-md font-extrabold ${TIPOS_PROD.Estrella}">Estrella</span> sostiene la venta y crece</span>
+                        <span><span class="px-1.5 py-0.5 rounded-md font-extrabold ${TIPOS_PROD.Ancla}">Ancla</span> sostiene la venta, estable o a la baja</span>
+                        <span><span class="px-1.5 py-0.5 rounded-md font-extrabold ${TIPOS_PROD.Promesa}">Promesa</span> crece desde abajo</span>
+                        <span><span class="px-1.5 py-0.5 rounded-md font-extrabold ${TIPOS_PROD.Rezagado}">Rezagado</span> pierde venta</span></div>
+                    <p class="text-[11px] text-slate-500 mt-1.5">“Sostiene la venta” = los productos que juntos suman el primer ${S.config.cabeza}% de la venta. Crecer = ${S.config.crec}% o más contra su ritmo normal.</p>
+                    <div class="mt-2.5 flex flex-wrap gap-1.5" data-pdf-ocultar="true">${chips}</div></div>
+                <div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular"><thead class="bg-slate-50 text-[10px] uppercase text-slate-500"><tr><th class="px-3 py-2">Producto</th><th class="px-3 py-2">Tipo</th><th class="px-3 py-2 text-right">Venta</th><th class="px-3 py-2 text-right">Share</th><th class="px-3 py-2 text-right">vs. benchmark</th><th class="px-3 py-2 text-right">Recompra</th></tr></thead>
+                    <tbody class="divide-y divide-slate-100">${lista.map(p => `<tr class="hover:bg-slate-50"><td class="px-3 py-2.5"><strong class="text-slate-900 break-words">${esc(p.n)}</strong><span class="block text-[10px] text-slate-400">${esc(p.sku)} · ${esc(p.cat)}</span></td><td class="px-3 py-2.5"><span class="inline-block px-2 py-0.5 rounded-md text-[10px] font-extrabold ${TIPOS_PROD[p.tipo]}">${p.tipo}</span></td><td class="px-3 py-2.5 text-right">${fmtM(p.v)}</td><td class="px-3 py-2.5 text-right">${fmtP(p.sh, 2)}</td><td class="px-3 py-2.5 text-right">${chipDelta(p.g)}</td><td class="px-3 py-2.5 text-right">${p.rec === null ? '<span class="text-slate-300">—</span>' : fmtP(p.rec, 0)}</td></tr>`).join('') || '<tr><td class="px-3 py-6 text-center text-slate-500" colspan="6">Sin productos en esta clasificación.</td></tr>'}</tbody></table></div>
+                ${prods.length > 30 ? `<div class="p-3 text-center" data-pdf-ocultar="true"><button type="button" onclick="S.verTodosProd=!S.verTodosProd;renderTodo()" class="text-xs font-bold text-blue-700 hover:underline">${S.verTodosProd ? 'Ver solo los 30 principales' : `Ver los ${prods.length} productos`}</button></div>` : ''}
+                <p class="px-4 pb-4 text-[11px] text-slate-400">La recompra (clientes que lo compraron 2 veces o más) se calcula al cargar el CSV con cliente_id y se muestra solo si el producto tiene al menos 20 clientes${S.snap.recompra ? ` (periodo ${fechaCorta(S.snap.recompra.desde)} – ${fechaCorta(S.snap.recompra.hasta)})` : ' (aún no hay datos de recompra)'}.</p>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="rounded-2xl bg-white border border-emerald-200 p-4 sm:p-5 shadow-sm"><div class="flex items-center justify-between gap-2"><h3 class="text-sm font-extrabold text-slate-900">Top 10 · más aportan al cambio</h3><button type="button" data-pdf-ocultar="true" onclick="descargarTopBottom()" class="text-[11px] font-bold text-blue-700 hover:underline">Descargar CSV</button></div><ul class="mt-2 divide-y divide-slate-100">${A.top.map(filaMini).join('') || '<li class="text-xs text-slate-500 py-2">Sin base para comparar.</li>'}</ul></div>
+                <div class="rounded-2xl bg-white border border-rose-200 p-4 sm:p-5 shadow-sm"><h3 class="text-sm font-extrabold text-slate-900">Bottom 10 · más restan al cambio</h3><ul class="mt-2 divide-y divide-slate-100">${A.bottom.map(filaMini).join('') || '<li class="text-xs text-slate-500 py-2">Sin base para comparar.</li>'}</ul></div>
+            </div>
+            <div class="rounded-2xl bg-blue-50 border border-blue-200 p-4 text-xs text-blue-900">¿Productos con muchas visitas y poca conversión? Ese análisis vive en el <strong>Perfil de segmentos</strong> de <a class="underline font-bold" href="Trafico_y_Conversion.html" target="_blank" rel="noopener">Tráfico y Conversión ↗</a>.</div>`;
+    }
+
+    function renderCanales(A) {
+        document.getElementById('panel-canales').innerHTML = `
+            <p class="text-[11px] text-slate-500">${textoVentana(A.V)}</p>${sinBase(A)}
+            <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden"><div class="p-4 sm:p-5"><h3 class="text-sm font-extrabold text-slate-900">Los cuatro canales</h3><p class="text-[11px] text-slate-500 mt-0.5">Siempre se muestran todos, sin importar el filtro de canal. El plan de cada canal viene de la Revisión Diaria.</p></div>
+            <div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular"><thead class="bg-slate-50 text-[10px] uppercase text-slate-500"><tr><th class="px-3 py-2">Canal</th><th class="px-3 py-2 text-right">Venta</th><th class="px-3 py-2 text-right">Share</th><th class="px-3 py-2 text-right">vs. benchmark</th><th class="px-3 py-2 text-right">Pedidos</th><th class="px-3 py-2 text-right">Ticket</th><th class="px-3 py-2 text-right">Plan</th><th class="px-3 py-2 text-right">Cumplimiento</th></tr></thead>
+            <tbody class="divide-y divide-slate-100">${A.canales.map(c => `<tr class="hover:bg-slate-50"><td class="px-3 py-2.5 font-bold text-slate-900">${c.c}</td><td class="px-3 py-2.5 text-right">${fmtM(c.v)}</td><td class="px-3 py-2.5 text-right">${fmtP(c.sh)}</td><td class="px-3 py-2.5 text-right">${chipDelta(c.g)}</td><td class="px-3 py-2.5 text-right">${fmtN(c.p)}</td><td class="px-3 py-2.5 text-right">${fmtM(c.aov)}</td><td class="px-3 py-2.5 text-right">${c.plan > 0 ? fmtM(c.plan) : '—'}</td><td class="px-3 py-2.5 text-right font-bold ${c.cumpl !== null && c.cumpl < 90 ? 'text-rose-700' : 'text-slate-700'}">${c.cumpl !== null ? fmtMeta(c.cumpl) : '—'}</td></tr>`).join('')}</tbody></table></div></div>
+            <p class="text-[11px] text-slate-500">WhatsApp y Llamadas se miden con sus propios pedidos; su conversión contra oportunidades atendidas se documenta aparte, como define el KPI de CR.</p>`;
+    }
+
+    function renderCross(A) {
+        const c = S.snap.cross;
+        document.getElementById('panel-cross').innerHTML = `
+            <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden"><div class="p-4 sm:p-5"><h3 class="text-sm font-extrabold text-slate-900">Cross-selling: parejas con más potencial para el ticket</h3>
+                <p class="text-[11px] text-slate-500 mt-0.5">Confianza: de los pedidos con el producto ancla, cuántos llevan también el complemento. Lift mayor a 1: se compran juntos más de lo esperado. Efecto: cuánto subiría el ticket si la adjunción del complemento aumenta 5 puntos.</p>
+                ${c ? `<p class="text-[11px] text-slate-400 mt-1">Calculado con ${fmtN(c.total)} pedidos del ${fechaCorta(c.desde)} al ${fechaCorta(c.hasta)}. Se recalcula con cada carga de CSV.</p>` : ''}</div>
+            <div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular"><thead class="bg-slate-50 text-[10px] uppercase text-slate-500"><tr><th class="px-3 py-2">Producto ancla</th><th class="px-3 py-2">Complemento</th><th class="px-3 py-2 text-right">Pedidos juntos</th><th class="px-3 py-2 text-right">Confianza</th><th class="px-3 py-2 text-right">Lift</th><th class="px-3 py-2 text-right">Efecto en AOV (+5 pp)</th><th class="px-3 py-2" data-pdf-ocultar="true"></th></tr></thead>
+            <tbody class="divide-y divide-slate-100">${A.cross.map(p => `<tr class="hover:bg-slate-50"><td class="px-3 py-2.5 font-bold text-slate-900 break-words">${esc(p.na)}</td><td class="px-3 py-2.5 break-words">${esc(p.nb)}</td><td class="px-3 py-2.5 text-right">${fmtN(p.j)}</td><td class="px-3 py-2.5 text-right">${fmtP(p.conf)}</td><td class="px-3 py-2.5 text-right">${p.lift.toFixed(1)}×</td><td class="px-3 py-2.5 text-right font-bold text-emerald-700">${p.d5 !== null ? '+' + fmtM(p.d5) : '—'}</td><td class="px-3 py-2.5" data-pdf-ocultar="true">${botonAccion('cross-selling', `${p.na} + ${p.nb}`, `Pareja con lift ${p.lift.toFixed(1)}× y ${fmtP(p.conf)} de confianza.`)}</td></tr>`).join('') || `<tr><td class="px-3 py-8 text-center text-slate-500" colspan="7">${c ? 'No hay parejas con suficiente volumen.' : 'Aún no hay análisis. Carga un CSV con pedido_id y varios productos por pedido (mínimo 14 días).'}</td></tr>`}</tbody></table></div></div>`;
+    }
+
+    function comboSugerido(x, A) {
+        const ancla = A.productos.find(p => p.tipo === 'Ancla' && p.cat === x.cat) || A.productos.find(p => p.tipo === 'Ancla') || A.productos[0];
+        return ancla ? ancla.n : '—';
+    }
+    function renderSinMov(A) {
+        const { lista, suficiente } = A.sinMov;
+        document.getElementById('panel-sinmov').innerHTML = `
+            <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden"><div class="p-4 sm:p-5"><h3 class="text-sm font-extrabold text-slate-900">Productos sin movimiento (+${S.config.sinMovDias} días) y bundling</h3>
+                <p class="text-[11px] text-slate-500 mt-0.5">Se detectan solo con el CSV de ventas: productos que sí vendían y llevan ${S.config.sinMovDias} días o más sin una venta. No incluye existencias; el Analista valida en el ERP cuáles tienen inventario antes de armar el combo.</p>
+                ${!suficiente ? `<p class="mt-2 text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">Aún no hay suficiente historial (se recomiendan al menos ${S.config.sinMovDias + 90} días): la lista puede estar incompleta.</p>` : ''}</div>
+            <div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular"><thead class="bg-slate-50 text-[10px] uppercase text-slate-500"><tr><th class="px-3 py-2">Producto</th><th class="px-3 py-2">Categoría</th><th class="px-3 py-2 text-right">Última venta</th><th class="px-3 py-2 text-right">Días sin venta</th><th class="px-3 py-2 text-right">Vendía por trimestre</th><th class="px-3 py-2">Combo sugerido con</th><th class="px-3 py-2" data-pdf-ocultar="true"></th></tr></thead>
+            <tbody class="divide-y divide-slate-100">${lista.map(x => `<tr class="hover:bg-slate-50"><td class="px-3 py-2.5"><strong class="text-slate-900 break-words">${esc(x.n)}</strong><span class="block text-[10px] text-slate-400">${esc(x.sku)}</span></td><td class="px-3 py-2.5">${esc(x.cat)}</td><td class="px-3 py-2.5 text-right">${fechaCorta(x.ultima)}</td><td class="px-3 py-2.5 text-right font-bold text-rose-700">${x.dias}</td><td class="px-3 py-2.5 text-right">${fmtM(x.prev)}</td><td class="px-3 py-2.5 break-words">${esc(comboSugerido(x, A))}</td><td class="px-3 py-2.5" data-pdf-ocultar="true">${botonAccion('producto sin movimiento', x.n, `${x.dias} días sin venta; combo sugerido con ${comboSugerido(x, A)}.`)}</td></tr>`).join('') || '<tr><td class="px-3 py-8 text-center text-slate-500" colspan="7">Ningún producto cumple el criterio.</td></tr>'}</tbody></table></div></div>`;
+    }
+
+    function renderAcciones(A) {
+        const color = { 'Pendiente': 'bg-amber-100 text-amber-800', 'En proceso': 'bg-sky-100 text-sky-800', 'Completada': 'bg-emerald-100 text-emerald-800' };
+        const orden = { 'Pendiente': 0, 'En proceso': 1, 'Completada': 2 };
+        const lista = [...S.acciones].sort((a, b) => orden[a.estatus] - orden[b.estatus] || b.creada.localeCompare(a.creada)).map(a => `
+            <li class="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                <div class="min-w-0"><div class="text-sm font-extrabold text-slate-900">${esc(a.titulo)}</div>${a.detalle ? `<div class="text-xs text-slate-600 mt-0.5">${esc(a.detalle)}</div>` : ''}
+                    <div class="text-[11px] text-slate-400 mt-1">${esc(a.creada)}${a.responsable ? ' · ' + esc(a.responsable) : ''}</div></div>
+                <div class="flex items-center gap-2 shrink-0"><select onchange="cambiarEstatus('${a.id}', this.value)" class="rounded-lg border border-slate-300 px-2 py-1 text-xs font-bold ${color[a.estatus]}">${['Pendiente', 'En proceso', 'Completada'].map(e => `<option ${e === a.estatus ? 'selected' : ''}>${e}</option>`).join('')}</select>
+                    <button type="button" onclick="eliminarAccion('${a.id}')" class="px-2 py-1 rounded-lg border border-slate-300 text-xs text-slate-500 hover:bg-slate-50" title="Eliminar">🗑</button></div></li>`).join('');
+        document.getElementById('panel-acciones').innerHTML = `
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="space-y-3">${panelAlertas('Alertas activas · de mayor a menor impacto', A.alertas, 'Sin alertas activas.')}</div>
+                <div class="space-y-3"><div class="flex items-center justify-between"><h3 class="text-sm font-extrabold text-slate-900">Acciones registradas (${S.acciones.length})</h3>
+                    <button type="button" onclick="abrirAccion()" class="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold">+ Nueva acción</button></div>
+                    <ul class="space-y-2">${lista || '<li class="p-4 text-xs text-slate-500 rounded-xl bg-slate-50 border border-slate-200">Aún no hay acciones registradas.</li>'}</ul></div></div>`;
+    }
+
+    function renderTabsYFiltros() {
+        document.getElementById('pills-canal').innerHTML = FILTROS.map(c => `<button type="button" onclick="cambiarCanal('${c}')" class="px-3 py-1.5 rounded-xl text-xs font-bold transition ${S.canal === c ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'}">${ETIQ_CANAL[c]}</button>`).join('');
+        const pend = S.acciones.filter(a => a.estatus !== 'Completada').length;
+        document.getElementById('tabs-vista').innerHTML = VISTAS.map(v => `<button type="button" onclick="cambiarVista('${v.id}')" class="shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition ${S.vista === v.id ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'}">${v.n}${v.id === 'acciones' && pend ? ` <span class="ml-1 px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[10px]">${pend}</span>` : ''}</button>`).join('');
+        document.getElementById('sel-ventana').value = String(S.ventana);
+        document.getElementById('cfg-umbral').value = S.config.umbral; document.getElementById('cfg-ialto').value = S.config.impactoAlto;
+        document.getElementById('cfg-imedio').value = S.config.impactoMedio; document.getElementById('cfg-cabeza').value = S.config.cabeza;
+        document.getElementById('cfg-crec').value = S.config.crec; document.getElementById('cfg-sinmov').value = S.config.sinMovDias;
+    }
+    function mesesDisponibles() {
+        const set = new Set(S.dias.map(r => r.f.slice(0, 7)));
+        if (S.rangoMin && S.rangoMax) { let m = S.rangoMin.slice(0, 7); const fin = S.rangoMax.slice(0, 7);
+            while (m <= fin) { set.add(m); const [y, mm] = m.split('-').map(Number); m = mm === 12 ? `${y + 1}-01` : `${y}-${String(mm + 1).padStart(2, '0')}`; } }
+        return [...set].sort();
+    }
+    function renderTodo() {
+        const hayDatos = S.dias.length > 0;
+        document.getElementById('vacio').classList.toggle('hidden', hayDatos || S.demo);
+        document.getElementById('banner-demo').classList.toggle('hidden', !S.demo); document.getElementById('banner-demo').classList.toggle('flex', S.demo);
+        const meses = mesesDisponibles(); if (!S.mes && meses.length) S.mes = meses[meses.length - 1];
+        const sel = document.getElementById('sel-mes');
+        sel.innerHTML = meses.length ? meses.map(m => `<option value="${m}" ${m === S.mes ? 'selected' : ''}>${etiquetaMes(m)}</option>`).join('') : '<option>—</option>';
+        if (S.mes) {
+            const maxMes = S.dias.filter(r => r.f.startsWith(S.mes)).map(r => r.f).sort().pop();
+            if (!S.corte || !S.corte.startsWith(S.mes)) S.corte = maxMes || finMes(S.mes);
+            const c = document.getElementById('sel-corte'); c.value = S.corte; c.min = `${S.mes}-01`; c.max = finMes(S.mes);
+        }
+        renderTabsYFiltros();
+        document.querySelectorAll('.panel-vista').forEach(p => p.classList.add('hidden'));
+        if (!hayDatos) { if (S.vista === 'acciones') { document.getElementById('panel-acciones').classList.remove('hidden'); renderAcciones({ alertas: [] }); } return; }
+        const A = analizar(); A_ULTIMO = A;
+        renderResumen(A); renderCategorias(A); renderProductos(A); renderCanales(A); renderCross(A); renderSinMov(A); renderAcciones(A);
+        document.getElementById('panel-' + S.vista).classList.remove('hidden');
+    }
+    function cambiarVista(v) { S.vista = v; renderTodo(); }
+    async function cambiarCanal(c) { S.canal = c; renderTodo(); await cargarDerivados(); }
+    function cambiarVentana(v) { S.ventana = v === 'mtd' ? 'mtd' : Number(v); renderTodo(); }
+    async function cambiarCorte(f) { if (!f) return; S.corte = f; renderTodo(); await cargarDerivados(); }
+    async function cambiarMes(m) { S.mes = m; S.corte = null; await cargarRegistrosNube(); await cargarPlanNube(); renderTodo(); await cargarDerivados(); }
+
+    // =====================================================================
+    // 4. ACCIONES, METAS Y CONFIGURACIÓN
+    // =====================================================================
+        function abrirAccion(prefill) {
+        const p = prefill ? JSON.parse(prefill) : {};
+        document.getElementById('acc-titulo').value = p.titulo || '';
+        document.getElementById('acc-detalle').value = p.detalle || '';
+        document.getElementById('acc-resp').value = ''; document.getElementById('acc-estatus').value = 'Pendiente';
+        const m = document.getElementById('modal-accion'); m.classList.remove('hidden'); m.classList.add('flex');
+        document.getElementById('acc-titulo').focus();
+    }
+    function cerrarAccion() { const m = document.getElementById('modal-accion'); m.classList.add('hidden'); m.classList.remove('flex'); }
+    function guardarAccion(e) {
+        e.preventDefault();
+        S.acciones.unshift({ id: 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), creada: hoyISO(),
+            titulo: document.getElementById('acc-titulo').value.trim(), detalle: document.getElementById('acc-detalle').value.trim(),
+            responsable: document.getElementById('acc-resp').value.trim(), estatus: document.getElementById('acc-estatus').value });
+        cerrarAccion(); persistirEstado(); renderTodo(); toast('✅ Acción registrada.');
+    }
+    function cambiarEstatus(id, est) { const a = S.acciones.find(x => x.id === id); if (a) { a.estatus = est; persistirEstado(); renderTodo(); } }
+    function eliminarAccion(id) { if (!confirm('¿Eliminar esta acción?')) return; S.acciones = S.acciones.filter(a => a.id !== id); persistirEstado(); renderTodo(); }
+    function guardarConfig() {
+        const n = id => Number(document.getElementById(id).value);
+        if (n('cfg-umbral') >= 1 && n('cfg-umbral') <= 90) S.config.umbral = n('cfg-umbral');
+        const ia = n('cfg-ialto'), im = n('cfg-imedio'); if (ia > 0 && im > 0 && im < ia) { S.config.impactoAlto = ia; S.config.impactoMedio = im; }
+        if (n('cfg-cabeza') >= 10 && n('cfg-cabeza') <= 90) S.config.cabeza = n('cfg-cabeza');
+        if (n('cfg-crec') >= 1 && n('cfg-crec') <= 50) S.config.crec = n('cfg-crec');
+        if (n('cfg-sinmov') >= 30 && n('cfg-sinmov') <= 365) S.config.sinMovDias = n('cfg-sinmov');
+        persistirEstado(); renderTodo();
+    }
+    function abrirMetas() {
+        const A = A_ULTIMO; if (!A) return;
+        const aj = S.metas[S.mes] || {};
+        document.getElementById('metas-sub').textContent = `${etiquetaMes(S.mes)} · Canal: ${ETIQ_CANAL[S.canal]} · Plan del mes (Revisión Diaria): ${A.planMes > 0 ? fmtM(A.planMes) : 'sin plan cargado'} · Base: ${A.baseOrigen}`;
+        document.getElementById('metas-tbody').innerHTML = A.cats.map(c => `<tr><td class="px-3 py-2 font-bold text-slate-900">${esc(c.n)}</td><td class="px-3 py-2 text-right num-tabular">${fmtP(c.baseSh)}</td>
+            <td class="px-3 py-2 text-right"><input type="number" step="0.1" data-cat="${esc(c.n)}" value="${aj[c.n] || 0}" oninput="previsualizarMetas()" class="w-20 rounded-lg border border-slate-300 px-2 py-1 text-right text-sm"></td>
+            <td class="px-3 py-2 text-right num-tabular font-bold" data-final="${esc(c.n)}">${fmtP(c.finalSh)}</td><td class="px-3 py-2 text-right num-tabular" data-meta="${esc(c.n)}">${c.metaMes !== null ? fmtM(c.metaMes) : '—'}</td></tr>`).join('');
+        const m = document.getElementById('modal-metas'); m.classList.remove('hidden'); m.classList.add('flex');
+    }
+    function leerAjustesMetas() { const o = {}; document.querySelectorAll('#metas-tbody input').forEach(i => { const v = parseFloat(i.value); if (v) o[i.dataset.cat] = v; }); return o; }
+    function previsualizarMetas() {
+        const A = A_ULTIMO, aj = leerAjustesMetas(), cats = A.cats.map(c => c.n); const guardado = S.metas[S.mes]; S.metas[S.mes] = aj;
+        const fin = shareFinal(cats, Object.fromEntries(A.cats.map(c => [c.n, c.baseSh]))); S.metas[S.mes] = guardado;
+        cats.forEach(c => { const f = document.querySelector(`[data-final="${CSS.escape(c)}"]`), mm = document.querySelector(`[data-meta="${CSS.escape(c)}"]`); if (f) f.textContent = fmtP(fin[c]); if (mm) mm.textContent = A.planMes > 0 ? fmtM(A.planMes * fin[c] / 100) : '—'; });
+    }
+    function cerrarMetas() { const m = document.getElementById('modal-metas'); m.classList.add('hidden'); m.classList.remove('flex'); }
+    function guardarMetas() { const aj = leerAjustesMetas(); if (Object.keys(aj).length) S.metas[S.mes] = aj; else delete S.metas[S.mes]; cerrarMetas(); persistirEstado(); renderTodo(); toast('🎯 Metas por categoría guardadas.'); }
+    function descargarTopBottom() {
+        const A = A_ULTIMO; const f = [['Grupo', 'SKU', 'Producto', 'Categoría', 'Venta', 'Venta_benchmark', 'Cambio']];
+        A.top.forEach(x => f.push(['Top 10', x.sku, x.n, x.cat, Math.round(x.v), Math.round(x.vb), Math.round(x.d)])); A.bottom.forEach(x => f.push(['Bottom 10', x.sku, x.n, x.cat, Math.round(x.v), Math.round(x.vb), Math.round(x.d)]));
+        descargarCSV('Top_Bottom_10_contribucion.csv', f);
+    }
+    function descargarCSV(nombre, filas) {
+        const csv = '﻿' + filas.map(f => f.map(c => /[",\n]/.test(String(c)) ? `"${String(c).replace(/"/g, '""')}"` : c).join(',')).join('\r\n');
+        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); a.download = nombre; document.body.appendChild(a); a.click(); a.remove();
+    }
+
+    // =====================================================================
+    // 5. IMPORTACIÓN DE CSV / EXCEL (líneas de pedido)
+    // =====================================================================
+        function normalizarFecha(valor, orden) {
+        if (valor === null || valor === undefined || valor === '') return null;
+        if (typeof valor === 'number') { const iso = new Date(Math.floor(valor - 25569) * 86400 * 1000).toISOString().slice(0, 10); return /^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso : null; }
+        const s = String(valor).trim();
+        if (/^\d{8}$/.test(s)) return validarFecha(+s.slice(0, 4), +s.slice(4, 6), +s.slice(6, 8)); // formato GA4: 20261105
+        if (/^\d{4}-\d{2}-\d{2}/.test(s)) { const [y, m, d] = s.slice(0, 10).split('-').map(Number); return validarFecha(y, m, d); }
+        const p = s.split(/[\/\-]/);
+        if (p.length === 3 && p[2].length === 4) { const y = +p[2], m = +(orden === 'mdy' ? p[0] : p[1]), d = +(orden === 'mdy' ? p[1] : p[0]); return validarFecha(y, m, d); }
+        return null;
+    }
+    function validarFecha(y, m, d) {
+        const dt = new Date(Date.UTC(y, m - 1, d));
+        if (dt.getUTCFullYear() !== y || dt.getUTCMonth() + 1 !== m || dt.getUTCDate() !== d) return null;
+        return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    }
+    // Decide día/mes o mes/día por el archivo completo (un CSV mensual debe caer en pocos meses)
+    function detectarOrdenFechas(textos) {
+        let a12 = false, b12 = false; const pares = [];
+        textos.forEach(v => {
+            if (typeof v !== 'string') return;
+            const p = v.trim().split(/[\/\-]/);
+            if (p.length !== 3 || p[2].length !== 4) return;
+            const a = +p[0], b = +p[1], y = +p[2]; if (!a || !b || !y) return;
+            if (a > 12) a12 = true; if (b > 12) b12 = true; pares.push([a, b, y]);
+        });
+        if (a12 && !b12) return { orden: 'dmy', ambiguo: false };
+        if (b12 && !a12) return { orden: 'mdy', ambiguo: false };
+        if (!pares.length) return { orden: 'dmy', ambiguo: false };
+        const mD = new Set(pares.map(([a, b, y]) => `${y}-${b}`)).size, mM = new Set(pares.map(([a, b, y]) => `${y}-${a}`)).size;
+        if (mM < mD) return { orden: 'mdy', ambiguo: false };
+        return { orden: 'dmy', ambiguo: mD === mM };
+    }
+    function limpiarEntero(v) {
+        if (v === null || v === undefined || v === '' || v === '-' || v === '—') return null;
+        if (typeof v === 'number') return isNaN(v) ? null : v;
+        const n = parseFloat(String(v).replace(/[\s,$%]/g, ''));
+        return isNaN(n) ? null : n;
+    }
+    const sinAcentos = t => String(t).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
+    const COLS = {
+        fecha: ['fecha', 'date'], canal: ['canal', 'channel'], pedido: ['pedido', 'order', 'folio', 'ticket'], cliente: ['cliente', 'customer'],
+        sku: ['sku', 'codigo', 'articulo', 'itemid'], producto: ['producto', 'descripcion', 'nombre', 'product'], categoria: ['categoria', 'category', 'departamento', 'linea'],
+        unidades: ['unidades', 'cantidad', 'qty', 'piezas', 'units'], venta: ['venta', 'importe', 'monto', 'revenue', 'ingreso', 'sales']
+    };
+    function normCanal(t) {
+        const x = sinAcentos(t); if (!x) return null;
+        if (/whatsapp|^wa$/.test(x)) return 'WhatsApp';
+        if (/llamad|telefon|call|callcenter|contactcenter/.test(x)) return 'Llamadas';
+        if (/^app|android|ios|iphone|movilapp|mobileapp/.test(x)) return 'App';
+        if (/web|sitio|ecom|pagina|online|digital/.test(x)) return 'Web';
+        return null;
+    }
+    function parsearLibro(wb) {
+        const adv = []; let omitidas = 0, lineas = 0, sinPedido = 0; const reg = new Map(), dia = new Map(), pedidosDia = new Map();
+        const filasPorHoja = wb.SheetNames.map(n => XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: '', raw: true }));
+        const fechaTextos = []; const cabs = filasPorHoja.map(h => { const cab = (h[0] || []).map(String); const idx = {}, usados = new Set();
+            Object.entries(COLS).forEach(([campo, pats]) => { const i = cab.findIndex((c, j) => !usados.has(j) && pats.some(p => sinAcentos(c).includes(p))); if (i >= 0) { idx[campo] = i; usados.add(i); } });
+            return idx; });
+        filasPorHoja.forEach((h, hi) => { const i = cabs[hi].fecha; if (i === undefined) return; for (let r = 1; r < h.length; r++) fechaTextos.push(h[r][i]); });
+        const { orden, ambiguo } = detectarOrdenFechas(fechaTextos);
+        if (ambiguo) adv.push('Las fechas del archivo son ambiguas (día/mes o mes/día); se interpretaron como día/mes/año. Revisa el periodo detectado.');
+        const ordenes = new Map(); const clientes = new Map(); let maxF = '0000', tieneCliente = false, tieneCanal = false;
+        const lineasOk = [];
+        filasPorHoja.forEach((h, hi) => {
+            if (h.length < 2) return; const idx = cabs[hi];
+            const faltan = ['fecha', 'pedido', 'sku', 'unidades', 'venta'].filter(c => idx[c] === undefined);
+            if (faltan.length) { adv.push(`Hoja "${wb.SheetNames[hi]}" omitida: faltan columnas obligatorias (${faltan.join(', ')}).`); return; }
+            if (idx.cliente !== undefined) tieneCliente = true; if (idx.canal !== undefined) tieneCanal = true;
+            if (idx.canal === undefined) adv.push('El archivo no trae columna Canal: se asumió Web.');
+            if (idx.categoria === undefined) adv.push('El archivo no trae columna Categoría: todo quedará como "Sin categoría" y no habrá análisis por categoría.');
+            for (let r = 1; r < h.length; r++) {
+                const row = h[r]; if (!row || row.every(x => x === '' || x === null)) continue; lineas++;
+                const f = normalizarFecha(row[idx.fecha], orden); if (!f) { omitidas++; if (adv.length < 60) adv.push(`Fila ${r + 1}: fecha inválida. Omitida.`); continue; }
+                const c = idx.canal !== undefined ? normCanal(row[idx.canal]) : 'Web'; if (!c) { omitidas++; if (adv.length < 60) adv.push(`Fila ${r + 1}: canal no reconocido ("${row[idx.canal]}"). Usa Web, App, WhatsApp o Llamadas. Omitida.`); continue; }
+                const ped = String(row[idx.pedido]).trim(); if (!ped) { omitidas++; sinPedido++; continue; }
+                const sku = String(row[idx.sku]).trim().slice(0, 60); if (!sku) { omitidas++; continue; }
+                const u = limpiarEntero(row[idx.unidades]), v = limpiarEntero(row[idx.venta]);
+                if (u === null || v === null) { omitidas++; if (adv.length < 60) adv.push(`Fila ${r + 1}: unidades o venta vacías. Omitida.`); continue; }
+                if (u < 0 || v < 0) { omitidas++; if (adv.length < 60) adv.push(`Fila ${r + 1}: valores negativos (devoluciones). Omitida.`); continue; }
+                const n = idx.producto !== undefined ? String(row[idx.producto]).trim().slice(0, 160) : ''; const cat = idx.categoria !== undefined ? (String(row[idx.categoria]).trim().slice(0, 80) || 'Sin categoría') : 'Sin categoría';
+                const cli = idx.cliente !== undefined ? String(row[idx.cliente]).trim() : '';
+                lineasOk.push([f, c, ped, sku, n, cat, u, v, cli]); if (f > maxF) maxF = f;
+            }
+        });
+        const ventanaCross = addDias(maxF, -27), ventanaRec = addDias(maxF, -89);
+        const minF = lineasOk.reduce((m, l) => l[0] < m ? l[0] : m, '9999-99-99');
+        const pedidosVentana = new Map(), pedidosSku = new Map(), pares = new Map(), cliSku = new Map(); const pedidosCross = new Set();
+        lineasOk.forEach(([f, c, ped, sku, n, cat, u, v, cli]) => {
+            const k = `${f}|${c}|${sku}`; let x = reg.get(k); if (!x) { x = { f, c, sku, n, cat, u: 0, v: 0, ps: new Set() }; reg.set(k, x); }
+            x.u += u; x.v += v; x.ps.add(ped); if (n) x.n = n;
+            const kd = `${f}|${c}`; let d = dia.get(kd); if (!d) { d = { f, c, u: 0, v: 0 }; dia.set(kd, d); pedidosDia.set(kd, new Set()); }
+            d.u += u; d.v += v; pedidosDia.get(kd).add(ped);
+            if (f >= ventanaCross) { const o = ordenes.get(ped) || new Set(); o.add(sku); ordenes.set(ped, o); }
+            if (cli && f >= ventanaRec) { const kc = `${sku}|${cli}`; const a = cliSku.get(kc); if (!a) cliSku.set(kc, [ped, null]); else if (a[0] !== ped && a[1] === null) a[1] = ped; }
+        });
+        const registros = [...reg.values()].map(({ ps, ...r }) => ({ ...r, p: ps.size }));
+        const dias = [...dia.entries()].map(([k, d]) => ({ ...d, p: pedidosDia.get(k).size }));
+        // Cross-selling: pares de productos en el mismo pedido (últimos 28 días del archivo)
+        let totalOrdenes = 0; const nombres = new Map(); registros.forEach(r => { if (r.n) nombres.set(r.sku, r.n); });
+        ordenes.forEach(set => { totalOrdenes++; set.forEach(s => pedidosSku.set(s, (pedidosSku.get(s) || 0) + 1));
+            if (set.size >= 2 && set.size <= 8) { const arr = [...set].sort(); for (let i = 0; i < arr.length; i++) for (let j = i + 1; j < arr.length; j++) { const kk = arr[i] + '\u0001' + arr[j]; pares.set(kk, (pares.get(kk) || 0) + 1); } } });
+        const diasCross = new Set(lineasOk.filter(l => l[0] >= ventanaCross).map(l => l[0])).size;
+        let cross = null;
+        if (diasCross >= 14) {
+            const lista = [...pares.entries()].filter(([, j]) => j >= 5).map(([kk, j]) => { const [a, b] = kk.split('\u0001'); const pa = pedidosSku.get(a), pb = pedidosSku.get(b);
+                const [anc, comp, pA, pB] = pa >= pb ? [a, b, pa, pb] : [b, a, pb, pa]; return { a: anc, b: comp, na: nombres.get(anc) || anc, nb: nombres.get(comp) || comp, j, pa: pA, pb: pB }; })
+                .sort((x, y) => y.j - x.j).slice(0, 60);
+            cross = { desde: ventanaCross > minF ? ventanaCross : minF, hasta: maxF, total: totalOrdenes, pares: lista };
+        } else adv.push('El archivo trae menos de 14 días: no se actualizó el análisis de cross-selling.');
+        let recompra = null; const diasRec = new Set(lineasOk.filter(l => l[0] >= ventanaRec).map(l => l[0])).size;
+        if (tieneCliente && diasRec >= 60) {
+            const por = new Map(); cliSku.forEach((a, kc) => { const sku = kc.split('|')[0]; const x = por.get(sku) || [0, 0]; x[0]++; if (a[1] !== null) x[1]++; por.set(sku, x); });
+            const porSku = {}; [...por.entries()].filter(([, x]) => x[0] >= 20).sort((x, y) => y[1][0] - x[1][0]).slice(0, 400).forEach(([sku, x]) => { porSku[sku] = [x[0], Math.round(x[1] / x[0] * 1000) / 10]; });
+            recompra = { desde: ventanaRec > minF ? ventanaRec : minF, hasta: maxF, porSku };
+        } else adv.push(tieneCliente ? 'El archivo trae menos de 60 días: no se actualizó la recompra.' : 'El archivo no trae cliente_id: no se calcula la recompra.');
+        if (sinPedido) adv.push(`${fmtN(sinPedido)} línea(s) sin pedido_id se omitieron (se necesita para ticket, UPT y cross-selling).`);
+        const lotes = new Set(registros.map(r => r.f)).size;
+        if (lotes < 28) adv.push(`El archivo cubre ${lotes} día(s). Para detectar productos sin movimiento la primera carga debe traer al menos 180 días.`);
+        return { registros, dias, cross, recompra, advertencias: adv, omitidas, lineas, tieneCliente, tieneCanal, pedidos: dias.reduce((s, d) => s + d.p, 0) };
+    }
+        function procesarArchivo(ev) {
+        const file = ev.target.files[0]; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = e => {
+            try {
+                if (!window.XLSX) throw new Error('XLSX no disponible');
+                const bytes = new Uint8Array(e.target.result);
+                let wb;
+                if (/\.csv$/i.test(file.name)) {
+                    // Los CSV se decodifican aquí: UTF-8 (con o sin BOM) y, si no es UTF-8 válido, Windows-1252 (CSV de Excel en español).
+                    let texto;
+                    try { texto = new TextDecoder('utf-8', { fatal: true }).decode(bytes); } catch (err) { texto = new TextDecoder('windows-1252').decode(bytes); }
+                    wb = XLSX.read(texto.replace(/^\uFEFF/, ''), { type: 'string', raw: true });
+                } else {
+                    wb = XLSX.read(bytes, { type: 'array', raw: true });
+                }
+                const res = parsearLibro(wb);
+                if (!res.registros.length) { toast(`❌ Importación rechazada: ${res.advertencias[0] || 'no se encontraron filas válidas.'}`); return; }
+                window._pendiente = { nombre: file.name, ...res };
+                abrirImport();
+            } catch (err) { console.error(err); toast('❌ No se pudo leer el archivo. Verifica que sea .csv o .xlsx válido.'); }
+            finally { ev.target.value = ''; }
+        };
+        reader.readAsArrayBuffer(file);
+    }
+    function abrirImport() {
+        const p = window._pendiente; const fechas = p.registros.map(r => r.f).sort();
+        document.getElementById('imp-sub').textContent = `Archivo: ${p.nombre} • Periodo: ${fechaCorta(fechas[0])} – ${fechaCorta(fechas[fechas.length - 1])} (${fechas[0].slice(0, 4)}) • ${fmtN(p.lineas)} líneas • ${fmtN(p.pedidos)} pedidos`;
+        document.getElementById('imp-validos').textContent = fmtN(p.registros.length); document.getElementById('imp-adv').textContent = fmtN(p.advertencias.length); document.getElementById('imp-omit').textContent = fmtN(p.omitidas);
+        const w = document.getElementById('imp-warn'); w.classList.toggle('hidden', !p.advertencias.length);
+        w.innerHTML = p.advertencias.slice(0, 40).map(a => `<div>• ${esc(a)}</div>`).join('') + (p.advertencias.length > 40 ? `<div class="font-bold">… y ${p.advertencias.length - 40} más.</div>` : '');
+        document.getElementById('imp-tbody').innerHTML = p.registros.slice(0, 8).map(r => `<tr><td class="px-3 py-1.5">${r.f}</td><td class="px-3 py-1.5">${r.c}</td><td class="px-3 py-1.5">${esc(r.sku)}</td><td class="px-3 py-1.5">${esc(r.n)}</td><td class="px-3 py-1.5">${esc(r.cat)}</td><td class="px-3 py-1.5 text-right">${fmtN(r.u)}</td><td class="px-3 py-1.5 text-right">${fmtN(r.v)}</td></tr>`).join('');
+        const m = document.getElementById('modal-import'); m.classList.remove('hidden'); m.classList.add('flex');
+    }
+    function cerrarImport() { const m = document.getElementById('modal-import'); m.classList.add('hidden'); m.classList.remove('flex'); window._pendiente = null; }
+    async function confirmarImport() {
+        const p = window._pendiente; if (!p) return;
+        const btn = document.getElementById('imp-confirmar'); btn.disabled = true; btn.textContent = 'Importando…';
+        try {
+            if (S.demo) salirDemo(true);
+            const ok = await subirNube(p);
+            const kr = r => `${r.f}|${r.c}|${r.sku}`, kd = r => `${r.f}|${r.c}`; const fechas = p.registros.map(r => r.f).sort(), canales = new Set(p.dias.map(d => d.c));
+            const dentro = r => r.f >= fechas[0] && r.f <= fechas[fechas.length - 1] && canales.has(r.c);
+            S.registros = S.registros.filter(r => !dentro(r)).concat(p.registros); S.dias = S.dias.filter(r => !dentro(r)).concat(p.dias);
+            if (p.cross) S.snap.cross = p.cross; if (p.recompra) S.snap.recompra = p.recompra;
+            S.mes = fechas[fechas.length - 1].slice(0, 7); S.corte = fechas[fechas.length - 1];
+            if (!S.rangoMin || fechas[0] < S.rangoMin) S.rangoMin = fechas[0]; if (!S.rangoMax || fechas[fechas.length - 1] > S.rangoMax) S.rangoMax = fechas[fechas.length - 1];
+            S.sinMov = null; guardarCacheLocal(); persistirEstado(); cerrarImport(); renderTodo(); await cargarPlanNube(); await cargarDerivados();
+            toast(ok ? `✅ ${fmtN(p.registros.length)} registros importados y guardados en la nube.` : `✅ ${fmtN(p.registros.length)} registros importados (solo en este equipo).`);
+        } catch (e) { console.error(e); toast('❌ No se pudo guardar la importación en la nube. No se aplicó ningún cambio.'); }
+        finally { btn.disabled = false; btn.textContent = 'Confirmar e importar'; }
+    }
+    function descargarMachote() {
+        const base = S.corte || hoyISO();
+        const filas = [['Fecha', 'Canal', 'Pedido_ID', 'Cliente_ID', 'SKU', 'Producto', 'Categoria', 'Unidades', 'Venta'],
+            [base, 'Web', 'P-10001', 'C-8a1f', 'DER-007', 'Protector solar FPS 50 120 ml', 'Dermocosmética', 1, 300], [base, 'Web', 'P-10001', 'C-8a1f', 'DER-022', 'Crema hidratante facial 50 ml', 'Dermocosmética', 1, 250],
+            [base, 'Web', 'P-10002', 'C-77b2', 'MED-014', 'Analgésico 500 mg 20 tab', 'Medicamentos', 2, 60], [base, 'App', 'P-10003', 'C-1c9d', 'BEB-003', 'Pañal etapa 3 mega 80 pzas', 'Bebé y maternidad', 1, 360],
+            [base, 'App', 'P-10003', 'C-1c9d', 'BEB-011', 'Toallitas húmedas 240 pzas', 'Bebé y maternidad', 2, 200], [base, 'WhatsApp', 'P-10004', 'C-5e44', 'VIT-005', 'Vitamina D3 2000 UI 60 cáps', 'Vitaminas y suplementos', 1, 190],
+            [base, 'Llamadas', 'P-10005', 'C-90aa', 'DIS-008', 'Baumanómetro de brazo', 'Dispositivos médicos', 1, 1500]];
+        descargarCSV('Machote_Comercial.csv', filas); toast('🧾 Machote descargado: una fila por línea de pedido.');
+    }
+
+    // =====================================================================
+    // 6. DATOS DE DEMOSTRACIÓN (no se guardan)
+    // =====================================================================
+    function generarDemo() {
+        let semilla = 424242; const rnd = () => { semilla = (semilla * 1664525 + 1013904223) % 4294967296; return semilla / 4294967296; };
+        // [sku, nombre, categoría, precio, unidades diarias base, tendencia reciente]
+        const P = [['MED-014', 'Analgésico 500 mg 20 tab', 'Medicamentos', 30, 60, 1], ['MED-031', 'Antigripal día/noche 12 tab', 'Medicamentos', 65, 28, 0.8], ['MED-044', 'Antiácido masticable 24 tab', 'Medicamentos', 48, 18, 1],
+            ['DER-007', 'Protector solar FPS 50 120 ml', 'Dermocosmética', 300, 14, 1.3], ['DER-022', 'Crema hidratante facial 50 ml', 'Dermocosmética', 250, 10, 1.1], ['DER-031', 'Serum vitamina C 30 ml', 'Dermocosmética', 380, 0, 1],
+            ['VIT-005', 'Vitamina D3 2000 UI 60 cáps', 'Vitaminas y suplementos', 190, 16, 1.25], ['VIT-019', 'Multivitamínico adulto 90 tab', 'Vitaminas y suplementos', 290, 8, 1], ['VIT-027', 'Colágeno hidrolizado 300 g', 'Vitaminas y suplementos', 420, 0, 1],
+            ['BEB-003', 'Pañal etapa 3 mega 80 pzas', 'Bebé y maternidad', 360, 12, 0.85], ['BEB-011', 'Toallitas húmedas 240 pzas', 'Bebé y maternidad', 100, 19, 1.05], ['BEB-019', 'Fórmula infantil etapa 1 800 g', 'Bebé y maternidad', 480, 7, 1],
+            ['CUI-009', 'Gel antibacterial 500 ml', 'Cuidado personal', 60, 24, 0.95], ['CUI-016', 'Shampoo anticaspa 400 ml', 'Cuidado personal', 160, 9, 1], ['CUI-033', 'Cepillo dental eléctrico', 'Cuidado personal', 520, 0, 1],
+            ['DIS-002', 'Termómetro digital', 'Dispositivos médicos', 300, 4, 1], ['DIS-008', 'Baumanómetro de brazo', 'Dispositivos médicos', 1500, 2, 1]];
+        const parados = { 'DER-031': 104, 'VIT-027': 118, 'CUI-033': 131 };   // últimos días con venta (hace N días)
+        const canales = [['Web', 0.58], ['App', 0.3], ['WhatsApp', 0.07], ['Llamadas', 0.05]];
+        const fin = hoyISO(); const registros = [], dias = [], planDia = {};
+        for (let i = 149; i >= 0; i--) {
+            const f = addDias(fin, -i); const dow = new Date(f + 'T00:00:00Z').getUTCDay(); const fds = (dow === 0 || dow === 6) ? 0.85 : 1;
+            for (const [c, sh] of canales) {
+                let U = 0, V = 0, sumaP = 0; const filas = [];
+                for (const [sku, n, cat, precio, base, tend] of P) {
+                    if (parados[sku] !== undefined) { if (i < parados[sku]) continue; if (i > parados[sku] + 90) continue; }
+                    const reciente = i < 7 ? tend : 1; const u = Math.round(base * sh * fds * reciente * (0.8 + rnd() * 0.4) * 1.0);
+                    const uu = (parados[sku] !== undefined) ? Math.max(1, Math.round(6 * sh * 3)) : u; if (uu <= 0) continue;
+                    const v = Math.round(uu * precio * (0.97 + rnd() * 0.06)); filas.push({ f, c, sku, n, cat, u: uu, v, p: Math.max(1, Math.round(uu * 0.85)) }); U += uu; V += v; sumaP += Math.max(1, Math.round(uu * 0.85));
+                }
+                if (!filas.length) continue; const ped = Math.max(1, Math.round(U / (2.2 + rnd() * 0.2) * (i < 7 ? 1.06 : 1)));
+                filas.forEach(r => { r.p = Math.min(r.p, ped); registros.push(r); }); dias.push({ f, c, p: ped, u: U, v: V });
+                planDia[`${c}|${f}`] = Math.round(V * (i < 28 ? 1.03 : 1.0));
+            }
+        }
+        const pares = [['DER-007', 'DER-022', 210, 790, 500], ['BEB-003', 'BEB-011', 330, 600, 930], ['VIT-005', 'VIT-019', 150, 860, 390], ['MED-031', 'MED-014', 390, 1250, 2600], ['CUI-009', 'CUI-016', 95, 1020, 480]]
+            .map(([a, b, j, pa, pb]) => ({ a, b, na: P.find(x => x[0] === a)[1], nb: P.find(x => x[0] === b)[1], j, pa, pb }));
+        const recompra = {}; P.forEach(x => { if (x[4] > 0) recompra[x[0]] = [60 + Math.round(rnd() * 200), Math.round((10 + rnd() * 45) * 10) / 10]; });
+        return { registros, dias, planDia, cross: { desde: addDias(fin, -27), hasta: fin, total: 4700, pares }, recompra: { desde: addDias(fin, -89), hasta: fin, porSku: recompra } };
+    }
+    function entrarDemo() {
+        const d = generarDemo(); S.demo = true; S.registros = d.registros; S.dias = d.dias; S.planDia = d.planDia; S.planOk = true;
+        S.snap = { cross: d.cross, recompra: d.recompra }; S.mes = hoyISO().slice(0, 7); S.corte = hoyISO(); S.rangoMin = null; S.rangoMax = null; S.shareBase = {}; S.sinMov = null;
+        renderTodo(); toast('Modo demostración activado.');
+    }
+    function salirDemo(silencioso) {
+        S.demo = false; S.registros = []; S.dias = []; S.planDia = {}; S.planOk = false; S.mes = null; S.corte = null; S.snap = { cross: null, recompra: null }; S.shareBase = {}; S.sinMov = null;
+        if (!silencioso) { cargarCacheLocal(); (async () => { await cargarRegistrosNube(); await cargarPlanNube(); renderTodo(); await cargarDerivados(); })(); renderTodo(); }
+    }
+
+    // =====================================================================
+    // 7. PERSISTENCIA: caché local + Supabase (clave compartida)
+    // =====================================================================
+    const NUBE = {
+        url: 'https://vwbhwiivynuzzxsosjgd.supabase.co',
+        key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3Ymh3aWl2eW51enp4c29zamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTU1MzMwNjgsImV4cCI6MjExMTEwOTA2OH0.a-CP2pogi2x3zHmp0l6ErDiACTUPOLQv4OsnC-B_QbM',
+        client: null, activo: false, version: 0, timer: null, guardando: false
+    };
+        function nubeEstado(texto, tono) {
+        const el = document.getElementById('nube-estado'); el.textContent = texto;
+        el.className = 'fixed bottom-5 left-5 z-40 px-2.5 py-1 rounded-lg bg-white/90 border text-[11px] font-semibold shadow-sm ' + (tono === 'error' ? 'border-rose-300 text-rose-700' : tono === 'ok' ? 'border-emerald-300 text-emerald-700' : 'border-slate-200 text-slate-600');
+    }
+    function guardarCacheLocal() { if (S.demo) return; try { localStorage.setItem(CACHE_KEY, JSON.stringify({ a: S.acciones, c: S.config, m: S.metas, s: S.snap })); } catch (e) {} }
+    function cargarCacheLocal() {
+        try { const d = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); if (!d) return;
+            S.acciones = d.a || []; S.config = Object.assign(S.config, d.c || {}); S.metas = d.m || {}; S.snap = Object.assign({ cross: null, recompra: null }, d.s || {}); } catch (e) {}
+    }
+    const filaRegDeBD = r => ({ f: r.fecha, c: r.canal, sku: r.sku, n: r.producto, cat: r.categoria, u: Number(r.unidades), v: Number(r.venta), p: r.pedidos });
+    const filaDiaDeBD = r => ({ f: r.fecha, c: r.canal, p: r.pedidos, u: Number(r.unidades), v: Number(r.venta) });
+    async function paginar(tabla, desde, hasta, orden) {
+        const out = []; let pagina = 0;
+        for (;;) {
+            const { data, error } = await NUBE.client.from(tabla).select('*').gte('fecha', desde).lte('fecha', hasta).order('fecha').order('canal').order(orden).range(pagina * 1000, pagina * 1000 + 999);
+            if (error) throw error; out.push(...data); if (data.length < 1000) break; pagina++;
+        }
+        return out;
+    }
+    async function cargarRegistrosNube() {
+        if (!NUBE.activo || S.demo) return;
+        try {
+            const [mn, mx] = await Promise.all([NUBE.client.from('comercial_dia').select('fecha').order('fecha', { ascending: true }).limit(1), NUBE.client.from('comercial_dia').select('fecha').order('fecha', { ascending: false }).limit(1)]);
+            if (mn.error) throw mn.error; if (mx.error) throw mx.error;
+            S.rangoMin = mn.data[0]?.fecha || null; S.rangoMax = mx.data[0]?.fecha || null;
+            if (!S.rangoMax) { S.registros = []; S.dias = []; return; }
+            if (!S.mes) S.mes = S.rangoMax.slice(0, 7);
+            const desde = addDias(`${S.mes}-01`, -35), hasta = finMes(S.mes);
+            nubeEstado('☁️ Cargando datos…');
+            const [dias, regs] = await Promise.all([paginar('comercial_dia', desde, hasta, 'canal'), paginar('comercial_registros', desde, hasta, 'sku')]);
+            S.dias = dias.map(filaDiaDeBD); S.registros = regs.map(filaRegDeBD); nubeEstado('☁️ Sincronizado', 'ok');
+        } catch (e) { console.error(e); nubeEstado('⚠️ Sin conexión: no se pudieron cargar los datos', 'error'); }
+    }
+    // Plan de venta diario de la Revisión Diaria (tablero_estado.historico[mes][canal][día].ventaPlan)
+    async function cargarPlanNube() {
+        if (!NUBE.activo || S.demo) return;
+        try {
+            const { data, error } = await NUBE.client.from('tablero_estado').select('historico').eq('id', 'principal').maybeSingle(); if (error) throw error;
+            const h = (data && data.historico) || {}; const plan = {}; let hay = false;
+            Object.values(h).forEach(mes => Object.entries(PLAN_KEY).forEach(([k, canal]) => (mes[k] || []).forEach(d => { if (d.ventaPlan > 0) { plan[`${canal}|${d.fecha}`] = d.ventaPlan; hay = true; } })));
+            S.planDia = plan; S.planOk = hay;
+        } catch (e) { console.error(e); S.planOk = false; }
+    }
+    // Cálculos que se resuelven en la base: share para repartir la meta y productos sin movimiento
+    async function cargarDerivados() {
+        if (!NUBE.activo || S.demo || !S.mes) return;
+        try {
+            const canales = S.canal === 'Total' ? CANALES_DATO : [S.canal], clave = `${S.canal}|${S.mes}`;
+            if (!S.shareBase[clave]) {
+                const { data, error } = await NUBE.client.rpc('comercial_share_categorias', { p_desde: addDias(`${S.mes}-01`, -90), p_hasta: addDias(`${S.mes}-01`, -1), p_canales: canales });
+                if (error) throw error; const o = {}; data.forEach(r => { o[r.categoria] = Number(r.venta); }); S.shareBase[clave] = o;
+            }
+            if (S.corte && (!S.sinMov || S.sinMovCorte !== S.corte)) {
+                const { data, error } = await NUBE.client.rpc('comercial_sin_movimiento', { p_corte: S.corte, p_dias: 30 });
+                if (error) throw error; S.sinMov = data.map(r => ({ sku: r.sku, n: r.producto, cat: r.categoria, ultima: r.ultima_venta, dias: r.dias, prev: Number(r.venta_previa) })); S.sinMovCorte = S.corte;
+            }
+            renderTodo();
+        } catch (e) { console.error(e); }
+    }
+    async function subirNube(p) {
+        if (!NUBE.activo) return false;
+        const fechas = p.registros.map(r => r.f).sort(), canales = [...new Set(p.dias.map(d => d.c))];
+        nubeEstado('☁️ Preparando…');
+        for (const tabla of ['comercial_registros', 'comercial_dia']) {
+            const { error } = await NUBE.client.from(tabla).delete().gte('fecha', fechas[0]).lte('fecha', fechas[fechas.length - 1]).in('canal', canales); if (error) throw error;
+        }
+        const filasD = p.dias.map(d => ({ fecha: d.f, canal: d.c, pedidos: d.p, unidades: d.u, venta: Math.round(d.v * 100) / 100 }));
+        const { error: eD } = await NUBE.client.from('comercial_dia').upsert(filasD, { onConflict: 'fecha,canal' }); if (eD) throw eD;
+        const filas = p.registros.map(r => ({ fecha: r.f, canal: r.c, sku: r.sku, producto: r.n, categoria: r.cat, unidades: r.u, venta: Math.round(r.v * 100) / 100, pedidos: r.p }));
+        for (let i = 0; i < filas.length; i += 1000) {
+            const { error } = await NUBE.client.from('comercial_registros').upsert(filas.slice(i, i + 1000), { onConflict: 'fecha,canal,sku' }); if (error) throw error;
+            nubeEstado(`☁️ Subiendo ${fmtN(Math.min(i + 1000, filas.length))} / ${fmtN(filas.length)}…`);
+        }
+        nubeEstado('☁️ Sincronizado', 'ok'); return true;
+    }
+    async function cargarEstadoNube() {
+        const { data, error } = await NUBE.client.from('comercial_estado').select('*').eq('id', 'principal').maybeSingle(); if (error) throw error;
+        if (data) { S.acciones = data.acciones || []; const c = data.config || {}; S.metas = c.metas || {}; const { metas, ...resto } = c; S.config = Object.assign(S.config, resto); S.snap = Object.assign({ cross: null, recompra: null }, data.snapshots || {}); NUBE.version = data.version; return; }
+        const ins = await NUBE.client.from('comercial_estado').insert({ id: 'principal', acciones: S.acciones, config: { ...S.config, metas: S.metas }, snapshots: S.snap, version: 1 });
+        if (ins.error && ins.error.code !== '23505') throw ins.error; NUBE.version = 1;
+    }
+    function persistirEstado() { guardarCacheLocal(); if (!NUBE.activo || S.demo) return; clearTimeout(NUBE.timer); NUBE.timer = setTimeout(guardarEstadoNube, 800); }
+    async function guardarEstadoNube() {
+        NUBE.timer = null; if (NUBE.guardando) { NUBE.timer = setTimeout(guardarEstadoNube, 1500); return; }
+        NUBE.guardando = true; nubeEstado('☁️ Guardando…');
+        try {
+            const { data, error } = await NUBE.client.from('comercial_estado').update({ acciones: S.acciones, config: { ...S.config, metas: S.metas }, snapshots: S.snap, version: NUBE.version + 1, actualizado_en: new Date().toISOString() })
+                .eq('id', 'principal').eq('version', NUBE.version).select('version'); if (error) throw error;
+            if (!data || !data.length) { await cargarEstadoNube(); renderTodo(); nubeEstado('⚠️ Otro usuario modificó los datos', 'error'); toast('⚠️ Otra persona guardó cambios antes que tú. Se cargó la versión más reciente; repite tu último cambio.'); }
+            else { NUBE.version = data[0].version; nubeEstado('☁️ Sincronizado', 'ok'); }
+        } catch (e) { console.error(e); nubeEstado('⚠️ Sin conexión: guardado solo en este equipo', 'error'); } finally { NUBE.guardando = false; }
+    }
+        function nubeOverlay(mostrar, error) {
+        const o = document.getElementById('nube-overlay'); o.classList.toggle('hidden', !mostrar); o.classList.toggle('flex', mostrar);
+        const e = document.getElementById('nube-error'); e.textContent = error || ''; e.classList.toggle('hidden', !error);
+        if (mostrar) document.getElementById('nube-clave').focus();
+    }
+    async function nubeEntrar() {
+        NUBE.activo = true; nubeOverlay(false);
+        await cargarEstadoNube(); await cargarRegistrosNube(); await cargarPlanNube(); renderTodo(); await cargarDerivados();
+        if (!S.dias.length) nubeEstado('☁️ Conectado (aún sin datos comerciales)', 'ok');
+    }
+        async function nubeArrancar() {
+        if (!window.supabase) { nubeEstado('Modo local (sin conexión a la nube)', 'error'); return; }
+        try {
+            NUBE.client = window.supabase.createClient(NUBE.url, NUBE.key, { auth: { persistSession: true, autoRefreshToken: true } });
+            const { data: { session } } = await NUBE.client.auth.getSession();
+            if (!session) { const { error } = await NUBE.client.auth.signInAnonymously(); if (error) throw error; }
+            const { data: ok, error: errAut } = await NUBE.client.rpc('tablero_es_dispositivo_autorizado'); if (errAut) throw errAut;
+            if (!ok) { nubeOverlay(true); return; }
+            await nubeEntrar();
+        } catch (e) { console.error(e); nubeEstado('Modo local (sin conexión a la nube)', 'error'); }
+    }
+    document.getElementById('nube-form').addEventListener('submit', async ev => {
+        ev.preventDefault(); const b = document.getElementById('nube-boton'); b.disabled = true;
+        try {
+            const { data, error } = await NUBE.client.rpc('tablero_activar', { codigo: document.getElementById('nube-clave').value });
+            if (error) throw error;
+            if (data === 'ok' || data === 'definida') { document.getElementById('nube-clave').value = ''; await nubeEntrar(); }
+            else nubeOverlay(true, { incorrecta: 'Clave incorrecta.', bloqueado: 'Demasiados intentos. Espera 15 minutos.', corta: 'La clave debe tener al menos 12 caracteres.' }[data] || 'No se pudo validar la clave.');
+        } catch (e) { console.error(e); nubeOverlay(true, 'No se pudo conectar. Revisa tu conexión.'); }
+        finally { b.disabled = false; }
+    });
+
+        // =====================================================================
+    // 8. DESCARGA DE PDF (captura fiel de todas las vistas de análisis)
+    // =====================================================================
+    let _cssFuentesPDF = null;
+    async function obtenerCSSFuentesPDF() {
+        if (_cssFuentesPDF !== null) return _cssFuentesPDF; _cssFuentesPDF = '';
+        try {
+            const link = document.querySelector('link[href*="fonts.googleapis.com/css"]'); if (!link) return _cssFuentesPDF;
+            const css = await (await fetch(link.href)).text(); const cache = {};
+            for (const b of css.split('@font-face').slice(1).map(x => '@font-face' + x)) {
+                const m = b.match(/url\((https:[^)]+)\)/); if (!m) continue;
+                if (!(/unicode-range:[^;]*U\+0000-00FF/i.test(b) || /unicode-range:[^;]*U\+0100-02/i.test(b))) continue;
+                if (!cache[m[1]]) { const blob = await (await fetch(m[1])).blob(); cache[m[1]] = await new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(blob); }); }
+                _cssFuentesPDF += b.replace(m[1], cache[m[1]]) + '\n';
+            }
+        } catch (e) { console.warn('No se pudieron incrustar las fuentes para el PDF.', e); _cssFuentesPDF = ''; }
+        return _cssFuentesPDF;
+    }
+    // Captura de la pantalla SIN alturas congeladas. La librería fija en px el alto de cada bloque según la medida de pantalla; si en la
+    // captura una palabra baja de renglón (el texto se mide con una diferencia mínima), el bloque no crece y el texto se encima con el
+    // siguiente. Aquí se quita el alto fijo de todo bloque que contiene texto, para que se acomode al contenido real.
+    async function capturarPantallaPDF(el, ancho, alto, escalaMax, cssFuentes, quitarAlturas = true) {
+        const opciones = { pixelRatio: 1, backgroundColor: '#f8fafc', width: ancho, height: alto,
+            ...(cssFuentes ? { fontEmbedCSS: cssFuentes } : {}),
+            filter: (n) => !(n.id === 'nube-overlay' || n.id === 'toast' || n.id === 'nube-estado') };
+        const svgUrl = await window.htmlToImage.toSvg(el, opciones);
+        const svgTexto = decodeURIComponent(svgUrl.substring(svgUrl.indexOf(',') + 1));
+        const doc = new DOMParser().parseFromString(svgTexto, 'image/svg+xml');
+        if (doc.querySelector('parsererror')) throw new Error('SVG inválido');
+        const extra = Math.round(alto * 0.06) + 240;           // margen por si algún bloque crece al acomodar el texto
+        const altoTotal = alto + extra;
+        if (quitarAlturas) {
+            const ALTURAS = /(^|;)\s*(height|min-height|max-height|block-size|min-block-size|max-block-size)\s*:[^;]*/gi;
+            doc.querySelectorAll('foreignObject *').forEach(n => {
+                const estilo = n.getAttribute && n.getAttribute('style');
+                if (estilo && (n.textContent || '').trim()) n.setAttribute('style', estilo.replace(ALTURAS, '$1'));
+            });
+        }
+        const raiz = doc.documentElement;
+        raiz.setAttribute('height', String(altoTotal)); raiz.setAttribute('viewBox', `0 0 ${ancho} ${altoTotal}`);
+        const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(doc));
+        const img = await new Promise((ok, fallo) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => fallo(new Error('No se pudo dibujar la captura')); i.src = url; });
+        const escala = Math.min(escalaMax, 15000 / altoTotal, 15000 / ancho);
+        const lienzo = document.createElement('canvas'); lienzo.width = Math.round(ancho * escala); lienzo.height = Math.round(altoTotal * escala);
+        const ctx = lienzo.getContext('2d'); ctx.fillStyle = '#f8fafc'; ctx.fillRect(0, 0, lienzo.width, lienzo.height);
+        ctx.drawImage(img, 0, 0, lienzo.width, lienzo.height);
+        // Se recorta el espacio en blanco sobrante al final (primera fila, de abajo hacia arriba, con algo distinto al fondo)
+        let ultima = lienzo.height - 1;
+        for (; ultima > 0; ultima--) {
+            const fila = ctx.getImageData(0, ultima, lienzo.width, 1).data; let hay = false;
+            for (let x = 0; x < fila.length; x += 4) { if (Math.abs(fila[x] - 248) + Math.abs(fila[x + 1] - 250) + Math.abs(fila[x + 2] - 252) > 6) { hay = true; break; } }
+            if (hay) break;
+        }
+        const altoRecorte = Math.min(lienzo.height, ultima + Math.round(24 * escala));
+        const recorte = document.createElement('canvas'); recorte.width = lienzo.width; recorte.height = altoRecorte;
+        recorte.getContext('2d').drawImage(lienzo, 0, 0);
+        return { canvas: recorte, escala };
+    }
+
+    async function descargarPDF() {
+        const btn = document.getElementById('btn-pdf'), label = document.getElementById('btn-pdf-label');
+        if (!window.htmlToImage || !window.jspdf) { toast('⚠️ No se pudieron cargar las librerías del PDF. Revisa tu conexión.'); return; }
+        if (!S.dias.length) { toast('Carga datos (o entra a la demostración) antes de descargar el PDF.'); return; }
+        btn.disabled = true; label.textContent = 'Generando…';
+        try {
+            window.scrollTo(0, 0);
+            const css = await obtenerCSSFuentesPDF(); if (document.fonts && document.fonts.ready) await document.fonts.ready;
+            document.body.classList.add('pdf-modo'); if (S.chart) S.chart.resize();
+            await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+            const el = document.body, ancho = Math.max(el.scrollWidth, document.documentElement.clientWidth), alto = el.scrollHeight;
+            const escala = Math.min(2, 15000 / alto, 15000 / ancho);
+            const { canvas, escala: esc2 } = await capturarPantallaPDF(el, ancho, alto, 2, css);
+            const altoFinal = canvas.height / esc2;
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF({ orientation: ancho > altoFinal ? 'landscape' : 'portrait', unit: 'px', format: [ancho, altoFinal], compress: true });
+            pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, ancho, altoFinal);
+            pdf.save(`Comercial_${S.mes}_corte_${S.corte}.pdf`); toast('📄 PDF descargado.');
+        } catch (e) { console.error(e); toast('❌ No se pudo generar el PDF.'); }
+        finally { document.body.classList.remove('pdf-modo'); if (S.chart) S.chart.resize(); btn.disabled = false; label.textContent = 'Descargar PDF'; }
+    }
+
+    // =====================================================================
+    // 9. ARRANQUE
+    // =====================================================================
+    window.addEventListener('load', () => {
+        cargarCacheLocal(); renderTodo(); nubeArrancar();
+        document.addEventListener('visibilitychange', async () => { if (!document.hidden && NUBE.activo && !S.demo && !NUBE.timer) { await cargarRegistrosNube(); await cargarPlanNube(); renderTodo(); } });
+    });
+
+    </script>
+</body>
+</html>
