@@ -284,7 +284,7 @@
     const S = {
         registros: [], dias: [], acciones: [], metas: {}, snap: { cross: null, recompra: null }, planDia: {}, planOk: false,
         config: { umbral: 5, impactoAlto: 1, impactoMedio: 0.3, cabeza: 50, crec: 5, sinMovDias: 90 },
-        shareBase: {}, sinMov: null, mes: null, corte: null, canal: 'Total', ventana: 7, vista: 'resumen',
+        shareBase: {}, sinMov: null, yoy: {}, realRev: {}, mes: null, corte: null, canal: 'Total', ventana: 7, vista: 'resumen',
         demo: false, rangoMin: null, rangoMax: null, chart: null, filtroTipo: 'todos', verTodosProd: false
     };
 
@@ -363,9 +363,49 @@
         return tmp;
     }
 
+    // Mismo periodo del año anterior, alineado por día de la semana (364 días atrás)
+    const DESFASE_YOY = 364;
+    function yoyDe(V) {
+        const ini = addDias(V.ini, -DESFASE_YOY), fin = addDias(V.fin, -DESFASE_YOY), minDias = Math.ceil(V.dias * 0.7);
+        const enR = r => r.f >= ini && r.f <= fin && okC(r.c);
+        let dias = S.dias.filter(enR), regs = null;
+        if (new Set(dias.map(r => r.f)).size >= minDias) regs = S.registros.filter(enR);
+        else { const c = S.yoy[`${ini}|${fin}`]; if (c) { dias = c.dias.filter(r => okC(r.c)); regs = c.regs.filter(r => okC(r.c)); } else return null; }
+        const n = new Set(dias.map(r => r.f)).size; if (n < minDias) return null;
+        return { ini, fin, n, dias, regs, esc: V.dias / n };
+    }
+    // Control de integridad: la venta de Comercial contra la venta real capturada en la Revisión Diaria, solo en los días que ambos tienen
+    function integridad(V, todos) {
+        const por = []; const faltan = new Set(); let rev = 0, com = 0;
+        (todos ? CANALES_DATO : CANALES_DATO.filter(okC)).forEach(c => {
+            let r = 0, m = 0;
+            for (let f = V.ini; f <= V.fin; f = addDias(f, 1)) {
+                const x = S.realRev[`${c}|${f}`]; if (!(x > 0)) continue;
+                const dia = S.dias.find(d => d.f === f && d.c === c);
+                if (!dia) { faltan.add(f); continue; } r += x; m += dia.v;
+            }
+            if (r > 0) { por.push({ c, rev: r, com: m, dif: (m - r) / r * 100 }); rev += r; com += m; }
+        });
+        if (!por.length && !faltan.size) return null;
+        const dif = rev > 0 ? (com - rev) / rev * 100 : null;
+        const nivel = faltan.size ? 'rojo' : dif === null ? 'gris' : Math.abs(dif) <= 1 ? 'verde' : Math.abs(dif) <= 3 ? 'ambar' : 'rojo';
+        return { por, rev, com, dif, faltan: [...faltan].sort(), nivel };
+    }
+    // Variación normal semanal de una categoría: 4 bloques de 7 días del benchmark, escalados a la ventana
+    function ruidoCategoria(V) {
+        const bl = {}; V.rB.forEach(r => { const k = Math.min(3, Math.floor((Date.parse(V.bFin) - Date.parse(r.f)) / 86400000 / 7)); (bl[r.cat] = bl[r.cat] || [0, 0, 0, 0])[k] += r.v; });
+        const esc = V.dias / 7, out = {};
+        Object.entries(bl).forEach(([cat, b]) => { const mu = b.reduce((s, x) => s + x, 0) / 4; const sd = Math.sqrt(b.reduce((s, x) => s + (x - mu) ** 2, 0) / 3);
+            out[cat] = { mu: mu * esc, sd: Math.max(sd, mu * 0.01) * esc }; });
+        return out;
+    }
+
     function analizar() {
         const V = ventanas(), hay = V.hayBase;
         const T = sumaDias(V.dA), B0 = sumaDias(V.dB);
+        const YD = yoyDe(V); const Y0 = YD ? sumaDias(YD.dias) : null; const Y = Y0 ? { p: Y0.p * YD.esc, u: Y0.u * YD.esc, v: Y0.v * YD.esc } : null;
+        const kY = Y ? { aov: razon(Y.v, Y.p), upt: razon(Y.u, Y.p), aur: razon(Y.v, Y.u) } : null;
+        const ruido = ruidoCategoria(V); const yCat = {}; if (YD) YD.regs.forEach(r => { yCat[r.cat] = (yCat[r.cat] || 0) + r.v * YD.esc; });
         const B = hay ? { p: B0.p * V.esc, u: B0.u * V.esc, v: B0.v * V.esc } : null;
         const kp = (t) => t ? { aov: razon(t.v, t.p), upt: razon(t.u, t.p), aur: razon(t.v, t.u) } : null;
         const k = kp(T), kb = kp(B);
@@ -387,7 +427,8 @@
         const cats = nombres.map(n => {
             const a = mA.get(n) || { v: 0, u: 0 }, b = mB.get(n); const vb = hay ? (b ? b.v * V.esc : 0) : null;
             const meta = planVent > 0 ? planVent * final[n] / 100 : null;
-            return { n, v: a.v, u: a.u, vb, g: vb > 0 ? (a.v / vb - 1) * 100 : null, sh: vRows > 0 ? a.v / vRows * 100 : 0,
+            const rz = ruido[n], z = rz ? (a.v - rz.mu) / rz.sd : null, yv = YD ? (yCat[n] || 0) : null;
+            return { z, yv, gY: yv > 0 ? (a.v / yv - 1) * 100 : null, n, v: a.v, u: a.u, vb, g: vb > 0 ? (a.v / vb - 1) * 100 : null, sh: vRows > 0 ? a.v / vRows * 100 : 0,
                 shb: vbRows > 0 && vb !== null ? vb / vbRows * 100 : null, ctr: vbRows > 0 && vb !== null ? (a.v - vb) / vbRows * 100 : null,
                 aur: razon(a.v, a.u), baseSh: base.sh[n], finalSh: final[n], meta, cumpl: meta > 0 ? a.v / meta * 100 : null,
                 metaMes: planMes > 0 ? planMes * final[n] / 100 : null };
@@ -416,7 +457,7 @@
         const conD = lista.filter(x => x.d !== null);
         const top = [...conD].sort((a, b) => b.d - a.d).slice(0, 10), bottom = [...conD].sort((a, b) => a.d - b.d).slice(0, 10);
 
-        const A = { V, hay, T, B, k, kb, comp, cats, vRows, vbRows, planVent, planMes, baseOrigen: base.origen, productos: orden, top, bottom };
+        const A = { Y, kY, YD, integridad: integridad(V), V, hay, T, B, k, kb, comp, cats, vRows, vbRows, planVent, planMes, baseOrigen: base.origen, productos: orden, top, bottom };
         A.canales = porCanal(V);
         A.sinMov = sinMovimiento();
         A.cross = parejasCross();
@@ -426,13 +467,21 @@
     }
     function porCanal(V) {
         const base = S.dias.filter(r => r.f >= V.ini && r.f <= V.fin), ref = S.dias.filter(r => r.f >= V.bIni && r.f <= V.bFin);
-        const totA = sumaDias(base);
+        const totA = sumaDias(base); const INTEG_TODOS = integridad(V, true) || { por: [] };
         return CANALES_DATO.map(c => {
             const a = sumaDias(base.filter(r => r.c === c)), b0 = sumaDias(ref.filter(r => r.c === c));
             const b = V.hayBase ? { p: b0.p * V.esc, v: b0.v * V.esc } : null;
             const plan = S.planOk ? planDe(V.ini, V.fin, [c]) : 0;
-            return { c, ...a, aov: razon(a.v, a.p), g: b ? deltaRel(a.v, b.v) : null, sh: totA.v > 0 ? a.v / totA.v * 100 : 0, plan, cumpl: plan > 0 ? a.v / plan * 100 : null };
+            return { c, ...a, aov: razon(a.v, a.p), g: b ? deltaRel(a.v, b.v) : null, gY: gYcanal(c, V, a), integ: (INTEG_TODOS.por.find(x => x.c === c) || null), sh: totA.v > 0 ? a.v / totA.v * 100 : 0, plan, cumpl: plan > 0 ? a.v / plan * 100 : null };
         });
+    }
+    // Año anterior por canal (sin importar el filtro de canal activo)
+    function gYcanal(c, V, a) {
+        const ini = addDias(V.ini, -DESFASE_YOY), fin = addDias(V.fin, -DESFASE_YOY);
+        let filas = S.dias.filter(r => r.f >= ini && r.f <= fin && r.c === c);
+        if (new Set(filas.map(r => r.f)).size < Math.ceil(V.dias * 0.7)) { const cc = S.yoy[`${ini}|${fin}`]; filas = cc ? cc.dias.filter(r => r.c === c) : []; }
+        const n = new Set(filas.map(r => r.f)).size; if (n < Math.ceil(V.dias * 0.7)) return null;
+        const y = filas.reduce((s, r) => s + r.v, 0) * V.dias / n; return y > 0 ? (a.v / y - 1) * 100 : null;
     }
     // Productos que vendían y llevan 90+ días sin venta
     function sinMovimiento() {
@@ -458,41 +507,57 @@
     function nivelPorImpacto(pp) { return pp >= S.config.impactoAlto ? 'alta' : pp >= S.config.impactoMedio ? 'media' : 'baja'; }
     let A_ULTIMO = null;
 
+    const bajarNivel = n => n === 'alta' ? 'media' : 'baja';
+    const txtDelta = d => d === null || d === undefined ? '' : `${d >= 0 ? '+' : '−'}${Math.abs(d).toFixed(1)}%`;
     function construirAlertas(A) {
         const out = [], u = S.config.umbral, VB = A.vbRows;
+        // Integridad de datos: si la venta no cuadra con la Revisión Diaria, lo demás puede estar mal
+        const ig = A.integridad;
+        if (ig && ig.nivel === 'rojo') out.push({ nivel: 'alta', imp: 99, tipo: 'Datos', titulo: 'La venta no cuadra con la Revisión Diaria',
+            titular: ig.faltan.length ? `Faltan ${ig.faltan.length} día(s) en Comercial que sí tienen venta capturada en la Revisión Diaria.` : `La venta de Comercial difiere ${txtDelta(ig.dif)} de la venta real de la Revisión Diaria.`,
+            lineas: [`Comercial ${fmtM(ig.com)} contra Revisión Diaria ${fmtM(ig.rev)} en los días que ambos tienen.`, ig.faltan.length ? `Días sin datos en Comercial: ${ig.faltan.slice(0, 6).map(fechaCorta).join(', ')}${ig.faltan.length > 6 ? '…' : ''}.` : 'Puede ser una carga incompleta o devoluciones tratadas distinto.'],
+            revisar: 'Vuelve a cargar el CSV de esas fechas antes de confiar en las demás alertas.', detalle: 'Comercial no cuadra con la Revisión Diaria.' });
         A.cats.forEach(c => {
             const cae = c.g !== null && c.g <= -u && c.sh >= 1 && c.vb > 0;
             const bajoMeta = c.cumpl !== null && c.cumpl < 90;
             if (!cae && !bajoMeta) return;
             const impCaida = cae && VB > 0 ? Math.abs(c.v - c.vb) / VB * 100 : 0;
             const impMeta = bajoMeta && A.planVent > 0 ? (c.meta - c.v) / A.planVent * 100 : 0;
-            const imp = Math.max(impCaida, impMeta); const lineas = [];
+            const imp = Math.max(impCaida, impMeta); let nivel = nivelPorImpacto(imp); const lineas = [];
+            // Si la caída cae dentro de lo que la categoría suele moverse de una semana a otra, se baja un nivel
+            const dentro = c.z !== null && c.z > -1.5, normal = cae && !bajoMeta && dentro;
+            if (normal) nivel = bajarNivel(nivel);
             if (cae) lineas.push(`Vendió ${fmtM(c.v)}; a su ritmo normal serían ${fmtM(c.vb)} (${fmtM(c.v - c.vb)}).`);
             if (cae && c.shb !== null) lineas.push(`Su participación en la venta pasó de ${fmtP(c.shb)} a ${fmtP(c.sh)}.`);
             if (bajoMeta) lineas.push(`Va al ${fmtMeta(c.cumpl)} de su meta de la ventana (${fmtM(c.meta)}).`);
-            out.push({ nivel: nivelPorImpacto(imp), imp, tipo: 'Categoría', titulo: c.n,
+            if (c.gY !== null) lineas.push(`Contra el mismo periodo del año anterior: ${txtDelta(c.gY)}.`);
+            if (cae && c.z !== null) lineas.push(dentro ? 'La caída está dentro de lo que la categoría suele moverse de una semana a otra.' : `Está fuera de su variación normal (${Math.abs(c.z).toFixed(1)} desviaciones por debajo de lo habitual).`);
+            out.push({ nivel, imp, tipo: 'Categoría', titulo: c.n,
                 titular: cae ? `${c.n} vende ${Math.abs(c.g).toFixed(1)}% menos que su ritmo normal y resta ${Math.abs(c.ctr).toFixed(1)} pp al crecimiento de la venta.` : `${c.n} va al ${fmtMeta(c.cumpl)} de su meta y deja sin cubrir ${impMeta.toFixed(1)} pp de la meta total.`,
                 lineas, revisar: 'Disponibilidad, precio frente a competencia y exhibición de sus productos principales (pestaña Estrella vs. ancla).',
                 detalle: `Categoría ${c.n}: ${cae ? `${c.g.toFixed(1)}% vs benchmark` : ''}${bajoMeta ? ` · ${c.cumpl.toFixed(0)}% de la meta` : ''}.` });
         });
-        A.productos.filter(p => (p.tipo === 'Estrella' || p.tipo === 'Ancla') && p.g !== null && p.g <= -u && VB > 0).forEach(p => {
-            const imp = Math.abs(p.v - p.vb) / VB * 100;
-            out.push({ nivel: nivelPorImpacto(imp), imp, tipo: p.tipo === 'Ancla' ? 'Producto ancla' : 'Producto estrella', titulo: p.n,
-                titular: `${p.n} es ${p.tipo.toLowerCase()} (${fmtP(p.sh)} de la venta) y vende ${Math.abs(p.g).toFixed(1)}% menos que su ritmo normal.`,
-                lineas: [`Vendió ${fmtM(p.v)}; lo normal eran ${fmtM(p.vb)} (${fmtM(p.v - p.vb)}).`, `Categoría: ${p.cat}.`],
-                revisar: 'Existencia, precio publicado frente a competencia y visibilidad en el sitio y la App.', detalle: `${p.sku} · ${p.n}: ${p.g.toFixed(1)}% vs benchmark.` });
+        // Productos estrella y ancla que caen: una alerta por categoría, no una por producto
+        const grupos = new Map();
+        A.productos.filter(p => (p.tipo === 'Estrella' || p.tipo === 'Ancla') && p.g !== null && p.g <= -u && VB > 0).forEach(p => { const a = grupos.get(p.cat) || []; a.push(p); grupos.set(p.cat, a); });
+        grupos.forEach((ps, cat) => {
+            ps.sort((a, b) => a.d - b.d); const imp = ps.reduce((s, p) => s + Math.abs(p.d), 0) / VB * 100;
+            out.push({ nivel: nivelPorImpacto(imp), imp, tipo: 'Productos clave', titulo: cat,
+                titular: ps.length === 1 ? `${ps[0].n} (${ps[0].tipo.toLowerCase()}, ${fmtP(ps[0].sh)} de la venta) vende ${Math.abs(ps[0].g).toFixed(1)}% menos que su ritmo normal.` : `${ps.length} productos clave de ${cat} venden menos que su ritmo normal y juntos restan ${fmtM(ps.reduce((s, p) => s + p.d, 0))}.`,
+                lineas: ps.slice(0, 4).map(p => `${p.n} (${p.tipo.toLowerCase()}): ${txtDelta(p.g)}, ${fmtM(p.d)}.`).concat(ps.length > 4 ? [`… y ${ps.length - 4} más.`] : []),
+                revisar: 'Existencia, precio publicado frente a competencia y visibilidad en el sitio y la App.', detalle: `${cat}: ${ps.length} producto(s) clave a la baja (${ps.slice(0, 3).map(p => p.n).join(', ')}).` });
         });
         if (A.comp && VB > 0) {
             const [cp, cu, ca] = A.comp, pct = x => x.v / A.B.v * 100;
             if (pct(cu) <= -S.config.impactoMedio) out.push({ nivel: nivelPorImpacto(Math.abs(pct(cu))), imp: Math.abs(pct(cu)), tipo: 'Ticket', titulo: 'Unidades por pedido',
                 titular: `Se llevan menos productos por pedido (UPT ${A.k.upt.toFixed(2)} contra ${A.kb.upt.toFixed(2)}) y eso resta ${fmtM(Math.abs(cu.v))} a la venta.`,
-                lineas: ['El pedido promedio trae menos unidades que en su ritmo normal.'], revisar: 'Parejas con más potencial en la pestaña Cross-selling y mecánicas de venta cruzada en carrito.', detalle: 'UPT a la baja.' });
+                lineas: ['El pedido promedio trae menos unidades que en su ritmo normal.'].concat(A.kY ? [`Contra el año anterior el UPT va ${txtDelta(deltaRel(A.k.upt, A.kY.upt))}.`] : []), revisar: 'Parejas con más potencial en la pestaña Cross-selling y mecánicas de venta cruzada en carrito.', detalle: 'UPT a la baja.' });
             if (pct(ca) <= -S.config.impactoMedio) out.push({ nivel: nivelPorImpacto(Math.abs(pct(ca))), imp: Math.abs(pct(ca)), tipo: 'Ticket', titulo: 'Precio por unidad',
                 titular: `El precio promedio por unidad baja y resta ${fmtM(Math.abs(ca.v))} a la venta.`,
                 lineas: ['Puede ser mezcla (se venden productos más baratos) o descuentos más profundos.'], revisar: 'Promociones activas, mezcla por categoría y precios frente a competencia.', detalle: 'AUR a la baja.' });
             if (pct(cp) <= -S.config.impactoMedio) out.push({ nivel: nivelPorImpacto(Math.abs(pct(cp))), imp: Math.abs(pct(cp)), tipo: 'Pedidos', titulo: 'Menos pedidos',
                 titular: `Hay menos pedidos que en su ritmo normal y eso resta ${fmtM(Math.abs(cp.v))} a la venta.`,
-                lineas: ['La caída viene del volumen de pedidos, no del ticket.'], revisar: 'Tráfico y conversión: fuentes, campañas y funnel (herramienta Tráfico y Conversión).', detalle: 'Pedidos a la baja.' });
+                lineas: ['La caída viene del volumen de pedidos, no del ticket.'].concat(A.Y ? [`Contra el año anterior los pedidos van ${txtDelta(deltaRel(A.T.p, A.Y.p))}.`] : []), revisar: 'Tráfico y conversión: fuentes, campañas y funnel (herramienta Tráfico y Conversión).', detalle: 'Pedidos a la baja.' });
         }
         const sm = A.sinMov.lista;
         if (sm.length) out.push({ nivel: 'media', imp: 0.5, tipo: 'Catálogo', titulo: 'Productos sin movimiento',
@@ -516,6 +581,7 @@
         if (A.comp) { const s = [...A.comp].sort((a, b) => b.v - a.v); partes.push(`${s[0].v > 0 ? `Lo que más la empuja: ${s[0].corto} (${fmtM(s[0].v)})` : 'Ningún factor la empuja'}${s[2].v < 0 ? `; lo que más la frena: ${s[2].corto} (${fmtM(s[2].v)})` : ''}.`); }
         const cc = A.cats.filter(c => c.ctr !== null), mejor = [...cc].sort((a, b) => b.ctr - a.ctr)[0], peor = [...cc].sort((a, b) => a.ctr - b.ctr)[0];
         if (mejor && mejor.ctr > 0) partes.push(`La categoría que más aporta es ${mejor.n} (${fmtPP(mejor.ctr)})${peor && peor.ctr < 0 ? ` y la que más resta, ${peor.n} (${fmtPP(peor.ctr)})` : ''}.`);
+        if (A.Y) { const gy = deltaRel(A.T.v, A.Y.v); if (gy !== null) partes.push(`Contra el mismo periodo del año anterior la venta va ${gy >= 0 ? `${gy.toFixed(1)}% arriba` : `${Math.abs(gy).toFixed(1)}% abajo`}.`); }
         const altas = A.alertas.filter(a => a.nivel === 'alta').length;
         partes.push(altas ? `Hay ${altas} alerta(s) de impacto alto.` : 'No hay alertas de impacto alto.');
         return partes.join(' ');
@@ -530,11 +596,12 @@
         return `<span class="inline-block px-2 py-0.5 rounded-full border text-[11px] font-bold num-tabular ${cls}">${d >= 0 ? '▲' : '▼'} ${Math.abs(d).toFixed(1)}%</span>`;
     }
     const colorPP = v => v === null ? 'text-slate-400' : v >= 0 ? 'text-emerald-700' : 'text-rose-700';
-    function tarjeta(titulo, valor, sub, delta) {
+    function chipYoY(y) { return y === undefined ? '' : y === null ? '<div class="mt-1.5 text-[10px] text-slate-400">Año anterior: sin datos</div>' : `<div class="mt-1.5 flex items-center gap-1.5 text-[11px] text-slate-500"><span>Vs. año anterior</span>${chipDelta(y)}</div>`; }
+    function tarjeta(titulo, valor, sub, delta, yoy) {
         return `<div class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm min-w-0">
             <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">${titulo}</div>
             <div class="mt-1 flex flex-wrap items-start justify-between gap-x-2 gap-y-1"><div class="max-w-full break-words text-xl sm:text-2xl font-extrabold text-slate-900 num-tabular">${valor}</div>${delta !== undefined ? `<div class="shrink-0">${chipDelta(delta)}</div>` : ''}</div>
-            <div class="mt-1 text-[11px] text-slate-500 break-words">${sub}</div></div>`;
+            <div class="mt-1 text-[11px] text-slate-500 break-words">${sub}</div>${chipYoY(yoy)}</div>`;
     }
     function botonAccion(tipo, titulo, detalle) {
         return `<button type="button" data-pdf-ocultar="true" onclick="abrirAccion(${esc(JSON.stringify(JSON.stringify({ titulo: `Revisar ${tipo.toLowerCase()}: ${titulo}`, detalle })))})" class="px-2.5 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-[11px] font-bold text-slate-700">+ Acción</button>`;
@@ -550,16 +617,26 @@
             </div>
             <div class="shrink-0">${botonAccion(a.tipo, a.titulo, a.detalle || a.titular)}</div></li>`;
     }
-    function panelAlertas(titulo, arr, vacio, max) {
+    function panelAlertas(titulo, todas, vacio, max) {
+        const arr = todas.filter(a => a.nivel !== 'baja'), bajas = todas.filter(a => a.nivel === 'baja');
         const lista = max ? arr.slice(0, max) : arr;
         return `<div class="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-sm">
             <h3 class="text-sm font-extrabold text-slate-900 mb-3">${titulo} <span class="text-slate-400 font-semibold">(${arr.length})</span></h3>
             <ul class="space-y-2">${lista.length ? lista.map(itemAlerta).join('') : `<li class="p-4 text-xs text-slate-500 rounded-xl bg-emerald-50 border border-emerald-200">${vacio}</li>`}</ul>
-            ${max && arr.length > max ? `<p class="text-[11px] text-slate-400 mt-2">Se muestran las ${max} de mayor impacto. Todas están en la pestaña Alertas y acciones.</p>` : ''}</div>`;
+            ${max && arr.length > max ? `<p class="text-[11px] text-slate-400 mt-2">Se muestran las ${max} de mayor impacto. Todas están en la pestaña Alertas y acciones.</p>` : ''}
+            ${bajas.length ? `<details class="mt-3" data-pdf-ocultar="true"><summary class="cursor-pointer text-[11px] font-bold text-slate-500">Ver ${bajas.length} de impacto bajo (variaciones normales o muy pequeñas)</summary><ul class="space-y-2 mt-2">${bajas.map(itemAlerta).join('')}</ul></details>` : ''}</div>`;
     }
     function textoVentana(V) {
         const n = S.ventana === 'mtd' ? 'Mes a la fecha' : S.ventana === 1 ? 'Día de corte' : `Últimos ${S.ventana} días`;
         return `${n}: ${fechaCorta(V.ini)} – ${fechaCorta(V.fin)} · Benchmark propio: ${fechaCorta(V.bIni)} – ${fechaCorta(V.bFin)}`;
+    }
+    function bannerIntegridad(A) {
+        const g = A.integridad; if (!g) return '<div class="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-[11px] text-slate-500">Control de integridad: no hay venta real capturada en la Revisión Diaria para estas fechas, así que no se puede comparar.</div>';
+        const est = { verde: ['border-emerald-200 bg-emerald-50 text-emerald-900', '✔ Cuadra con la Revisión Diaria'], ambar: ['border-amber-300 bg-amber-50 text-amber-900', '⚠ Diferencia moderada con la Revisión Diaria'], rojo: ['border-rose-300 bg-rose-50 text-rose-900', '✖ No cuadra con la Revisión Diaria'], gris: ['border-slate-200 bg-white text-slate-600', 'Control de integridad'] }[g.nivel];
+        return `<details class="rounded-2xl border ${est[0]} px-4 py-2.5 text-xs"><summary class="cursor-pointer font-bold">${est[1]}: Comercial ${fmtM(g.com)} · Revisión Diaria ${fmtM(g.rev)}${g.dif !== null ? ` · diferencia ${txtDelta(g.dif)}` : ''}${g.faltan.length ? ` · faltan ${g.faltan.length} día(s) en Comercial` : ''}</summary>
+            <div class="mt-2 space-y-0.5">${g.por.map(x => `<div>${x.c}: Comercial ${fmtM(x.com)} · Revisión Diaria ${fmtM(x.rev)} (${txtDelta(x.dif)})</div>`).join('')}
+            ${g.faltan.length ? `<div class="font-bold">Días con venta en la Revisión Diaria y sin datos en Comercial: ${g.faltan.map(fechaCorta).join(', ')}</div>` : ''}
+            <div class="text-[11px] opacity-80 pt-1">Se comparan solo los días con venta real capturada en la Revisión Diaria. Hasta 1% cuadra; hasta 3% es moderada; más de 3% o días faltantes, conviene revisar la carga.</div></div></details>`;
     }
     const sinBase = A => A.hay ? '' : '<div class="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-xs text-amber-900">Faltan datos de los 28 días previos (se necesitan al menos 7 con venta): por ahora no se pueden calcular comparativos ni alertas contra el benchmark.</div>';
 
@@ -567,11 +644,11 @@
         const { V, T, B, k, kb } = A;
         const cumpl = A.planVent > 0 ? T.v / A.planVent * 100 : null;
         const cards = [
-            tarjeta('Venta', fmtM(T.v), B ? `A su ritmo normal serían ${fmtM(B.v)}.` : 'Sin base para comparar.', B ? deltaRel(T.v, B.v) : null),
-            tarjeta('Pedidos', fmtN(T.p), B ? `Lo normal eran ${fmtN(B.p)} pedidos.` : '—', B ? deltaRel(T.p, B.p) : null),
-            tarjeta('Ticket (AOV)', fmtM(k.aov), kb ? `Lo normal era ${fmtM(kb.aov)}.` : '—', kb ? deltaRel(k.aov, kb.aov) : null),
-            tarjeta('UPT', k.upt ? k.upt.toFixed(2) : '—', kb ? `Lo normal era ${kb.upt.toFixed(2)} unidades por pedido.` : '—', kb ? deltaRel(k.upt, kb.upt) : null),
-            tarjeta('AUR', fmtM(k.aur), kb ? `Lo normal era ${fmtM(kb.aur)} por unidad.` : '—', kb ? deltaRel(k.aur, kb.aur) : null),
+            tarjeta('Venta', fmtM(T.v), B ? `A su ritmo normal serían ${fmtM(B.v)}.` : 'Sin base para comparar.', B ? deltaRel(T.v, B.v) : null, A.Y ? deltaRel(T.v, A.Y.v) : null),
+            tarjeta('Pedidos', fmtN(T.p), B ? `Lo normal eran ${fmtN(B.p)} pedidos.` : '—', B ? deltaRel(T.p, B.p) : null, A.Y ? deltaRel(T.p, A.Y.p) : null),
+            tarjeta('Ticket (AOV)', fmtM(k.aov), kb ? `Lo normal era ${fmtM(kb.aov)}.` : '—', kb ? deltaRel(k.aov, kb.aov) : null, A.kY ? deltaRel(k.aov, A.kY.aov) : null),
+            tarjeta('UPT', k.upt ? k.upt.toFixed(2) : '—', kb ? `Lo normal era ${kb.upt.toFixed(2)} unidades por pedido.` : '—', kb ? deltaRel(k.upt, kb.upt) : null, A.kY ? deltaRel(k.upt, A.kY.upt) : null),
+            tarjeta('AUR', fmtM(k.aur), kb ? `Lo normal era ${fmtM(kb.aur)} por unidad.` : '—', kb ? deltaRel(k.aur, kb.aur) : null, A.kY ? deltaRel(k.aur, A.kY.aur) : null),
             tarjeta('Contra el plan', cumpl !== null ? fmtMeta(cumpl) : 'Sin plan', cumpl !== null ? `Plan de la ventana: ${fmtM(A.planVent)} (Revisión Diaria).` : 'No hay plan de venta cargado en la Revisión Diaria para este periodo.')
         ].join('');
         let mov = '';
@@ -583,8 +660,8 @@
                     <div class="h-2.5 rounded-full bg-slate-100 relative mt-1"><div class="absolute top-0 bottom-0 w-px bg-slate-300 left-1/2"></div><div class="absolute top-0 bottom-0 rounded-full ${c.v >= 0 ? 'bg-emerald-500' : 'bg-rose-500'}" style="${c.v >= 0 ? 'left:50%' : `left:${50 - Math.abs(c.v) / mx * 50}%`};width:${Math.abs(c.v) / mx * 50}%"></div></div></div>`).join('')}</div>`;
         }
         document.getElementById('panel-resumen').innerHTML = `
-            <p class="text-[11px] text-slate-500">${textoVentana(V)} · Canal: <strong>${ETIQ_CANAL[S.canal]}</strong></p>
-            ${sinBase(A)}
+            <p class="text-[11px] text-slate-500">${textoVentana(V)}${A.YD ? ` · Año anterior (mismo día de la semana): ${fechaCorta(A.YD.ini)} – ${fechaCorta(A.YD.fin)}` : ''} · Canal: <strong>${ETIQ_CANAL[S.canal]}</strong></p>
+            ${sinBase(A)}${bannerIntegridad(A)}
             <div class="rounded-2xl bg-slate-900 text-slate-100 p-4 sm:p-5 text-xs sm:text-sm leading-relaxed"><strong class="text-white">Resumen:</strong> ${esc(resumenNarrativo(A))}</div>
             <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">${cards}</div>
             ${mov}
@@ -617,6 +694,7 @@
             <td class="px-3 py-2.5 text-right num-tabular">${fmtP(c.sh)}</td>
             <td class="px-3 py-2.5 text-right num-tabular ${colorPP(c.shb === null ? null : c.sh - c.shb)}">${c.shb === null ? '—' : fmtPP(c.sh - c.shb)}</td>
             <td class="px-3 py-2.5 text-right">${chipDelta(c.g)}</td>
+            <td class="px-3 py-2.5 text-right">${c.gY === null ? '<span class="text-slate-300">—</span>' : chipDelta(c.gY)}</td>
             <td class="px-3 py-2.5 text-right num-tabular font-bold ${colorPP(c.ctr)}">${fmtPP(c.ctr)}</td>
             <td class="px-3 py-2.5 text-right num-tabular">${fmtM(c.aur)}</td>
             ${tieneMeta ? `<td class="px-3 py-2.5 text-right num-tabular">${fmtM(c.meta)}</td><td class="px-3 py-2.5 min-w-[7rem]"><div class="flex items-center gap-2"><div class="h-2 flex-1 rounded-full bg-slate-100 overflow-hidden"><div class="h-full rounded-full ${c.cumpl >= 100 ? 'bg-emerald-500' : c.cumpl >= 90 ? 'bg-amber-400' : 'bg-rose-500'}" style="width:${Math.min(100, c.cumpl || 0)}%"></div></div><span class="text-xs font-bold num-tabular ${c.cumpl >= 90 ? 'text-slate-700' : 'text-rose-700'}">${fmtMeta(c.cumpl)}</span></div></td>` : ''}
@@ -630,10 +708,10 @@
                     <button type="button" data-pdf-ocultar="true" onclick="abrirMetas()" class="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold">🎯 Metas por categoría</button>
                 </div>
                 <div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular"><thead class="bg-slate-50 text-[10px] uppercase text-slate-500"><tr>
-                    <th class="px-3 py-2">Categoría</th><th class="px-3 py-2 text-right">Venta</th><th class="px-3 py-2 text-right">Share</th><th class="px-3 py-2 text-right">Δ share</th><th class="px-3 py-2 text-right">vs. benchmark</th><th class="px-3 py-2 text-right">Contribución</th><th class="px-3 py-2 text-right">AUR</th>
+                    <th class="px-3 py-2">Categoría</th><th class="px-3 py-2 text-right">Venta</th><th class="px-3 py-2 text-right">Share</th><th class="px-3 py-2 text-right">Δ share</th><th class="px-3 py-2 text-right">vs. benchmark</th><th class="px-3 py-2 text-right">vs. año ant.</th><th class="px-3 py-2 text-right">Contribución</th><th class="px-3 py-2 text-right">AUR</th>
                     ${tieneMeta ? '<th class="px-3 py-2 text-right">Meta ventana</th><th class="px-3 py-2">Cumplimiento</th>' : ''}</tr></thead>
                     <tbody class="divide-y divide-slate-100">${filas || '<tr><td class="px-3 py-6 text-center text-slate-500" colspan="9">Sin ventas en la ventana.</td></tr>'}
-                    <tr class="bg-slate-50 font-extrabold"><td class="px-3 py-2.5">Total</td><td class="px-3 py-2.5 text-right">${fmtM(A.vRows)}</td><td class="px-3 py-2.5 text-right">100%</td><td class="px-3 py-2.5 text-right">—</td><td class="px-3 py-2.5 text-right">${chipDelta(A.vbRows ? deltaRel(A.vRows, A.vbRows) : null)}</td><td class="px-3 py-2.5 text-right ${colorPP(A.vbRows ? (A.vRows - A.vbRows) / A.vbRows * 100 : null)}">${A.vbRows ? fmtPP((A.vRows - A.vbRows) / A.vbRows * 100) : '—'}</td><td class="px-3 py-2.5 text-right">${fmtM(razon(A.vRows, A.T.u))}</td>${tieneMeta ? `<td class="px-3 py-2.5 text-right">${fmtM(A.planVent)}</td><td class="px-3 py-2.5">${fmtMeta(A.vRows / A.planVent * 100)}</td>` : ''}</tr>
+                    <tr class="bg-slate-50 font-extrabold"><td class="px-3 py-2.5">Total</td><td class="px-3 py-2.5 text-right">${fmtM(A.vRows)}</td><td class="px-3 py-2.5 text-right">100%</td><td class="px-3 py-2.5 text-right">—</td><td class="px-3 py-2.5 text-right">${chipDelta(A.vbRows ? deltaRel(A.vRows, A.vbRows) : null)}</td><td class="px-3 py-2.5 text-right">${A.Y ? chipDelta(deltaRel(A.vRows, A.Y.v)) : '<span class="text-slate-300">—</span>'}</td><td class="px-3 py-2.5 text-right ${colorPP(A.vbRows ? (A.vRows - A.vbRows) / A.vbRows * 100 : null)}">${A.vbRows ? fmtPP((A.vRows - A.vbRows) / A.vbRows * 100) : '—'}</td><td class="px-3 py-2.5 text-right">${fmtM(razon(A.vRows, A.T.u))}</td>${tieneMeta ? `<td class="px-3 py-2.5 text-right">${fmtM(A.planVent)}</td><td class="px-3 py-2.5">${fmtMeta(A.vRows / A.planVent * 100)}</td>` : ''}</tr>
                 </tbody></table></div>
             </div>
             <details class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm text-xs text-slate-600 leading-relaxed" data-pdf-ocultar="true"><summary class="cursor-pointer font-bold text-slate-800">ⓘ ¿Cómo se calcula la meta por categoría?</summary>
@@ -677,8 +755,9 @@
         document.getElementById('panel-canales').innerHTML = `
             <p class="text-[11px] text-slate-500">${textoVentana(A.V)}</p>${sinBase(A)}
             <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden"><div class="p-4 sm:p-5"><h3 class="text-sm font-extrabold text-slate-900">Los cuatro canales</h3><p class="text-[11px] text-slate-500 mt-0.5">Siempre se muestran todos, sin importar el filtro de canal. El plan de cada canal viene de la Revisión Diaria.</p></div>
-            <div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular"><thead class="bg-slate-50 text-[10px] uppercase text-slate-500"><tr><th class="px-3 py-2">Canal</th><th class="px-3 py-2 text-right">Venta</th><th class="px-3 py-2 text-right">Share</th><th class="px-3 py-2 text-right">vs. benchmark</th><th class="px-3 py-2 text-right">Pedidos</th><th class="px-3 py-2 text-right">Ticket</th><th class="px-3 py-2 text-right">Plan</th><th class="px-3 py-2 text-right">Cumplimiento</th></tr></thead>
-            <tbody class="divide-y divide-slate-100">${A.canales.map(c => `<tr class="hover:bg-slate-50"><td class="px-3 py-2.5 font-bold text-slate-900">${c.c}</td><td class="px-3 py-2.5 text-right">${fmtM(c.v)}</td><td class="px-3 py-2.5 text-right">${fmtP(c.sh)}</td><td class="px-3 py-2.5 text-right">${chipDelta(c.g)}</td><td class="px-3 py-2.5 text-right">${fmtN(c.p)}</td><td class="px-3 py-2.5 text-right">${fmtM(c.aov)}</td><td class="px-3 py-2.5 text-right">${c.plan > 0 ? fmtM(c.plan) : '—'}</td><td class="px-3 py-2.5 text-right font-bold ${c.cumpl !== null && c.cumpl < 90 ? 'text-rose-700' : 'text-slate-700'}">${c.cumpl !== null ? fmtMeta(c.cumpl) : '—'}</td></tr>`).join('')}</tbody></table></div></div>
+            <div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular"><thead class="bg-slate-50 text-[10px] uppercase text-slate-500"><tr><th class="px-3 py-2">Canal</th><th class="px-3 py-2 text-right">Venta</th><th class="px-3 py-2 text-right">Share</th><th class="px-3 py-2 text-right">vs. benchmark</th><th class="px-3 py-2 text-right">vs. año ant.</th><th class="px-3 py-2 text-right">Pedidos</th><th class="px-3 py-2 text-right">Ticket</th><th class="px-3 py-2 text-right">Plan</th><th class="px-3 py-2 text-right">Cumplimiento</th><th class="px-3 py-2 text-right">Vs. Revisión Diaria</th></tr></thead>
+            <tbody class="divide-y divide-slate-100">${A.canales.map(c => `<tr class="hover:bg-slate-50"><td class="px-3 py-2.5 font-bold text-slate-900">${c.c}</td><td class="px-3 py-2.5 text-right">${fmtM(c.v)}</td><td class="px-3 py-2.5 text-right">${fmtP(c.sh)}</td><td class="px-3 py-2.5 text-right">${chipDelta(c.g)}</td><td class="px-3 py-2.5 text-right">${c.gY === null ? '<span class="text-slate-300">—</span>' : chipDelta(c.gY)}</td><td class="px-3 py-2.5 text-right">${fmtN(c.p)}</td><td class="px-3 py-2.5 text-right">${fmtM(c.aov)}</td><td class="px-3 py-2.5 text-right">${c.plan > 0 ? fmtM(c.plan) : '—'}</td><td class="px-3 py-2.5 text-right font-bold ${c.cumpl !== null && c.cumpl < 90 ? 'text-rose-700' : 'text-slate-700'}">${c.cumpl !== null ? fmtMeta(c.cumpl) : '—'}</td><td class="px-3 py-2.5 text-right font-bold ${c.integ && Math.abs(c.integ.dif) > 3 ? 'text-rose-700' : c.integ && Math.abs(c.integ.dif) > 1 ? 'text-amber-700' : 'text-emerald-700'}">${c.integ ? txtDelta(c.integ.dif) : '—'}</td></tr>`).join('')}</tbody></table></div></div>
+            ${bannerIntegridad(A)}
             <p class="text-[11px] text-slate-500">WhatsApp y Llamadas se miden con sus propios pedidos; su conversión contra oportunidades atendidas se documenta aparte, como define el KPI de CR.</p>`;
     }
 
@@ -1135,13 +1214,13 @@
         const parados = { 'DER-031': 104, 'VIT-027': 118, 'CUI-033': 131 };   // últimos días con venta (hace N días)
         const canales = [['Web', 0.58], ['App', 0.3], ['WhatsApp', 0.07], ['Llamadas', 0.05]];
         const fin = hoyISO(); const registros = [], dias = [], planDia = {};
-        for (let i = 149; i >= 0; i--) {
+        for (let i = 519; i >= 0; i--) {
             const f = addDias(fin, -i); const dow = new Date(f + 'T00:00:00Z').getUTCDay(); const fds = (dow === 0 || dow === 6) ? 0.85 : 1;
             for (const [c, sh] of canales) {
                 let U = 0, V = 0, sumaP = 0; const filas = [];
                 for (const [sku, n, cat, precio, base, tend] of P) {
                     if (parados[sku] !== undefined) { if (i < parados[sku]) continue; if (i > parados[sku] + 90) continue; }
-                    const reciente = i < 7 ? tend : 1; const u = Math.round(base * sh * fds * reciente * (0.8 + rnd() * 0.4) * 1.0);
+                    const reciente = i < 7 ? tend : 1; const u = Math.round(base * sh * fds * reciente * (i >= 364 ? 0.9 : 1) * (0.8 + rnd() * 0.4));
                     const uu = (parados[sku] !== undefined) ? Math.max(1, Math.round(6 * sh * 3)) : u; if (uu <= 0) continue;
                     const v = Math.round(uu * precio * (0.97 + rnd() * 0.06)); filas.push({ f, c, sku, n, cat, u: uu, v, p: Math.max(1, Math.round(uu * 0.85)) }); U += uu; V += v; sumaP += Math.max(1, Math.round(uu * 0.85));
                 }
@@ -1153,15 +1232,16 @@
         const pares = [['DER-007', 'DER-022', 210, 790, 500], ['BEB-003', 'BEB-011', 330, 600, 930], ['VIT-005', 'VIT-019', 150, 860, 390], ['MED-031', 'MED-014', 390, 1250, 2600], ['CUI-009', 'CUI-016', 95, 1020, 480]]
             .map(([a, b, j, pa, pb]) => ({ a, b, na: P.find(x => x[0] === a)[1], nb: P.find(x => x[0] === b)[1], j, pa, pb }));
         const recompra = {}; P.forEach(x => { if (x[4] > 0) recompra[x[0]] = [60 + Math.round(rnd() * 200), Math.round((10 + rnd() * 45) * 10) / 10]; });
-        return { registros, dias, planDia, cross: { desde: addDias(fin, -27), hasta: fin, total: 4700, pares }, recompra: { desde: addDias(fin, -89), hasta: fin, porSku: recompra } };
+        const realRev = {}; dias.forEach(d => { realRev[`${d.c}|${d.f}`] = d.v; });
+        return { registros, dias, planDia, realRev, cross: { desde: addDias(fin, -27), hasta: fin, total: 4700, pares }, recompra: { desde: addDias(fin, -89), hasta: fin, porSku: recompra } };
     }
     function entrarDemo() {
-        const d = generarDemo(); S.demo = true; S.registros = d.registros; S.dias = d.dias; S.planDia = d.planDia; S.planOk = true;
+        const d = generarDemo(); S.demo = true; S.registros = d.registros; S.dias = d.dias; S.planDia = d.planDia; S.planOk = true; S.realRev = d.realRev; S.yoy = {};
         S.snap = { cross: d.cross, recompra: d.recompra }; S.mes = hoyISO().slice(0, 7); S.corte = hoyISO(); S.rangoMin = null; S.rangoMax = null; S.shareBase = {}; S.sinMov = null;
         renderTodo(); toast('Modo demostración activado.');
     }
     function salirDemo(silencioso) {
-        S.demo = false; S.registros = []; S.dias = []; S.planDia = {}; S.planOk = false; S.mes = null; S.corte = null; S.snap = { cross: null, recompra: null }; S.shareBase = {}; S.sinMov = null;
+        S.demo = false; S.registros = []; S.dias = []; S.planDia = {}; S.realRev = {}; S.yoy = {}; S.planOk = false; S.mes = null; S.corte = null; S.snap = { cross: null, recompra: null }; S.shareBase = {}; S.sinMov = null;
         if (!silencioso) { cargarCacheLocal(); (async () => { await cargarRegistrosNube(); await cargarPlanNube(); renderTodo(); await cargarDerivados(); })(); renderTodo(); }
     }
 
@@ -1212,8 +1292,9 @@
         try {
             const { data, error } = await NUBE.client.from('tablero_estado').select('historico').eq('id', 'principal').maybeSingle(); if (error) throw error;
             const h = (data && data.historico) || {}; const plan = {}; let hay = false;
-            Object.values(h).forEach(mes => Object.entries(PLAN_KEY).forEach(([k, canal]) => (mes[k] || []).forEach(d => { if (d.ventaPlan > 0) { plan[`${canal}|${d.fecha}`] = d.ventaPlan; hay = true; } })));
-            S.planDia = plan; S.planOk = hay;
+            const real = {};
+            Object.values(h).forEach(mes => Object.entries(PLAN_KEY).forEach(([k, canal]) => (mes[k] || []).forEach(d => { if (d.ventaPlan > 0) { plan[`${canal}|${d.fecha}`] = d.ventaPlan; hay = true; } if (d.ventaReal > 0) real[`${canal}|${d.fecha}`] = d.ventaReal; })));
+            S.planDia = plan; S.planOk = hay; S.realRev = real;
         } catch (e) { console.error(e); S.planOk = false; }
     }
     // Cálculos que se resuelven en la base: share para repartir la meta y productos sin movimiento
@@ -1224,6 +1305,14 @@
             if (!S.shareBase[clave]) {
                 const { data, error } = await NUBE.client.rpc('comercial_share_categorias', { p_desde: addDias(`${S.mes}-01`, -90), p_hasta: addDias(`${S.mes}-01`, -1), p_canales: canales });
                 if (error) throw error; const o = {}; data.forEach(r => { o[r.categoria] = Number(r.venta); }); S.shareBase[clave] = o;
+            }
+            if (S.corte) {
+                const V = ventanas(), ini = addDias(V.ini, -DESFASE_YOY), fin = addDias(V.fin, -DESFASE_YOY), k = `${ini}|${fin}`;
+                const locales = new Set(S.dias.filter(r => r.f >= ini && r.f <= fin).map(r => r.f)).size;
+                if (locales < Math.ceil(V.dias * 0.7) && !S.yoy[k]) {
+                    const [d, r] = await Promise.all([paginar('comercial_dia', ini, fin, 'canal'), paginar('comercial_registros', ini, fin, 'sku')]);
+                    S.yoy[k] = { dias: d.map(filaDiaDeBD), regs: r.map(filaRegDeBD) };
+                }
             }
             if (S.corte && (!S.sinMov || S.sinMovCorte !== S.corte)) {
                 const { data, error } = await NUBE.client.rpc('comercial_sin_movimiento', { p_corte: S.corte, p_dias: 30 });
