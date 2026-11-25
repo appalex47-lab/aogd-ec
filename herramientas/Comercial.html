@@ -163,6 +163,22 @@
         </div>
     </div>
 
+    <!-- MODAL: CATÁLOGO DE CATEGORÍAS -->
+    <div id="modal-catalogo" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 p-4 overflow-y-auto">
+        <div class="w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden my-6">
+            <div class="bg-slate-900 text-white px-6 py-4"><h3 class="text-base font-extrabold">Catálogo de categorías</h3><p id="cat-sub" class="text-xs text-slate-300 mt-1"></p></div>
+            <div class="p-6 space-y-3 text-xs text-slate-700">
+                <p>Este archivo trae solo SKU y categoría, así que se usa para completar las categorías que faltan en los datos ya cargados.</p>
+                <div id="cat-detalle"></div>
+                <label class="flex items-start gap-2"><input type="checkbox" id="cat-sobre" class="mt-0.5"><span>Reemplazar también las categorías que ya tienen valor (por defecto solo se completan las que dicen “Sin categoría”).</span></label>
+            </div>
+            <div class="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2.5">
+                <button type="button" onclick="cerrarCatalogo()" class="px-4 py-2 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-700">Cancelar</button>
+                <button type="button" id="cat-confirmar" onclick="confirmarCatalogo()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold">Aplicar catálogo</button>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL: BORRAR DATOS -->
     <div id="modal-borrar" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 p-4 overflow-y-auto">
         <div class="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden my-6">
@@ -930,6 +946,10 @@
                 lineasOk.push([f, c, ped, sku, n, cat, u, v, cli]); if (f > maxF) maxF = f;
             }
         });
+        if (!lineasOk.length) {
+            if (!adv.length) adv.push('No se encontraron líneas válidas en el archivo.');
+            return { registros: [], dias: [], cross: null, recompra: null, cabecera, mapaUsado, categorias: {}, sinCatPorMes: [], rellenadas: 0, advertencias: adv, omitidas, lineas, tieneCliente, tieneCanal, pedidos: 0 };
+        }
         const ventanaCross = addDias(maxF, -27), ventanaRec = addDias(maxF, -89);
         const minF = lineasOk.reduce((m, l) => l[0] < m ? l[0] : m, '9999-99-99');
         const pedidosVentana = new Map(), pedidosSku = new Map(), pares = new Map(), cliSku = new Map(); const pedidosCross = new Set();
@@ -981,6 +1001,49 @@
         const sinCatPorMes = Object.keys(totMes).sort().map(m => [m, (sinCatMes[m] || 0) / totMes[m] * 100]).filter(x => x[1] > 0);
         return { registros, dias, cross, recompra, cabecera, mapaUsado, categorias, sinCatPorMes, rellenadas, advertencias: adv, omitidas, lineas, tieneCliente, tieneCanal, pedidos: dias.reduce((s, d) => s + d.p, 0) };
     }
+    // Un archivo solo con SKU y categoría (sin pedido, unidades ni venta) es un catálogo para completar las categorías faltantes
+    function detectarCatalogo(wb) {
+        const pares = new Map(); let filas = 0, vacias = 0, hojas = 0;
+        for (const n of wb.SheetNames) {
+            const h = XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: '', raw: true }); if (h.length < 2) continue;
+            const cab = (h[0] || []).map(String), usados = new Set(), idx = {};
+            Object.entries(COLS).forEach(([campo, pats]) => { const i = cab.findIndex((c, j) => !usados.has(j) && pats.some(p => sinAcentos(c).includes(p))); if (i >= 0) { idx[campo] = i; usados.add(i); } });
+            if (idx.sku === undefined || idx.categoria === undefined || idx.pedido !== undefined || idx.venta !== undefined || idx.unidades !== undefined) continue;
+            hojas++;
+            for (let r = 1; r < h.length; r++) {
+                filas++; const sku = String(h[r][idx.sku]).trim(), cat = String(h[r][idx.categoria]).trim().slice(0, 80);
+                if (!sku || !cat) { vacias++; continue; } pares.set(sku, cat);
+            }
+        }
+        return hojas && pares.size ? { pares, filas, vacias, categorias: [...new Set(pares.values())] } : null;
+    }
+    function abrirCatalogo() {
+        const p = window._catalogo; const sin = new Set(S.registros.filter(r => r.cat === 'Sin categoría' && p.pares.has(r.sku)).map(r => r.sku));
+        document.getElementById('cat-sub').textContent = `Archivo: ${p.nombre} • ${fmtN(p.pares.size)} productos • ${fmtN(p.categorias.length)} categoría(s)`;
+        document.getElementById('cat-detalle').innerHTML = `<div><strong>${fmtN(sin.size)}</strong> producto(s) de los datos cargados en pantalla hoy están "Sin categoría" y este catálogo los resuelve. En la nube se actualizan todos los que coincidan.</div>
+            <div class="mt-1 text-slate-500">Categorías: ${p.categorias.slice(0, 12).map(esc).join(' · ')}${p.categorias.length > 12 ? ` · … y ${p.categorias.length - 12} más` : ''}</div>${p.vacias ? `<div class="mt-1 text-amber-800">${fmtN(p.vacias)} fila(s) sin SKU o sin categoría se omitieron.</div>` : ''}`;
+        document.getElementById('cat-sobre').checked = false;
+        const m = document.getElementById('modal-catalogo'); m.classList.remove('hidden'); m.classList.add('flex');
+    }
+    function cerrarCatalogo() { const m = document.getElementById('modal-catalogo'); m.classList.add('hidden'); m.classList.remove('flex'); window._catalogo = null; }
+    async function confirmarCatalogo() {
+        const p = window._catalogo; if (!p) return; const sobre = document.getElementById('cat-sobre').checked;
+        const btn = document.getElementById('cat-confirmar'); btn.disabled = true; btn.textContent = 'Aplicando…';
+        try {
+            S.registros.forEach(r => { const c = p.pares.get(r.sku); if (c && (sobre || r.cat === 'Sin categoría')) r.cat = c; });
+            if (NUBE.activo && !S.demo) {
+                const por = new Map(); p.pares.forEach((c, sku) => { const a = por.get(c) || []; a.push(sku); por.set(c, a); });
+                let hechas = 0; const total = [...por.values()].reduce((s, a) => s + Math.ceil(a.length / 150), 0);
+                for (const [cat, skus] of por) for (let i = 0; i < skus.length; i += 150) {
+                    let q = NUBE.client.from('comercial_registros').update({ categoria: cat }).in('sku', skus.slice(i, i + 150)); if (!sobre) q = q.eq('categoria', 'Sin categoría');
+                    const { error } = await q; if (error) throw error; nubeEstado(`☁️ Aplicando catálogo ${++hechas} / ${total}…`);
+                }
+                nubeEstado('☁️ Sincronizado', 'ok'); S.shareBase = {}; await cargarRegistrosNube();
+            }
+            cerrarCatalogo(); renderTodo(); await cargarDerivados(); toast('✅ Catálogo de categorías aplicado.');
+        } catch (e) { console.error(e); toast('❌ No se pudo aplicar el catálogo en la nube. Inténtalo de nuevo.'); }
+        finally { btn.disabled = false; btn.textContent = 'Aplicar catálogo'; }
+    }
         function procesarArchivo(ev) {
         const file = ev.target.files[0]; if (!file) return;
         const reader = new FileReader();
@@ -997,11 +1060,13 @@
                 } else {
                     wb = XLSX.read(bytes, { type: 'array', raw: true });
                 }
+                const catalogo = detectarCatalogo(wb);
+                if (catalogo) { window._catalogo = { nombre: file.name, ...catalogo }; abrirCatalogo(); return; }
                 const res = parsearLibro(wb);
                 if (!res.registros.length) { toast(`❌ Importación rechazada: ${res.advertencias[0] || 'no se encontraron filas válidas.'}`); return; }
                 window._pendiente = { nombre: file.name, wb, manual: {}, ...res };
                 abrirImport();
-            } catch (err) { console.error(err); toast('❌ No se pudo leer el archivo. Verifica que sea .csv o .xlsx válido.'); }
+            } catch (err) { console.error(err); toast('❌ No se pudo leer el archivo (' + (err && err.message ? err.message : 'formato no válido') + '). Verifica que sea .csv o .xlsx válido.'); }
             finally { ev.target.value = ''; }
         };
         reader.readAsArrayBuffer(file);
