@@ -62,6 +62,9 @@
                     <button type="button" onclick="descargarMachote()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs sm:text-sm font-semibold transition">
                         <span aria-hidden="true">🧾</span><span>Machote CSV</span>
                     </button>
+                    <button type="button" onclick="abrirBorrar()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-rose-50 text-rose-700 border border-rose-200 text-xs sm:text-sm font-semibold transition">
+                        <span aria-hidden="true">🗑</span><span>Borrar datos</span>
+                    </button>
                 </div>
             </div>
 
@@ -139,6 +142,11 @@
                     <div class="rounded-2xl border border-amber-200 bg-amber-50 p-3"><div class="text-[10px] font-bold uppercase text-amber-700">Advertencias</div><div id="imp-adv" class="text-2xl font-extrabold text-amber-900 num-tabular">0</div></div>
                     <div class="rounded-2xl border border-rose-200 bg-rose-50 p-3"><div class="text-[10px] font-bold uppercase text-rose-700">Líneas omitidas</div><div id="imp-omit" class="text-2xl font-extrabold text-rose-900 num-tabular">0</div></div>
                 </div>
+                <div>
+                    <div class="text-[11px] font-bold text-slate-700 mb-1.5">Columnas detectadas <span class="font-normal text-slate-500">(corrige las que no coincidan; * = obligatoria)</span></div>
+                    <div id="imp-mapa" class="grid grid-cols-2 sm:grid-cols-3 gap-2"></div>
+                    <div id="imp-cats" class="mt-2 text-xs text-slate-700 break-words"></div>
+                </div>
                 <div id="imp-warn" class="hidden rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 max-h-40 overflow-y-auto space-y-1"></div>
                 <div class="border border-slate-200 rounded-xl overflow-hidden max-h-56 overflow-y-auto">
                     <table class="w-full text-left text-xs num-tabular">
@@ -151,6 +159,26 @@
             <div class="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2.5">
                 <button type="button" onclick="cerrarImport()" class="px-4 py-2 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-700">Cancelar</button>
                 <button type="button" id="imp-confirmar" onclick="confirmarImport()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold">Confirmar e importar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: BORRAR DATOS -->
+    <div id="modal-borrar" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 p-4 overflow-y-auto">
+        <div class="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden my-6">
+            <div class="bg-rose-700 text-white px-6 py-4"><h3 class="text-base font-extrabold">Borrar datos comerciales</h3>
+                <p class="text-xs text-rose-100 mt-1">Se borran de la nube y de este equipo, para todos los que usan el tablero. No se puede deshacer.</p></div>
+            <div class="p-6 space-y-3 text-sm">
+                <label class="flex items-start gap-2"><input type="radio" name="bor-modo" id="bor-todo" checked onchange="alternarBorrado()" class="mt-1"><span><strong>Todo</strong> <span class="text-xs text-slate-500">(ventas, pedidos y los análisis de cross-selling y recompra)</span></span></label>
+                <label class="flex items-start gap-2"><input type="radio" name="bor-modo" id="bor-rango-r" onchange="alternarBorrado()" class="mt-1"><span><strong>Solo un rango de fechas</strong></span></label>
+                <div id="bor-rango" class="grid grid-cols-2 gap-2 pl-6"><input type="date" id="bor-desde" class="rounded-lg border border-slate-300 px-2 py-1 text-xs"><input type="date" id="bor-hasta" class="rounded-lg border border-slate-300 px-2 py-1 text-xs"></div>
+                <p class="text-[11px] text-slate-500">Se conservan las acciones registradas y los ajustes de metas por categoría.</p>
+                <div><label class="text-[11px] font-bold text-slate-600">Escribe BORRAR para confirmar</label><input id="bor-confirma" autocomplete="off" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></div>
+                <p id="bor-error" class="text-xs font-semibold text-rose-600"></p>
+            </div>
+            <div class="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2.5">
+                <button type="button" onclick="cerrarBorrar()" class="px-4 py-2 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-700">Cancelar</button>
+                <button type="button" id="bor-boton" onclick="confirmarBorrado()" class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold">Borrar definitivamente</button>
             </div>
         </div>
     </div>
@@ -776,6 +804,41 @@
         const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); a.download = nombre; document.body.appendChild(a); a.click(); a.remove();
     }
 
+    function abrirBorrar() {
+        document.getElementById('bor-desde').value = ''; document.getElementById('bor-hasta').value = ''; document.getElementById('bor-todo').checked = true;
+        document.getElementById('bor-confirma').value = ''; document.getElementById('bor-error').textContent = ''; alternarBorrado();
+        const m = document.getElementById('modal-borrar'); m.classList.remove('hidden'); m.classList.add('flex');
+    }
+    function cerrarBorrar() { const m = document.getElementById('modal-borrar'); m.classList.add('hidden'); m.classList.remove('flex'); }
+    function alternarBorrado() { const todo = document.getElementById('bor-todo').checked; document.getElementById('bor-rango').classList.toggle('opacity-40', todo); document.getElementById('bor-rango').querySelectorAll('input').forEach(i => { i.disabled = todo; }); }
+    async function confirmarBorrado() {
+        const todo = document.getElementById('bor-todo').checked, err = document.getElementById('bor-error'); err.textContent = '';
+        if (document.getElementById('bor-confirma').value.trim().toUpperCase() !== 'BORRAR') { err.textContent = 'Escribe BORRAR para confirmar.'; return; }
+        let desde = document.getElementById('bor-desde').value, hasta = document.getElementById('bor-hasta').value;
+        if (todo) { desde = '2000-01-01'; hasta = '2100-12-31'; } else if (!desde || !hasta || desde > hasta) { err.textContent = 'Indica un rango de fechas válido.'; return; }
+        const btn = document.getElementById('bor-boton'); btn.disabled = true; btn.textContent = 'Borrando…';
+        try {
+            if (NUBE.activo && !S.demo) {
+                // En tramos de 31 días para no exceder el tiempo máximo de la base
+                const ini = todo ? (S.rangoMin || '2020-01-01') : desde, fin = todo ? (S.rangoMax || hoyISO()) : hasta;
+                for (let a = ini; a <= fin; a = addDias(a, 31)) {
+                    const b = addDias(a, 30) < fin ? addDias(a, 30) : fin;
+                    for (const tabla of ['comercial_registros', 'comercial_dia']) { const { error } = await NUBE.client.from(tabla).delete().gte('fecha', a).lte('fecha', b); if (error) throw error; }
+                    nubeEstado(`☁️ Borrando hasta ${fechaCorta(b)}…`);
+                }
+                if (todo) { for (const tabla of ['comercial_registros', 'comercial_dia']) { const { error } = await NUBE.client.from(tabla).delete().lt('fecha', ini); if (error) throw error; const r2 = await NUBE.client.from(tabla).delete().gt('fecha', fin); if (r2.error) throw r2.error; } }
+            }
+            const dentro = r => r.f >= desde && r.f <= hasta;
+            S.registros = S.registros.filter(r => !dentro(r)); S.dias = S.dias.filter(r => !dentro(r)); S.sinMov = null; S.shareBase = {};
+            if (todo) { S.snap = { cross: null, recompra: null }; S.rangoMin = null; S.rangoMax = null; S.mes = null; S.corte = null; }
+            else if (S.dias.length) { S.rangoMin = S.dias.reduce((m, r) => r.f < m ? r.f : m, '9999'); S.rangoMax = S.dias.reduce((m, r) => r.f > m ? r.f : m, '0000'); }
+            guardarCacheLocal(); persistirEstado(); cerrarBorrar(); renderTodo(); nubeEstado(NUBE.activo ? '☁️ Sincronizado' : 'Modo local', 'ok');
+            if (NUBE.activo && !S.demo) { await cargarRegistrosNube(); renderTodo(); await cargarDerivados(); }
+            toast(todo ? '🗑 Se borraron todos los datos comerciales.' : `🗑 Se borraron los datos del ${fechaCorta(desde)} al ${fechaCorta(hasta)}.`);
+        } catch (e) { console.error(e); err.textContent = 'No se pudo borrar. Revisa tu conexión e inténtalo de nuevo.'; }
+        finally { btn.disabled = false; btn.textContent = 'Borrar definitivamente'; }
+    }
+
     // =====================================================================
     // 5. IMPORTACIÓN DE CSV / EXCEL (líneas de pedido)
     // =====================================================================
@@ -820,8 +883,8 @@
     const sinAcentos = t => String(t).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
     const COLS = {
         fecha: ['fecha', 'date'], canal: ['canal', 'channel'], pedido: ['pedido', 'order', 'folio', 'ticket'], cliente: ['cliente', 'customer'],
-        sku: ['sku', 'codigo', 'articulo', 'itemid'], producto: ['producto', 'descripcion', 'nombre', 'product'], categoria: ['categoria', 'category', 'departamento', 'linea'],
-        unidades: ['unidades', 'cantidad', 'qty', 'piezas', 'units'], venta: ['venta', 'importe', 'monto', 'revenue', 'ingreso', 'sales']
+        sku: ['sku', 'codigo', 'articulo', 'itemid', 'material', 'upc', 'ean', 'clave'], producto: ['producto', 'descripcion', 'nombre', 'product'], categoria: ['categoria', 'category', 'categ', 'familia', 'departamento', 'depto', 'clase', 'grupo', 'division', 'rubro', 'giro', 'linea', 'seccion'],
+        unidades: ['unidades', 'cantidad', 'qty', 'piezas', 'units', 'cant'], venta: ['venta', 'importe', 'monto', 'revenue', 'ingreso', 'sales', 'subtotal', 'total']
     };
     function normCanal(t) {
         const x = sinAcentos(t); if (!x) return null;
@@ -831,12 +894,16 @@
         if (/web|sitio|ecom|pagina|online|digital/.test(x)) return 'Web';
         return null;
     }
-    function parsearLibro(wb) {
+    const CAMPOS = [['fecha', 'Fecha', true], ['canal', 'Canal', false], ['pedido', 'Pedido', true], ['cliente', 'Cliente (opcional)', false], ['sku', 'SKU', true], ['producto', 'Producto', false], ['categoria', 'Categoría', false], ['unidades', 'Unidades', true], ['venta', 'Venta', true]];
+    function parsearLibro(wb, manual) {
         const adv = []; let omitidas = 0, lineas = 0, sinPedido = 0; const reg = new Map(), dia = new Map(), pedidosDia = new Map();
         const filasPorHoja = wb.SheetNames.map(n => XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: '', raw: true }));
         const fechaTextos = []; const cabs = filasPorHoja.map(h => { const cab = (h[0] || []).map(String); const idx = {}, usados = new Set();
             Object.entries(COLS).forEach(([campo, pats]) => { const i = cab.findIndex((c, j) => !usados.has(j) && pats.some(p => sinAcentos(c).includes(p))); if (i >= 0) { idx[campo] = i; usados.add(i); } });
+            if (manual) Object.entries(manual).forEach(([campo, nombre]) => { if (nombre === '') delete idx[campo]; else { const j = cab.indexOf(nombre); if (j >= 0) idx[campo] = j; } });
             return idx; });
+        const hojaRef = filasPorHoja.findIndex(h => h.length > 1); const cabecera = hojaRef >= 0 ? (filasPorHoja[hojaRef][0] || []).map(String) : [];
+        const mapaUsado = {}; if (hojaRef >= 0) Object.entries(cabs[hojaRef]).forEach(([campo, j]) => { mapaUsado[campo] = cabecera[j]; });
         filasPorHoja.forEach((h, hi) => { const i = cabs[hi].fecha; if (i === undefined) return; for (let r = 1; r < h.length; r++) fechaTextos.push(h[r][i]); });
         const { orden, ambiguo } = detectarOrdenFechas(fechaTextos);
         if (ambiguo) adv.push('Las fechas del archivo son ambiguas (día/mes o mes/día); se interpretaron como día/mes/año. Revisa el periodo detectado.');
@@ -897,7 +964,8 @@
         if (sinPedido) adv.push(`${fmtN(sinPedido)} línea(s) sin pedido_id se omitieron (se necesita para ticket, UPT y cross-selling).`);
         const lotes = new Set(registros.map(r => r.f)).size;
         if (lotes < 28) adv.push(`El archivo cubre ${lotes} día(s). Para detectar productos sin movimiento la primera carga debe traer al menos 180 días.`);
-        return { registros, dias, cross, recompra, advertencias: adv, omitidas, lineas, tieneCliente, tieneCanal, pedidos: dias.reduce((s, d) => s + d.p, 0) };
+        const categorias = {}; registros.forEach(r => { categorias[r.cat] = (categorias[r.cat] || 0) + r.v; });
+        return { registros, dias, cross, recompra, cabecera, mapaUsado, categorias, advertencias: adv, omitidas, lineas, tieneCliente, tieneCanal, pedidos: dias.reduce((s, d) => s + d.p, 0) };
     }
         function procesarArchivo(ev) {
         const file = ev.target.files[0]; if (!file) return;
@@ -917,7 +985,7 @@
                 }
                 const res = parsearLibro(wb);
                 if (!res.registros.length) { toast(`❌ Importación rechazada: ${res.advertencias[0] || 'no se encontraron filas válidas.'}`); return; }
-                window._pendiente = { nombre: file.name, ...res };
+                window._pendiente = { nombre: file.name, wb, manual: {}, ...res };
                 abrirImport();
             } catch (err) { console.error(err); toast('❌ No se pudo leer el archivo. Verifica que sea .csv o .xlsx válido.'); }
             finally { ev.target.value = ''; }
@@ -928,10 +996,22 @@
         const p = window._pendiente; const fechas = p.registros.map(r => r.f).sort();
         document.getElementById('imp-sub').textContent = `Archivo: ${p.nombre} • Periodo: ${fechaCorta(fechas[0])} – ${fechaCorta(fechas[fechas.length - 1])} (${fechas[0].slice(0, 4)}) • ${fmtN(p.lineas)} líneas • ${fmtN(p.pedidos)} pedidos`;
         document.getElementById('imp-validos').textContent = fmtN(p.registros.length); document.getElementById('imp-adv').textContent = fmtN(p.advertencias.length); document.getElementById('imp-omit').textContent = fmtN(p.omitidas);
+        document.getElementById('imp-mapa').innerHTML = CAMPOS.map(([k, n, obl]) => `<label class="block min-w-0"><span class="text-[10px] font-bold uppercase text-slate-500">${n}${obl ? ' *' : ''}</span>
+            <select onchange="remapearImport()" data-campo="${k}" class="mt-0.5 w-full rounded-lg border ${obl && !p.mapaUsado[k] ? 'border-rose-400 bg-rose-50' : 'border-slate-300 bg-white'} px-2 py-1 text-xs">
+            <option value="">— ninguna —</option>${p.cabecera.map(c => `<option value="${esc(c)}" ${p.mapaUsado[k] === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></label>`).join('');
+        const cats = Object.entries(p.categorias).sort((a, b) => b[1] - a[1]);
+        document.getElementById('imp-cats').innerHTML = cats.length === 1 && cats[0][0] === 'Sin categoría'
+            ? '<span class="font-bold text-rose-700">No se detectaron categorías.</span> Elige arriba la columna que las contiene.'
+            : `<strong>${cats.length} categoría(s) detectadas:</strong> ${cats.slice(0, 12).map(([n, v]) => esc(n)).join(' · ')}${cats.length > 12 ? ` · … y ${cats.length - 12} más` : ''}`;
         const w = document.getElementById('imp-warn'); w.classList.toggle('hidden', !p.advertencias.length);
         w.innerHTML = p.advertencias.slice(0, 40).map(a => `<div>• ${esc(a)}</div>`).join('') + (p.advertencias.length > 40 ? `<div class="font-bold">… y ${p.advertencias.length - 40} más.</div>` : '');
         document.getElementById('imp-tbody').innerHTML = p.registros.slice(0, 8).map(r => `<tr><td class="px-3 py-1.5">${r.f}</td><td class="px-3 py-1.5">${r.c}</td><td class="px-3 py-1.5">${esc(r.sku)}</td><td class="px-3 py-1.5">${esc(r.n)}</td><td class="px-3 py-1.5">${esc(r.cat)}</td><td class="px-3 py-1.5 text-right">${fmtN(r.u)}</td><td class="px-3 py-1.5 text-right">${fmtN(r.v)}</td></tr>`).join('');
         const m = document.getElementById('modal-import'); m.classList.remove('hidden'); m.classList.add('flex');
+    }
+    function remapearImport() {
+        const p = window._pendiente; if (!p) return; const manual = {};
+        document.querySelectorAll('#imp-mapa select').forEach(s => { manual[s.dataset.campo] = s.value; });
+        window._pendiente = { nombre: p.nombre, wb: p.wb, manual, ...parsearLibro(p.wb, manual) }; abrirImport();
     }
     function cerrarImport() { const m = document.getElementById('modal-import'); m.classList.add('hidden'); m.classList.remove('flex'); window._pendiente = null; }
     async function confirmarImport() {
