@@ -550,7 +550,9 @@
         // Categorías
         const mA = agruparPor(V.rA, r => r.cat), mB = agruparPor(V.rB, r => r.cat);
         const vRows = [...mA.values()].reduce((s, x) => s + x.v, 0), vbRows = hay ? [...mB.values()].reduce((s, x) => s + x.v * V.esc, 0) : null;
-        const nombres = [...new Set([...mA.keys(), ...mB.keys()])];
+        const ini0 = `${S.mes}-01`, mapaMes = new Map();
+        if (S.planOk) S.registros.filter(r => r.f >= ini0 && r.f <= S.corte && okC(r.c)).forEach(r => mapaMes.set(r.cat, (mapaMes.get(r.cat) || 0) + r.v));
+        const nombres = [...new Set([...mA.keys(), ...mB.keys(), ...mapaMes.keys()])];
         const planVent = S.planOk ? planDe(V.ini, V.fin) : 0, planMes = S.planOk ? planDe(`${S.mes}-01`, finMes(S.mes)) : 0;
         const base = baseDeShares(V, nombres), final = shareFinal(nombres, base.sh);
         const cats = nombres.map(n => {
@@ -589,9 +591,7 @@
         const A = { Y, kY, YD, integridad: integridad(V), V, hay, T, B, k, kb, comp, cats, vRows, vbRows, planVent, planMes, baseOrigen: base.origen, baseInfo: base.info, productos: orden, top, bottom };
         if (S.planOk) {
             const mes = calcularMes(CANALES_DATO.filter(okC)), todos = calcularMes(CANALES_DATO);
-            const ini = `${S.mes}-01`, enMes = r => r.f >= ini && r.f <= S.corte && okC(r.c), mapaMes = new Map();
-            S.registros.filter(enMes).forEach(r => mapaMes.set(r.cat, (mapaMes.get(r.cat) || 0) + r.v));
-            const nombresMes = [...new Set([...cats.map(c => c.n), ...mapaMes.keys()])], baseMes = baseDeShares(V, nombresMes), finalMes = shareFinal(nombresMes, baseMes.sh); A_BASE = baseMes.info;
+            const ini = ini0, nombresMes = nombres, baseMes = base, finalMes = final; A_BASE = baseMes.info;
             const T2 = mes.total, fac = T2.real > 0 && T2.pron !== null ? T2.pron / T2.real : null;
             const catsMes = nombresMes.map(n => { const real = mapaMes.get(n) || 0, sh = finalMes[n] / 100;
                 const meta = T2.presupuesto * sh, planMTD = T2.planMTD * sh, pron = fac !== null ? real * fac : null;
@@ -876,44 +876,44 @@
         return `<div class="relative h-3 rounded-full bg-slate-100 overflow-hidden mt-2"><div class="h-full rounded-full ${real >= esp ? 'bg-emerald-500' : 'bg-rose-500'}" style="width:${Math.min(100, real)}%"></div><div class="absolute -top-0.5 -bottom-0.5 w-0.5 bg-slate-900" style="left:${Math.min(100, esp)}%" title="Pacing esperado: ${esp.toFixed(1)}%"></div></div>`;
     }
     function renderCategorias(A) {
-        const { V } = A; const tieneMeta = A.planVent > 0, M = A.mes, mtd = esMTD(), vm = tieneMeta && !mtd;
+        const { V } = A; const tieneMeta = A.planVent > 0, M = A.mes;
         const mesPorCat = new Map((M ? M.cats : []).map(c => [c.n, c]));
-        const filasDatos = [...A.cats]; if (M) M.cats.forEach(m => { if (!A.cats.some(c => c.n === m.n) && m.real > 0) filasDatos.push({ n: m.n, v: 0, sh: 0, shb: null, g: null, gY: null, ctr: null, aur: null, meta: null, cumpl: null, vacia: true }); });
         const celda = (x, cls = '') => `<td class="px-3 py-2.5 text-right num-tabular ${cls}">${x}</td>`;
-        const colMes = c => { if (!M) return ''; const m = mesPorCat.get(c.n); if (!m) return celda('—') .repeat(5);
-            return celda(fmtM(m.meta), 'border-l border-slate-200') + celda(fmtM(mtd ? m.planMTD : m.real)) + celda(m.cumplMTD !== null ? fmtMeta(m.cumplMTD) : '—', `font-bold ${m.cumplMTD !== null && m.cumplMTD < 90 ? 'text-rose-700' : ''}`) + celda(m.pron !== null ? fmtM(m.pron) : '—') +
+        // La meta de la ventana es la parte de la meta de noviembre que corresponde a esos días: plan de la Revisión Diaria de la ventana × la participación que Metas por categoría asigna a la categoría
+        const colMes = c => { if (!M) return ''; const m = mesPorCat.get(c.n); if (!m) return celda('—').repeat(5);
+            return celda(fmtM(m.meta), 'border-l border-slate-200') + celda(c.meta !== null ? fmtM(c.meta) : '—') + celda(c.cumpl !== null ? fmtMeta(c.cumpl) : '—', `font-bold ${c.cumpl !== null && c.cumpl < 90 ? 'text-rose-700' : ''}`) + celda(m.pron !== null ? fmtM(m.pron) : '—') +
                 celda(m.cumplPron !== null ? fmtMeta(m.cumplPron) : '—', `font-bold ${m.cumplPron !== null && m.cumplPron < 97 ? 'text-rose-700' : 'text-emerald-700'}`); };
-        const filas = filasDatos.map(c => `<tr class="hover:bg-slate-50">
+        const filas = A.cats.map(c => `<tr class="hover:bg-slate-50">
             <td class="px-3 py-2.5 font-bold text-slate-900 whitespace-normal min-w-[9rem]">${esc(c.n)}</td>
-            ${celda(c.vacia ? '—' : fmtM(c.v))}${celda(c.vacia ? '—' : fmtP(c.sh))}
+            ${celda(fmtM(c.v))}${celda(fmtP(c.sh))}
             ${celda(c.shb === null ? '—' : fmtPP(c.sh - c.shb), colorPP(c.shb === null ? null : c.sh - c.shb))}
-            <td class="px-3 py-2.5 text-right">${c.vacia ? '—' : chipDelta(c.g)}</td>
+            <td class="px-3 py-2.5 text-right">${chipDelta(c.g)}</td>
             <td class="px-3 py-2.5 text-right">${c.gY === null ? '<span class="text-slate-300">—</span>' : chipDelta(c.gY)}</td>
             ${celda(fmtPP(c.ctr), `font-bold ${colorPP(c.ctr)}`)}${celda(fmtM(c.aur))}
-            ${vm && !c.vacia ? `${celda(fmtM(c.meta))}<td class="px-3 py-2.5 text-right num-tabular ${c.cumpl !== null && c.cumpl < 90 ? 'text-rose-700 font-bold' : ''}">${fmtMeta(c.cumpl)}</td>` : (vm ? celda('—') + celda('—') : '')}
             ${colMes(c)}
         </tr>`).join('');
         const tm = M ? M.total : null;
-        const totMes = M ? celda(fmtM(tm.presupuesto), 'border-l border-slate-200') + celda(fmtM(mtd ? tm.planMTD : tm.real)) + celda(tm.cumplMTD !== null ? fmtMeta(tm.cumplMTD) : '—') + celda(tm.pron !== null ? fmtM(tm.pron) : '—') + celda(tm.cumplPron !== null ? fmtMeta(tm.cumplPron) : '—') : '';
+        const totMes = M ? celda(fmtM(tm.presupuesto), 'border-l border-slate-200') + celda(tieneMeta ? fmtM(A.planVent) : '—') + celda(tieneMeta ? fmtMeta(A.vRows / A.planVent * 100) : '—') + celda(tm.pron !== null ? fmtM(tm.pron) : '—') + celda(tm.cumplPron !== null ? fmtMeta(tm.cumplPron) : '—') : '';
         const th = (x, cls = '') => `<th class="px-3 py-2 text-right ${cls}">${x}</th>`;
         document.getElementById('panel-categorias').innerHTML = `
             <p class="text-[11px] text-slate-500">${textoVentana(V)}${A.YD ? ` · Año anterior (mismo día de la semana): ${fechaCorta(A.YD.ini)} – ${fechaCorta(A.YD.fin)}` : ''} · Canal: <strong>${ETIQ_CANAL[S.canal]}</strong></p>${sinBase(A)}
             <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
                 <div class="p-4 sm:p-5 flex flex-wrap items-start justify-between gap-3">
                     <div class="max-w-2xl"><h3 class="text-sm font-extrabold text-slate-900">Venta, contribución y meta por categoría</h3>
-                        <p class="text-[11px] text-slate-500 mt-0.5">Las primeras columnas analizan la ventana contra su ritmo normal; la contribución es cuánto aporta cada categoría, en puntos porcentuales, al crecimiento de la venta.${M ? ` Las columnas de <strong>${etiquetaMes(S.mes)}</strong> (a la derecha) dan seguimiento a la meta del mes.` : ''}</p></div>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Las columnas de la ventana comparan contra su ritmo normal (benchmark y año anterior). Las de <strong>${M ? etiquetaMes(S.mes) : 'la meta'}</strong> comparan contra el presupuesto: <strong>meta en la ventana</strong> = plan de la Revisión Diaria de esos días × la participación que “Metas por categoría” asigna a la categoría; por eso cambia con la ventana, y la venta de la ventana es la única cifra de venta.</p></div>
                     <button type="button" data-pdf-ocultar="true" onclick="abrirMetas()" class="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold">🎯 Metas por categoría</button>
                 </div>
                 <div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular whitespace-nowrap"><thead class="bg-slate-50 text-[10px] uppercase text-slate-500">
-                    ${M || vm ? `<tr><th colspan="8" class="px-3 pt-2 text-[10px] font-bold text-slate-400">Ventana · ${nombreVentana()}</th>${vm ? '<th colspan="2" class="px-3 pt-2 text-[10px] font-bold text-slate-400 text-right">Meta de la ventana</th>' : ''}${M ? `<th colspan="5" class="px-3 pt-2 text-[10px] font-bold text-slate-500 border-l border-slate-200">Meta de ${etiquetaMes(S.mes)}</th>` : ''}</tr>` : ''}
-                    <tr><th class="px-3 py-2">Categoría</th>${th('Venta')}${th('Share')}${th('Δ share')}${th('vs. benchmark')}${th('vs. año ant.')}${th('Contribución')}${th('AUR')}${vm ? th('Meta') + th('Cumpl.') : ''}${M ? th('Meta del mes', 'border-l border-slate-200') + th(mtd ? 'Plan al corte' : 'Acumulado') + th('Cumpl. al corte') + th('Pronóstico') + th('% meta al cierre') : ''}</tr></thead>
-                    <tbody class="divide-y divide-slate-100">${filas || '<tr><td class="px-3 py-6 text-center text-slate-500" colspan="15">Sin ventas en la ventana.</td></tr>'}
-                    <tr class="bg-slate-50 font-extrabold"><td class="px-3 py-2.5">Total</td>${celda(fmtM(A.vRows))}${celda('100%')}${celda('—')}<td class="px-3 py-2.5 text-right">${chipDelta(A.vbRows ? deltaRel(A.vRows, A.vbRows) : null)}</td><td class="px-3 py-2.5 text-right">${A.Y ? chipDelta(deltaRel(A.vRows, A.Y.v)) : '<span class="text-slate-300">—</span>'}</td>${celda(A.vbRows ? fmtPP((A.vRows - A.vbRows) / A.vbRows * 100) : '—', colorPP(A.vbRows ? (A.vRows - A.vbRows) : null))}${celda(fmtM(razon(A.vRows, A.T.u)))}${vm ? celda(fmtM(A.planVent)) + celda(fmtMeta(A.vRows / A.planVent * 100)) : ''}${totMes}</tr>
+                    ${M ? `<tr><th colspan="8" class="px-3 pt-2 text-[10px] font-bold text-slate-400">Ventana · ${nombreVentana()} · contra su ritmo normal</th><th colspan="5" class="px-3 pt-2 text-[10px] font-bold text-slate-500 border-l border-slate-200">Meta de ${etiquetaMes(S.mes)} · contra presupuesto</th></tr>` : ''}
+                    <tr><th class="px-3 py-2">Categoría</th>${th('Venta')}${th('Share')}${th('Δ share')}${th('vs. benchmark')}${th('vs. año ant.')}${th('Contribución')}${th('AUR')}${M ? th('Meta del mes', 'border-l border-slate-200') + th('Meta en la ventana') + th('Cumpl. ventana') + th('Pronóstico de cierre') + th('% meta al cierre') : ''}</tr></thead>
+                    <tbody class="divide-y divide-slate-100">${filas || '<tr><td class="px-3 py-6 text-center text-slate-500" colspan="13">Sin ventas en la ventana.</td></tr>'}
+                    <tr class="bg-slate-50 font-extrabold"><td class="px-3 py-2.5">Total</td>${celda(fmtM(A.vRows))}${celda('100%')}${celda('—')}<td class="px-3 py-2.5 text-right">${chipDelta(A.vbRows ? deltaRel(A.vRows, A.vbRows) : null)}</td><td class="px-3 py-2.5 text-right">${A.Y ? chipDelta(deltaRel(A.vRows, A.Y.v)) : '<span class="text-slate-300">—</span>'}</td>${celda(A.vbRows ? fmtPP((A.vRows - A.vbRows) / A.vbRows * 100) : '—', colorPP(A.vbRows ? (A.vRows - A.vbRows) : null))}${celda(fmtM(razon(A.vRows, A.T.u)))}${totMes}</tr>
                 </tbody></table></div>
             </div>
             <details class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm text-xs text-slate-600 leading-relaxed" data-pdf-ocultar="true"><summary class="cursor-pointer font-bold text-slate-800">ⓘ ¿Cómo se calcula la meta por categoría?</summary>
                 <div class="mt-2 space-y-1.5">
                     <p>${tieneMeta ? `La meta total es el <strong>plan de venta de la Revisión Diaria</strong> (${fmtM(A.planVent)} en esta ventana; ${fmtM(A.planMes)} en el mes). Se reparte entre categorías según su participación en la venta de <strong>${esc(A.baseOrigen)}</strong>.` : 'No hay plan de venta cargado en la Revisión Diaria para este mes, así que no se puede calcular la meta. Cárgalo allá y se verá aquí.'}</p>
+                    <p>La <strong>meta en la ventana</strong> y la <strong>meta del mes</strong> usan exactamente el mismo reparto (el de “Metas por categoría”): la primera es la parte del plan que corresponde a los días de la ventana. Cambia si cambias la ventana; la del mes no.</p>
                     <p>El Gerente puede mover puntos entre categorías en <strong>Metas por categoría</strong> (por ejemplo +2 pp a una categoría prioritaria); el resto se reajusta solo y las metas siempre suman el plan total.</p>
                     <p>El pronóstico de cierre de cada categoría aplica el mismo ritmo observado del total (fórmula de la Revisión Diaria); la suma de las categorías es exactamente el pronóstico total.</p>
                     <p>El benchmark son los 28 días previos a la ventana, escalados a los mismos días. Es el ritmo propio reciente, no una meta ni un estándar externo, y no corrige estacionalidad ni promociones del periodo base.</p>
@@ -950,23 +950,23 @@
     }
 
     function renderCanales(A) {
-        const M = A.mes, mtd = esMTD(), porMes = new Map((M ? M.canalesTodos : []).map(c => [c.c, c]));
+        const M = A.mes, porMes = new Map((M ? M.canalesTodos : []).map(c => [c.c, c]));
         const celda = (x, cls = '') => `<td class="px-3 py-2.5 text-right num-tabular ${cls}">${x}</td>`;
         const th = (x, cls = '') => `<th class="px-3 py-2 text-right ${cls}">${x}</th>`;
         const mesCols = c => { if (!M) return ''; const m = porMes.get(c.c); if (!m) return celda('—').repeat(5);
-            return celda(fmtM(m.presupuesto), 'border-l border-slate-200') + celda(fmtM(mtd ? m.planMTD : m.real)) + celda(m.cumplMTD !== null ? fmtMeta(m.cumplMTD) : '—', `font-bold ${m.cumplMTD !== null && m.cumplMTD < 90 ? 'text-rose-700' : ''}`) + celda(m.pron !== null ? fmtM(m.pron) : '—') +
+            return celda(fmtM(m.presupuesto), 'border-l border-slate-200') + celda(c.plan > 0 ? fmtM(c.plan) : '—') + celda(c.cumpl !== null ? fmtMeta(c.cumpl) : '—', `font-bold ${c.cumpl !== null && c.cumpl < 90 ? 'text-rose-700' : ''}`) + celda(m.pron !== null ? fmtM(m.pron) : '—') +
                 celda(m.cumplPron !== null ? fmtMeta(m.cumplPron) : '—', `font-bold ${m.cumplPron !== null && m.cumplPron < 97 ? 'text-rose-700' : 'text-emerald-700'}`); };
-        const filas = A.canales.map(c => `<tr class="hover:bg-slate-50"><td class="px-3 py-2.5 font-bold text-slate-900">${c.c}</td>${celda(fmtM(c.v))}${celda(fmtP(c.sh))}<td class="px-3 py-2.5 text-right">${chipDelta(c.g)}</td><td class="px-3 py-2.5 text-right">${c.gY === null ? '<span class="text-slate-300">—</span>' : chipDelta(c.gY)}</td>${celda(fmtN(c.p))}${celda(fmtM(c.aov))}${mtd ? '' : celda(c.plan > 0 ? fmtM(c.plan) : '—') + celda(c.cumpl !== null ? fmtMeta(c.cumpl) : '—', c.cumpl !== null && c.cumpl < 90 ? 'font-bold text-rose-700' : '')}
+        const filas = A.canales.map(c => `<tr class="hover:bg-slate-50"><td class="px-3 py-2.5 font-bold text-slate-900">${c.c}</td>${celda(fmtM(c.v))}${celda(fmtP(c.sh))}<td class="px-3 py-2.5 text-right">${chipDelta(c.g)}</td><td class="px-3 py-2.5 text-right">${c.gY === null ? '<span class="text-slate-300">—</span>' : chipDelta(c.gY)}</td>${celda(fmtN(c.p))}${celda(fmtM(c.aov))}
             ${celda(c.integ ? txtDelta(c.integ.dif) : '—', c.integ && Math.abs(c.integ.dif) > 3 ? 'font-bold text-rose-700' : c.integ && Math.abs(c.integ.dif) > 1 ? 'font-bold text-amber-700' : 'text-emerald-700')}${mesCols(c)}</tr>`).join('');
-        const tv = A.canales.reduce((s, c) => s + c.v, 0), tp = A.canales.reduce((s, c) => s + c.p, 0), T0 = M ? M.totalTodos : null;
-        const totMes = M ? celda(fmtM(T0.presupuesto), 'border-l border-slate-200') + celda(fmtM(mtd ? T0.planMTD : T0.real)) + celda(T0.cumplMTD !== null ? fmtMeta(T0.cumplMTD) : '—') + celda(T0.pron !== null ? fmtM(T0.pron) : '—') + celda(T0.cumplPron !== null ? fmtMeta(T0.cumplPron) : '—') : '';
+        const tv = A.canales.reduce((s, c) => s + c.v, 0), tp = A.canales.reduce((s, c) => s + c.p, 0), T0 = M ? M.totalTodos : null, planT = A.canales.reduce((s, c) => s + c.plan, 0);
+        const totMes = M ? celda(fmtM(T0.presupuesto), 'border-l border-slate-200') + celda(planT > 0 ? fmtM(planT) : '—') + celda(planT > 0 ? fmtMeta(tv / planT * 100) : '—') + celda(T0.pron !== null ? fmtM(T0.pron) : '—') + celda(T0.cumplPron !== null ? fmtMeta(T0.cumplPron) : '—') : '';
         document.getElementById('panel-canales').innerHTML = `
             <p class="text-[11px] text-slate-500">${textoVentana(A.V)}${A.YD ? ` · Año anterior (mismo día de la semana): ${fechaCorta(A.YD.ini)} – ${fechaCorta(A.YD.fin)}` : ''}</p>${sinBase(A)}
-            <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden"><div class="p-4 sm:p-5"><h3 class="text-sm font-extrabold text-slate-900">Los cuatro canales</h3><p class="text-[11px] text-slate-500 mt-0.5">Siempre se muestran todos, sin importar el filtro de canal. Las primeras columnas analizan la ventana; las de <strong>${M ? etiquetaMes(S.mes) : 'la meta del mes'}</strong> dan seguimiento a la meta con el plan de la Revisión Diaria.</p></div>
-            <div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular"><thead class="bg-slate-50 text-[10px] uppercase text-slate-500">
-                ${M ? `<tr><th colspan="${mtd ? 8 : 10}" class="px-3 pt-2 text-[10px] font-bold text-slate-400">Ventana · ${nombreVentana()}</th><th colspan="5" class="px-3 pt-2 text-[10px] font-bold text-slate-500 border-l border-slate-200">Meta de ${etiquetaMes(S.mes)}</th></tr>` : ''}
-                <tr><th class="px-3 py-2">Canal</th>${th('Venta')}${th('Share')}${th('vs. benchmark')}${th('vs. año ant.')}${th('Pedidos')}${th('Ticket')}${mtd ? '' : th('Meta ventana') + th('Cumpl.')}${th('Vs. Rev. Diaria')}${M ? th('Meta del mes', 'border-l border-slate-200') + th(mtd ? 'Plan al corte' : 'Acumulado') + th('Cumpl. al corte') + th('Pronóstico') + th('% meta al cierre') : ''}</tr></thead>
-            <tbody class="divide-y divide-slate-100">${filas}<tr class="bg-slate-50 font-extrabold"><td class="px-3 py-2.5">Total</td>${celda(fmtM(tv))}${celda('100%')}${celda('—')}${celda('—')}${celda(fmtN(tp))}${celda(fmtM(razon(tv, tp)))}${mtd ? '' : celda(A.canales.some(c => c.plan > 0) ? fmtM(A.canales.reduce((s, c) => s + c.plan, 0)) : '—') + celda(A.canales.some(c => c.plan > 0) ? fmtMeta(tv / A.canales.reduce((s, c) => s + c.plan, 0) * 100) : '—')}${celda('—')}${totMes}</tr></tbody></table></div></div>
+            <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden"><div class="p-4 sm:p-5"><h3 class="text-sm font-extrabold text-slate-900">Los cuatro canales</h3><p class="text-[11px] text-slate-500 mt-0.5">Siempre se muestran todos, sin importar el filtro de canal. Las columnas de la ventana comparan contra su ritmo normal; las de <strong>${M ? etiquetaMes(S.mes) : 'la meta del mes'}</strong> comparan contra el presupuesto de la Revisión Diaria: la <strong>meta en la ventana</strong> es el plan de esos días y cambia con la ventana. La venta de la ventana es la única cifra de venta.</p></div>
+            <div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular whitespace-nowrap"><thead class="bg-slate-50 text-[10px] uppercase text-slate-500">
+                ${M ? `<tr><th colspan="8" class="px-3 pt-2 text-[10px] font-bold text-slate-400">Ventana · ${nombreVentana()} · contra su ritmo normal</th><th colspan="5" class="px-3 pt-2 text-[10px] font-bold text-slate-500 border-l border-slate-200">Meta de ${etiquetaMes(S.mes)} · contra presupuesto</th></tr>` : ''}
+                <tr><th class="px-3 py-2">Canal</th>${th('Venta')}${th('Share')}${th('vs. benchmark')}${th('vs. año ant.')}${th('Pedidos')}${th('Ticket')}${th('Vs. Rev. Diaria')}${M ? th('Meta del mes', 'border-l border-slate-200') + th('Meta en la ventana') + th('Cumpl. ventana') + th('Pronóstico de cierre') + th('% meta al cierre') : ''}</tr></thead>
+            <tbody class="divide-y divide-slate-100">${filas}<tr class="bg-slate-50 font-extrabold"><td class="px-3 py-2.5">Total</td>${celda(fmtM(tv))}${celda('100%')}${celda('—')}${celda('—')}${celda(fmtN(tp))}${celda(fmtM(razon(tv, tp)))}${celda('—')}${totMes}</tr></tbody></table></div></div>
             ${bannerIntegridad(A)}
             <p class="text-[11px] text-slate-500">WhatsApp y Llamadas se miden con sus propios pedidos; su conversión contra oportunidades atendidas se documenta aparte, como define el KPI de CR.</p>`;
     }
