@@ -165,6 +165,9 @@
                     <button type="button" onclick="setHerramienta('trafico')" id="tool-tab-trafico" class="tool-tab-btn shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-white transition flex items-center gap-1.5">
                         <span>Tráfico y Conversión</span>
                     </button>
+                    <button type="button" onclick="setHerramienta('comercial')" id="tool-tab-comercial" class="tool-tab-btn shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-white transition flex items-center gap-1.5">
+                        <span>Comercial</span>
+                    </button>
                 </nav>
             </div>
         </div>
@@ -1206,6 +1209,25 @@
                     </div>
                 </div>
             </section>
+            <section id="tool-panel-comercial" class="tool-panel hidden fade-in">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-5">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900">Comercial</h2>
+                            <p class="text-sm text-slate-600 mt-1">Venta por categoría con meta, productos estrella y ancla, ticket (AOV, UPT, AUR), cross-selling y productos sin movimiento, contra benchmark propio. Uso semanal y mensual.</p>
+                        </div>
+                        <a href="herramientas/Comercial.html" target="_blank" rel="noopener"
+                           class="shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm transition">
+                            <span>Abrir en otra pestaña</span>
+                            <span aria-hidden="true">↗</span>
+                        </a>
+                    </div>
+                    <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                        <iframe id="comercial-frame" title="Comercial" data-src="herramientas/Comercial.html"
+                                class="w-full block border-0" style="height: 78vh; min-height: 520px;" loading="lazy"></iframe>
+                    </div>
+                </div>
+            </section>
         </main>
     </div>
 
@@ -1286,7 +1308,7 @@
 
         function setHerramienta(id, sinScroll) {
             window.herramientaActiva = id;
-            ['tablero', 'trafico'].forEach(t => {
+            ['tablero', 'trafico', 'comercial'].forEach(t => {
                 document.getElementById('tool-panel-' + t).classList.toggle('hidden', t !== id);
                 document.getElementById('tool-tab-' + t).className = 'tool-tab-btn shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ' +
                     (t === id ? 'bg-slate-800 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-white');
@@ -2682,12 +2704,12 @@
             { pillar: 'ux', pillarLabel: 'Optimización UX', freq: 'Quincenal', commitment: 'Martes, semanas 1 y 3', title: 'Análisis por dispositivo, navegador y canal', objective: 'Encontrar bugs o fricciones técnicas que bloqueen la compra en dispositivos específicos.', tool: 'Master Dashboard (Checkout) / PPT', kpi: 'N.º incidencias detectadas y resueltas', managerLink: 'Pilar C • Soporte TI', drawerKey: 'pilar-c' },
             { pillar: 'ux', pillarLabel: 'Optimización UX', freq: 'Mensual', commitment: 'Jueves de la semana 3 de cada mes', title: 'Insights de comportamiento (Microsoft Clarity)', objective: 'Detectar fricciones visuales o de usabilidad no evidentes en números para proponer mejoras.', tool: 'Deck de Insights (PPT Vivo)', kpi: 'N.º hallazgos con acción implementada', managerLink: 'Pilar C • Clarity UX', drawerKey: 'pilar-c' },
 
-            { pillar: 'comercial', pillarLabel: 'Estrategia Comercial', freq: 'Semanal', commitment: 'Cada miércoles', title: 'Análisis de ventas por categoría, producto y canal', objective: 'Identificar combinaciones con mayor potencial de volumen y conversión para impulsar segmentos.', tool: 'Master Dashboard (Comercial)', kpi: 'Contribución % por categoría vs. meta', managerLink: 'Pilar A • Estrategia', drawerKey: 'pilar-a' },
+            { pillar: 'comercial', pillarLabel: 'Estrategia Comercial', freq: 'Semanal', commitment: 'Cada miércoles', title: 'Análisis de ventas por categoría, producto y canal', objective: 'Identificar combinaciones con mayor potencial de volumen y conversión para impulsar segmentos.', tool: 'Comercial (Categorías y Canales) / Master Dashboard', kpi: 'Contribución % por categoría vs. meta', managerLink: 'Pilar A • Estrategia', drawerKey: 'pilar-a' },
             { pillar: 'comercial', pillarLabel: 'Estrategia Comercial', freq: 'Quincenal', commitment: 'Miércoles, semanas 1 y 3', title: 'Evaluación de desempeño de banners y campañas', objective: 'Determinar cuándo escalar, ajustar o pausar campañas y asegurar clics con intención real.', tool: 'Tráfico y Conversión (pestaña Campañas) / Excel Control (Pestaña F) / PPT', kpi: 'ROI o CR de campaña vs. objetivo', managerLink: 'Pilar A & D • Demanda', drawerKey: 'pilar-d' },
-            { pillar: 'comercial', pillarLabel: 'Estrategia Comercial', freq: 'Mensual', commitment: 'Miércoles de la semana 2 de cada mes', title: 'Productos estrella vs. ancla y retención', objective: 'Visibilizar qué SKUs sostienen la meta y qué artículos generan recompra recurrente.', tool: 'Master Dashboard (Comercial)', kpi: 'Ranking Top 10 / Bottom 10 contribución', managerLink: 'Pilar A • Categorías', drawerKey: 'pilar-a' },
-            { pillar: 'comercial', pillarLabel: 'Estrategia Comercial', freq: 'Mensual', commitment: 'Día 12 del mes', title: 'Análisis de share y contribución al segmento', objective: 'Identificar qué productos y segmentos aportan mayor crecimiento y contribución al canal.', tool: 'Master Dashboard (Comercial)', kpi: '% de contribución por segmento', managerLink: 'Pilar D • Medición', drawerKey: 'pilar-d' },
-            { pillar: 'comercial', pillarLabel: 'Estrategia Comercial', freq: 'Quincenal', commitment: 'Miércoles, semanas 2 y 4', title: 'Recomendaciones de Cross-selling', objective: 'Sugerir productos complementarios lógicos para elevar el Ticket Promedio (AOV) y UPT.', tool: 'Excel Control (Pestaña F)', kpi: 'Variación del Ticket Promedio (AOV)', managerLink: 'Pilar A • Conversión', drawerKey: 'pilar-a' },
-            { pillar: 'comercial', pillarLabel: 'Estrategia Comercial', freq: 'Mensual', commitment: 'Penúltimo viernes mes', title: 'Bundling para catálogo estancado (+90 días)', objective: 'Acelerar rotación de inventario rezagado combinándolo con productos ancla de alta demanda.', tool: 'Deck de Insights / PPT', kpi: '% de reducción de inventario estancado', managerLink: 'Pilar A & B • Abasto', drawerKey: 'pilar-b' },
+            { pillar: 'comercial', pillarLabel: 'Estrategia Comercial', freq: 'Mensual', commitment: 'Miércoles de la semana 2 de cada mes', title: 'Productos estrella vs. ancla y retención', objective: 'Visibilizar qué SKUs sostienen la meta y qué artículos generan recompra recurrente.', tool: 'Comercial (Estrella vs. ancla)', kpi: 'Ranking Top 10 / Bottom 10 contribución', managerLink: 'Pilar A • Categorías', drawerKey: 'pilar-a' },
+            { pillar: 'comercial', pillarLabel: 'Estrategia Comercial', freq: 'Mensual', commitment: 'Día 12 del mes', title: 'Análisis de share y contribución al segmento', objective: 'Identificar qué productos y segmentos aportan mayor crecimiento y contribución al canal.', tool: 'Comercial (Categorías)', kpi: '% de contribución por segmento', managerLink: 'Pilar D • Medición', drawerKey: 'pilar-d' },
+            { pillar: 'comercial', pillarLabel: 'Estrategia Comercial', freq: 'Quincenal', commitment: 'Miércoles, semanas 2 y 4', title: 'Recomendaciones de Cross-selling', objective: 'Sugerir productos complementarios lógicos para elevar el Ticket Promedio (AOV) y UPT.', tool: 'Comercial (Cross-selling) / Excel Control (Pestaña F)', kpi: 'Variación del Ticket Promedio (AOV)', managerLink: 'Pilar A • Conversión', drawerKey: 'pilar-a' },
+            { pillar: 'comercial', pillarLabel: 'Estrategia Comercial', freq: 'Mensual', commitment: 'Penúltimo viernes mes', title: 'Bundling para catálogo estancado (+90 días)', objective: 'Acelerar rotación de inventario rezagado combinándolo con productos ancla de alta demanda.', tool: 'Comercial (Sin movimiento +90 días) / Deck de Insights / PPT', kpi: '% de reducción de inventario estancado', managerLink: 'Pilar A & B • Abasto', drawerKey: 'pilar-b' },
             { pillar: 'comercial', pillarLabel: 'Estrategia Comercial', freq: 'Semanal', commitment: 'Cada jueves (dentro de la revisión de Tráfico y Conversión)', title: 'Monitoreo productos con alto tráfico y bajo CR', objective: 'Diagnosticar causa raíz (precio, ficha técnica, velocidad) para convertir visitas en ventas.', tool: 'Tráfico y Conversión (Perfil de segmentos) / PPT', kpi: 'N.º hipótesis validadas y accionadas', managerLink: 'Pilar A & C • Conversión', drawerKey: 'pilares-gerente' },
 
             { pillar: 'mercado', pillarLabel: 'Investigación Mercado', freq: 'Mensual', commitment: 'Primer lunes del mes', title: 'Análisis de tendencias de búsqueda', objective: 'Anticiparse a necesidades del mercado para empujar categorías con demanda creciente.', tool: 'Excel Control (Pestaña G)', kpi: 'N.º oportunidades detectadas y evaluadas', managerLink: 'Pilar A • Categorías', drawerKey: 'pilar-a' },
@@ -2858,7 +2880,13 @@
                         linkLabel: 'Abrir tablero en otra pestaña'
                     },
                     { name: 'Checkout', detail: 'Abandono de carrito detallado por dispositivo, navegador y canal (Semanal).' },
-                    { name: 'Comercial', detail: 'Ventas por categoría/SKU, estrella vs. ancla, alto tráfico/bajo CR y contribución (Semanal / Mensual).' },
+                    {
+                        name: 'Comercial',
+                        detail: 'Venta por categoría con meta (plan de la Revisión Diaria repartido por participación), productos estrella vs. ancla con recompra, ticket (AOV, UPT, AUR) descompuesto en pedidos, unidades y precio, cross-selling, productos sin movimiento +90 días y bundling, siempre contra el benchmark propio de 28 días (Semanal / Mensual). Alto tráfico/bajo CR vive en el Perfil de Tráfico y Conversión. Tablero propio con carga por CSV de líneas de pedido.',
+                        tag: 'Tablero propio',
+                        href: 'herramientas/Comercial.html',
+                        linkLabel: 'Abrir tablero en otra pestaña'
+                    },
                     { name: 'Demanda', detail: 'Variación de demanda por canal propio y alertas tempranas (Semanal).' }
                 ]
             },
