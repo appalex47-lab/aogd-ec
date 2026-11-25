@@ -896,7 +896,7 @@
     }
     const CAMPOS = [['fecha', 'Fecha', true], ['canal', 'Canal', false], ['pedido', 'Pedido', true], ['cliente', 'Cliente (opcional)', false], ['sku', 'SKU', true], ['producto', 'Producto', false], ['categoria', 'Categoría', false], ['unidades', 'Unidades', true], ['venta', 'Venta', true]];
     function parsearLibro(wb, manual) {
-        const adv = []; let omitidas = 0, lineas = 0, sinPedido = 0; const reg = new Map(), dia = new Map(), pedidosDia = new Map();
+        const adv = []; let omitidas = 0, lineas = 0, sinPedido = 0, devs = 0, devMonto = 0; const reg = new Map(), dia = new Map(), pedidosDia = new Map();
         const filasPorHoja = wb.SheetNames.map(n => XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: '', raw: true }));
         const fechaTextos = []; const cabs = filasPorHoja.map(h => { const cab = (h[0] || []).map(String); const idx = {}, usados = new Set();
             Object.entries(COLS).forEach(([campo, pats]) => { const i = cab.findIndex((c, j) => !usados.has(j) && pats.some(p => sinAcentos(c).includes(p))); if (i >= 0) { idx[campo] = i; usados.add(i); } });
@@ -924,7 +924,7 @@
                 const sku = String(row[idx.sku]).trim().slice(0, 60); if (!sku) { omitidas++; continue; }
                 const u = limpiarEntero(row[idx.unidades]), v = limpiarEntero(row[idx.venta]);
                 if (u === null || v === null) { omitidas++; if (adv.length < 60) adv.push(`Fila ${r + 1}: unidades o venta vacías. Omitida.`); continue; }
-                if (u < 0 || v < 0) { omitidas++; if (adv.length < 60) adv.push(`Fila ${r + 1}: valores negativos (devoluciones). Omitida.`); continue; }
+                if (u < 0 || v < 0) { devs++; devMonto += v; }
                 const n = idx.producto !== undefined ? String(row[idx.producto]).trim().slice(0, 160) : ''; const cat = idx.categoria !== undefined ? (String(row[idx.categoria]).trim().slice(0, 80) || 'Sin categoría') : 'Sin categoría';
                 const cli = idx.cliente !== undefined ? String(row[idx.cliente]).trim() : '';
                 lineasOk.push([f, c, ped, sku, n, cat, u, v, cli]); if (f > maxF) maxF = f;
@@ -933,11 +933,21 @@
         const ventanaCross = addDias(maxF, -27), ventanaRec = addDias(maxF, -89);
         const minF = lineasOk.reduce((m, l) => l[0] < m ? l[0] : m, '9999-99-99');
         const pedidosVentana = new Map(), pedidosSku = new Map(), pares = new Map(), cliSku = new Map(); const pedidosCross = new Set();
+        // Si una línea no trae categoría, se le asigna la que ese mismo SKU trae en otras líneas (la más frecuente); si no, la que ya conoce el tablero
+        const SC = 'Sin categoría', frec = new Map();
+        lineasOk.forEach(l => { if (l[5] !== SC) { const m = frec.get(l[3]) || new Map(); m.set(l[5], (m.get(l[5]) || 0) + 1); frec.set(l[3], m); } });
+        const conocidas = new Map(); S.registros.forEach(r => { if (r.cat !== SC && !conocidas.has(r.sku)) conocidas.set(r.sku, r.cat); });
+        const mejor = sku => { const m = frec.get(sku); if (m) return [...m.entries()].sort((a, b) => b[1] - a[1])[0][0]; return conocidas.get(sku) || null; };
+        let rellenadas = 0; const skusSinCat = new Set(); let ventaSinCat = 0, ventaTotal = 0; const sinCatMes = {}, totMes = {};
+        lineasOk.forEach(l => { if (l[5] === SC) { const c2 = mejor(l[3]); if (c2) { l[5] = c2; rellenadas++; } else skusSinCat.add(l[3]); }
+            const mes = l[0].slice(0, 7); totMes[mes] = (totMes[mes] || 0) + Math.abs(l[7]); ventaTotal += Math.abs(l[7]); if (l[5] === SC) { ventaSinCat += Math.abs(l[7]); sinCatMes[mes] = (sinCatMes[mes] || 0) + Math.abs(l[7]); } });
         lineasOk.forEach(([f, c, ped, sku, n, cat, u, v, cli]) => {
+            const dev = u < 0 || v < 0;
             const k = `${f}|${c}|${sku}`; let x = reg.get(k); if (!x) { x = { f, c, sku, n, cat, u: 0, v: 0, ps: new Set() }; reg.set(k, x); }
-            x.u += u; x.v += v; x.ps.add(ped); if (n) x.n = n;
+            x.u += u; x.v += v; if (!dev) x.ps.add(ped); if (n) x.n = n;
             const kd = `${f}|${c}`; let d = dia.get(kd); if (!d) { d = { f, c, u: 0, v: 0 }; dia.set(kd, d); pedidosDia.set(kd, new Set()); }
-            d.u += u; d.v += v; pedidosDia.get(kd).add(ped);
+            d.u += u; d.v += v; if (!dev) pedidosDia.get(kd).add(ped);
+            if (dev) return;
             if (f >= ventanaCross) { const o = ordenes.get(ped) || new Set(); o.add(sku); ordenes.set(ped, o); }
             if (cli && f >= ventanaRec) { const kc = `${sku}|${cli}`; const a = cliSku.get(kc); if (!a) cliSku.set(kc, [ped, null]); else if (a[0] !== ped && a[1] === null) a[1] = ped; }
         });
@@ -961,11 +971,15 @@
             const porSku = {}; [...por.entries()].filter(([, x]) => x[0] >= 20).sort((x, y) => y[1][0] - x[1][0]).slice(0, 400).forEach(([sku, x]) => { porSku[sku] = [x[0], Math.round(x[1] / x[0] * 1000) / 10]; });
             recompra = { desde: ventanaRec > minF ? ventanaRec : minF, hasta: maxF, porSku };
         } else adv.push(tieneCliente ? 'El archivo trae menos de 60 días: no se actualizó la recompra.' : 'El archivo no trae cliente_id: no se calcula la recompra.');
+        if (devs) adv.push(`${fmtN(devs)} línea(s) de devolución (valores negativos, ${fmtM(devMonto)}) se restaron de la venta y de las unidades; no cuentan como pedidos.`);
+        if (rellenadas) adv.push(`${fmtN(rellenadas)} línea(s) no traían categoría y se les asignó la que ese mismo producto trae en otras líneas.`);
+        if (ventaSinCat > 0) adv.push(`${fmtP(ventaSinCat / ventaTotal * 100)} de la venta quedó "Sin categoría" (${fmtN(skusSinCat.size)} producto(s) sin categoría en ninguna línea).`);
         if (sinPedido) adv.push(`${fmtN(sinPedido)} línea(s) sin pedido_id se omitieron (se necesita para ticket, UPT y cross-selling).`);
         const lotes = new Set(registros.map(r => r.f)).size;
         if (lotes < 28) adv.push(`El archivo cubre ${lotes} día(s). Para detectar productos sin movimiento la primera carga debe traer al menos 180 días.`);
         const categorias = {}; registros.forEach(r => { categorias[r.cat] = (categorias[r.cat] || 0) + r.v; });
-        return { registros, dias, cross, recompra, cabecera, mapaUsado, categorias, advertencias: adv, omitidas, lineas, tieneCliente, tieneCanal, pedidos: dias.reduce((s, d) => s + d.p, 0) };
+        const sinCatPorMes = Object.keys(totMes).sort().map(m => [m, (sinCatMes[m] || 0) / totMes[m] * 100]).filter(x => x[1] > 0);
+        return { registros, dias, cross, recompra, cabecera, mapaUsado, categorias, sinCatPorMes, rellenadas, advertencias: adv, omitidas, lineas, tieneCliente, tieneCanal, pedidos: dias.reduce((s, d) => s + d.p, 0) };
     }
         function procesarArchivo(ev) {
         const file = ev.target.files[0]; if (!file) return;
@@ -1002,7 +1016,7 @@
         const cats = Object.entries(p.categorias).sort((a, b) => b[1] - a[1]);
         document.getElementById('imp-cats').innerHTML = cats.length === 1 && cats[0][0] === 'Sin categoría'
             ? '<span class="font-bold text-rose-700">No se detectaron categorías.</span> Elige arriba la columna que las contiene.'
-            : `<strong>${cats.length} categoría(s) detectadas:</strong> ${cats.slice(0, 12).map(([n, v]) => esc(n)).join(' · ')}${cats.length > 12 ? ` · … y ${cats.length - 12} más` : ''}`;
+            : `${p.sinCatPorMes.length ? `<div class="mb-1 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-amber-900"><strong>Venta sin categoría por mes:</strong> ${p.sinCatPorMes.slice(-8).map(([m, x]) => `${etiquetaMes(m)} ${x.toFixed(0)}%`).join(' · ')}</div>` : ''}<strong>${cats.length} categoría(s) detectadas:</strong> ${cats.slice(0, 12).map(([n, v]) => esc(n)).join(' · ')}${cats.length > 12 ? ` · … y ${cats.length - 12} más` : ''}`;
         const w = document.getElementById('imp-warn'); w.classList.toggle('hidden', !p.advertencias.length);
         w.innerHTML = p.advertencias.slice(0, 40).map(a => `<div>• ${esc(a)}</div>`).join('') + (p.advertencias.length > 40 ? `<div class="font-bold">… y ${p.advertencias.length - 40} más.</div>` : '');
         document.getElementById('imp-tbody').innerHTML = p.registros.slice(0, 8).map(r => `<tr><td class="px-3 py-1.5">${r.f}</td><td class="px-3 py-1.5">${r.c}</td><td class="px-3 py-1.5">${esc(r.sku)}</td><td class="px-3 py-1.5">${esc(r.n)}</td><td class="px-3 py-1.5">${esc(r.cat)}</td><td class="px-3 py-1.5 text-right">${fmtN(r.u)}</td><td class="px-3 py-1.5 text-right">${fmtN(r.v)}</td></tr>`).join('');
