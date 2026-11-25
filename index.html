@@ -310,7 +310,7 @@
                                 </p>
                             </div>
                             <button type="button" onclick="toggleAllPilars()" id="btn-toggle-all-pilars" class="self-start lg:self-auto shrink-0 px-3.5 py-2 rounded-xl bg-white border border-slate-300 hover:bg-slate-50 text-slate-800 text-xs font-bold shadow-xs transition">
-                                + Expandir todos (18)
+                                + Expandir todos (17)
                             </button>
                         </div>
 
@@ -552,6 +552,9 @@
                                 </button>
                                 <button type="button" onclick="setRoutineFreq('weekly')" id="tab-weekly" class="routine-tab px-3.5 py-2 rounded-lg text-xs font-bold text-slate-600 hover:text-slate-900 transition">
                                     Weekly (Lun–Vie)
+                                </button>
+                                <button type="button" onclick="setRoutineFreq('biweekly')" id="tab-biweekly" class="routine-tab px-3.5 py-2 rounded-lg text-xs font-bold text-slate-600 hover:text-slate-900 transition">
+                                    Quincenal (Checkpoint)
                                 </button>
                                 <button type="button" onclick="setRoutineFreq('monthly')" id="tab-monthly" class="routine-tab px-3.5 py-2 rounded-lg text-xs font-bold text-slate-600 hover:text-slate-900 transition">
                                     Monthly + Ejecutiva
@@ -1430,7 +1433,6 @@
                     { title: 'Abasto y demanda', text: 'Identificar productos con alta demanda, detectar productos negados por sucursal, retroalimentar a Planeación y Abasto, priorizar productos estratégicos y dar seguimiento a inventario y cancelaciones.' },
                     { title: 'Competitividad de precios', text: 'Monitorear diferencias frente a competidores, identificar desventajas competitivas, evaluar impacto comercial, presentar recomendaciones a Precios y dar seguimiento. Precios conserva autoridad para aprobar y ejecutar modificaciones.' },
                     { title: 'Catálogo', text: 'Monitorear calidad del portafolio, detectar productos sin imagen o información incompleta, solicitar altas, bajas y correcciones, priorizar productos estratégicos y verificar publicación.' },
-                    { title: 'Logística', text: 'Identificar incidencias de surtido y entrega, analizar cancelaciones, coordinar seguimiento con Logística, CEDIS y sucursales, proponer acuerdos de servicio y medir impacto comercial.' },
                     { title: 'Gobernanza documental', text: 'Mantener actualizados: POL-ECOM, procedimientos operativos, matriz RACI, playbooks de incidencias, flujos de escalamiento y definición de responsables.' }
                 ]
             },
@@ -1510,7 +1512,7 @@
             if (allPilarsExpanded) {
                 allPilarsExpanded = false;
                 const toggleAllBtn = document.getElementById('btn-toggle-all-pilars');
-                if (toggleAllBtn) toggleAllBtn.textContent = '+ Expandir todos (18)';
+                if (toggleAllBtn) toggleAllBtn.textContent = '+ Expandir todos (17)';
             }
 
             if (wasHidden || wasAllExpanded) {
@@ -1521,7 +1523,7 @@
 
         function toggleAllPilars() {
             allPilarsExpanded = !allPilarsExpanded;
-            document.getElementById('btn-toggle-all-pilars').textContent = allPilarsExpanded ? '− Contraer frentes' : '+ Expandir todos (18)';
+            document.getElementById('btn-toggle-all-pilars').textContent = allPilarsExpanded ? '− Contraer frentes' : '+ Expandir todos (17)';
             renderFourPilars();
         }
 
@@ -1786,45 +1788,69 @@
                 bannerTitle: 'Daily: Control Diario — Ventana Crítica antes de las 10:00 AM',
                 bannerDesc: 'Analista: control y detección temprana. Gerente: decisiones dentro de su autoridad, coordinación y escalamiento.',
                 tasks: [
-                    { timing: 'Diario • < 10:00 AM', owner: 'Analista / Gerente', title: 'Venta de ayer contra presupuesto y pedidos/conversión', goals: ['Vender', 'Mejorar la venta'], desc: 'Revisar ventas oficiales de ayer contra presupuesto, volumen de pedidos y tasa de conversión (CR) para diagnóstico inicial.', control: 'Venta real vs. Presupuesto diario; pedidos y conversión por canal.' },
-                    { timing: 'Diario • < 10:00 AM', owner: 'Analista', title: 'Salud del sitio/App, checkout, pagos, banners y precios', goals: ['Prevenir caídas'], desc: 'Validación visual del sitio y App, verificación de checkout y pasarelas de pago, banners activos y precios publicados.', control: 'Uptime ≥ 99.9%; publicación correcta sin fricciones.' },
-                    { timing: 'Diario • Continuo', owner: 'Analista / Gerente', title: 'Incidencias críticas y negados por sucursal', goals: ['Prevenir caídas'], desc: 'Escalamiento y resolución de incidencias críticas y retroalimentación oportuna a Planeación y Abasto sobre negados por sucursal.', control: 'Fill Rate ≥ 95%; atención inmediata P0/P1.' },
-                    { timing: 'Diario • Post-Despliegue', owner: 'Analista / TI • Gerente', title: 'Tracking tras despliegues y prioridades comerciales', goals: ['Prevenir caídas', 'Vender'], desc: 'Validar integridad de medición GTM/GA4 tras despliegues y alinear prioridades comerciales con las áreas involucradas.', control: 'Integridad de eventos y alineación de insumos comerciales.' }
+                    { timing: 'Diario • < 10:00 AM', owner: 'Analista / Gerente', title: 'Venta de ayer contra presupuesto y pedidos/conversión', goals: ['Vender', 'Mejorar la venta'], desc: 'Revisar ventas oficiales de ayer contra presupuesto, volumen de pedidos y tasa de conversión (CR) para diagnóstico inicial.', control: 'Venta real vs. Presupuesto diario; pedidos y conversión por canal.', cubre: ['Medición', 'Estrategia comercial por canal'] },
+                    { timing: 'Diario • < 10:00 AM', owner: 'Analista', title: 'Ronda visual y salud del sitio/App, checkout, pagos, banners y precios', goals: ['Prevenir caídas'], desc: 'Ronda visual de 10 min del Analista en Web y App: banners vigentes, precios y promociones publicados, buscador, checkout y pasarelas de pago. Lo que falle se levanta como ticket o se escala.', control: 'Uptime ≥ 99.9%; publicación correcta sin fricciones.', cubre: ['UX y conversión'] },
+                    { timing: 'Diario • Continuo', owner: 'Analista (bandeja Nivel 1) / Gerente (decide)', title: 'Incidencias, negados y decisión de P0/P1', goals: ['Prevenir caídas'], desc: 'El Analista levanta tickets, incidencias y negados por sucursal en la bandeja Nivel 1 y escala de inmediato los P0/P1. El Gerente decide, escala a las áreas y retroalimenta a Planeación y Abasto.', control: 'Fill Rate ≥ 95%; P0/P1 decididos y escalados al momento.', cubre: ['Abasto y demanda'] },
+                    { timing: 'Diario • Post-Despliegue', owner: 'Analista / TI • Gerente', title: 'Tracking tras despliegues y prioridades comerciales', goals: ['Prevenir caídas', 'Vender'], desc: 'Validar integridad de medición GTM/GA4 tras despliegues y alinear prioridades comerciales con las áreas involucradas.', control: 'Integridad de eventos y alineación de insumos comerciales.', cubre: ['Gobernanza de datos'] }
                 ]
             },
             weekly: {
                 bannerTitle: 'Weekly: Dirección Comercial y Coordinación Transversal (Lunes a Viernes)',
                 bannerDesc: 'Ritmo semanal estructurado para alinear abasto, tecnología, categorías, experiencia de usuario y compromisos interáreas.',
                 tasks: [
-                    { timing: 'Lunes', owner: 'Gerente + Analista', title: 'Ventas, presupuesto, negados y Abasto', goals: ['Vender', 'Prevenir caídas'], desc: 'Revisión de ventas contra presupuesto, identificación de desviaciones, revisión de negados y disponibilidad y priorización de necesidades con Abasto.', control: 'Fill Rate ≥ 95% y plan de acción sobre desviaciones.' },
-                    { timing: 'Martes', owner: 'Gerente + TI', title: 'Backlog, TI, incidencias y UAT', goals: ['Mejorar la venta'], desc: 'Priorización de backlog funcional con TI, revisión de incidencias abiertas y seguimiento de entregables y pruebas UAT.', control: 'Cumplimiento de entregables comprometidos y aprobación UAT.' },
-                    { timing: 'Miércoles', owner: 'Gerente + Analista', title: 'Categorías, AOV, UPT, AUR y coordinación comercial', goals: ['Mejorar la venta', 'Vender'], desc: 'Análisis de desempeño por categoría y productos estratégicos, ticket promedio (AOV), UPT, AUR y coordinación con MKT Digital y CRM.', control: 'Crecimiento de cesta y prioridades comerciales compartidas.' },
-                    { timing: 'Jueves', owner: 'Gerente + Analista', title: 'SEO, Clarity y embudo', goals: ['Mejorar la venta'], desc: 'Revisión de desempeño orgánico SEO, análisis de embudo y Microsoft Clarity, evaluación de fricciones y oportunidades de conversión.', control: 'Reducción de fricciones en navegación, PDP, carrito y checkout.' },
-                    { timing: 'Viernes', owner: 'Gerente + Analista', title: 'Precios, catálogo, logística y compromisos', goals: ['Prevenir caídas'], desc: 'Seguimiento de precios frente a competencia, salud de catálogo, logística, cierre de compromisos interdepartamentales y prioridades de la siguiente semana.', control: 'Salud de catálogo completa y cierre de compromisos semanales.' }
+                    { timing: 'Lunes', owner: 'Gerente + Analista', title: 'Ventas, presupuesto, negados, Abasto y venta asistida', goals: ['Vender', 'Prevenir caídas'], desc: 'Revisión de ventas contra presupuesto, desviaciones, negados, disponibilidad, inventario y cancelaciones con Abasto. Además, 15 min para revisar las pruebas de llamadas y WhatsApp del Analista y las oportunidades transferidas y recuperadas entre canales.', control: 'Fill Rate ≥ 95%, plan de acción sobre desviaciones y fallas de canales asistidos atendidas.', cubre: ['Estrategia comercial por canal', 'Abasto y demanda', 'Venta asistida y continuidad'] },
+                    { timing: 'Martes', owner: 'Gerente + TI', title: 'Backlog, TI, incidencias y UAT', goals: ['Mejorar la venta'], desc: 'Priorización de backlog funcional con TI, revisión de incidencias abiertas y seguimiento de entregables y pruebas UAT.', control: 'Cumplimiento de entregables comprometidos y aprobación UAT.', cubre: ['Roadmap tecnológico'] },
+                    { timing: 'Miércoles', owner: 'Gerente + Analista', title: 'Categorías, AOV, UPT, AUR, demanda y coordinación comercial', goals: ['Mejorar la venta', 'Vender'], desc: 'Desempeño por categoría y productos estratégicos, AOV, UPT y AUR. Con MKT Digital y CRM: origen de tráfico, campañas activas e inversión contra resultados comerciales (pestaña Campañas de Tráfico y Conversión).', control: 'Crecimiento de cesta, prioridades comerciales compartidas y campañas evaluadas por resultado.', cubre: ['Estrategia de categorías y productos', 'Optimización de conversión', 'Coordinación con Marketing Digital y CRM', 'Visibilidad de demanda'] },
+                    { timing: 'Jueves', owner: 'Gerente + Analista', title: 'SEO, Clarity y embudo', goals: ['Mejorar la venta'], desc: 'Revisión de desempeño orgánico SEO, análisis de embudo y Microsoft Clarity, evaluación de fricciones y oportunidades de conversión.', control: 'Reducción de fricciones en navegación, PDP, carrito y checkout.', cubre: ['UX y conversión', 'SEO y Core Web Vitals', 'Optimización de conversión'] },
+                    { timing: 'Viernes', owner: 'Gerente + Analista', title: 'Precios, catálogo, compromisos y rendición de cuentas', goals: ['Prevenir caídas'], desc: 'Seguimiento de precios frente a competencia (recomendaciones a Precios), salud de catálogo y altas o correcciones pendientes. Se revisa el cierre semanal de acciones del Analista: resultado, desviación, causa, responsable y fecha compromiso, y se definen las prioridades de la siguiente semana.', control: 'Salud de catálogo completa, acciones con responsable y fecha, y prioridades de la semana definidas.', cubre: ['Competitividad de precios', 'Catálogo', 'Rendición de cuentas'] }
+                ]
+            },
+            biweekly: {
+                bannerTitle: 'Quincenal: Checkpoint de Insights y Acciones (Viernes, Semanas 2 y 4)',
+                bannerDesc: 'Capa conjunta con el Analista para revisar qué acciones se implementaron, cuáles se atoraron y por qué, y diagnosticar las desviaciones.',
+                tasks: [
+                    { timing: 'Viernes • Semanas 2 y 4', owner: 'Gerente + Analista', title: 'Checkpoint de insights y acciones', goals: ['Mejorar la venta'], desc: 'Revisar el Deck de Insights vivo y el avance de las acciones de las dos semanas: cuáles se implementaron, cuáles se atoraron y por qué. El Gerente decide continuar, escalar o descartar.', control: 'Acciones atoradas con causa y decisión registradas.', cubre: ['Rendición de cuentas', 'Optimización de conversión'] },
+                    { timing: 'Viernes • Semanas 2 y 4', owner: 'Gerente + Analista', title: 'Diagnóstico de desviaciones en 4 dimensiones', goals: ['Vender', 'Prevenir caídas'], desc: 'Toda desviación relevante de la quincena se analiza desde Demanda, Conversión, Valor por transacción y Continuidad comercial, con causa confirmada o hipótesis y acción correctiva.', control: 'Cada desviación con dimensión, causa, responsable y fecha.', cubre: ['Diagnóstico'] },
+                    { timing: 'Lunes • Semanas 2 y 4', owner: 'Gerente + Analista', title: 'Calidad de llamadas y canales asistidos', goals: ['Vender', 'Mejorar la venta'], desc: 'Revisar los hallazgos de la auditoría de 5 grabaciones del Analista y acordar mejoras con el líder del canal (guion, trato, cierre y venta perdida).', control: 'Calificación de calidad y acuerdos de mejora por canal.', cubre: ['Venta asistida y continuidad'] }
                 ]
             },
             monthly: {
                 bannerTitle: 'Monthly + Revisión Ejecutiva — Rendición de Cuentas y Planeación',
                 bannerDesc: 'Cierre comercial, planeación de eventos, evolución tecnológica/SEO, gobernanza POL-ECOM y presentación ejecutiva a Gerencia Sr.',
                 tasks: [
-                    { timing: 'Semana 1 • Cierre Comercial', owner: 'Gerente + Analista', title: 'Cierre comercial y resultados por canal', goals: ['Vender', 'Mejorar la venta'], desc: 'Consolidar ventas por canal, cumplimiento de presupuesto, crecimiento YoY, conversión, AOV, UPT/AUR, resultados por categoría y diagnóstico de desviaciones.', control: 'Balance comercial mensual validado.' },
-                    { timing: 'Semana 2 • Planeación', owner: 'Gerente E-commerce', title: 'Planeación comercial y eventos', goals: ['Vender'], desc: 'Definir categorías prioritarias, productos estratégicos, eventos comerciales, calendario de campañas, necesidades de inventario y coordinación con MKT y CRM.', control: 'Calendario comercial y necesidades de abasto alineados.' },
-                    { timing: 'Semana 3 • Tech y Datos', owner: 'Gerente + TI / BI', title: 'Evolución tecnológica, SEO y datos', goals: ['Mejorar la venta'], desc: 'Revisar roadmap, checkout, pasarelas, SEO, Core Web Vitals (LCP ≤ 2.5s, INP ≤ 200ms, CLS ≤ 0.1), tracking y conciliación de datos.', control: 'Core Web Vitals en umbral bueno y conciliación confiable.' },
-                    { timing: 'Semana 4 • Gobernanza', owner: 'Gerente + Gerencia Sr.', title: 'Gobernanza, POL-ECOM, SLA y capacidad operativa', goals: ['Prevenir caídas'], desc: 'Actualizar POL-ECOM, matriz RACI, acuerdos SLA, análisis de incidencias recurrentes, capacidad operativa y evaluación de compromisos.', control: 'Políticas vigentes y brechas de capacidad documentadas.' },
-                    { timing: 'Cierre Mensual • Ejecutiva', owner: 'Gerente → Gerencia Sr.', title: 'Revisión Ejecutiva Mensual (9 Puntos)', goals: ['Vender', 'Mejorar la venta', 'Prevenir caídas'], desc: 'Presentar a Gerencia Sr.: 1) Ventas y presupuesto, 2) Desempeño por canal, 3) Impulsores de crecimiento, 4) Pérdidas de venta, 5) Conversión y ticket, 6) Incidencias relevantes, 7) Roadmap, 8) Acciones correctivas, 9) Decisiones y apoyos requeridos.', control: 'Rendición de cuentas con acciones, responsables y fechas.' }
+                    { timing: 'Semana 1 • Cierre Comercial', owner: 'Gerente + Analista', title: 'Cierre comercial y resultados por canal', goals: ['Vender', 'Mejorar la venta'], desc: 'Consolidar ventas por canal, cumplimiento de presupuesto, crecimiento YoY, conversión, AOV, UPT/AUR y resultados por categoría. El día 4 se reciben los insumos del Analista y toda desviación se diagnostica en 4 dimensiones: Demanda, Conversión, Valor por transacción y Continuidad comercial.', control: 'Balance comercial mensual validado.', cubre: ['Medición', 'Diagnóstico', 'Estrategia comercial por canal'] },
+                    { timing: 'Semana 2 • Planeación', owner: 'Gerente E-commerce', title: 'Planeación comercial y eventos', goals: ['Vender'], desc: 'Definir categorías prioritarias, productos estratégicos, eventos comerciales, calendario de campañas, necesidades de inventario y coordinación con MKT y CRM, revisando inversión en medios y campañas activas contra resultados.', control: 'Calendario comercial y necesidades de abasto alineados.', cubre: ['Estrategia de categorías y productos', 'Coordinación con Marketing Digital y CRM', 'Visibilidad de demanda'] },
+                    { timing: 'Semana 3 • Tech y Datos', owner: 'Gerente + TI / BI', title: 'Evolución tecnológica, SEO y datos', goals: ['Mejorar la venta'], desc: 'Revisar roadmap, checkout, pasarelas, SEO, Core Web Vitals (LCP ≤ 2.5s, INP ≤ 200ms, CLS ≤ 0.1), tracking y conciliación de datos.', control: 'Core Web Vitals en umbral bueno y conciliación confiable.', cubre: ['Roadmap tecnológico', 'SEO y Core Web Vitals', 'Gobernanza de datos'] },
+                    { timing: 'Semana 4 • Gobernanza', owner: 'Gerente + Gerencia Sr.', title: 'Gobernanza, POL-ECOM, SLA, canales asistidos y retro de acciones', goals: ['Prevenir caídas'], desc: 'Actualizar POL-ECOM, matriz RACI, acuerdos SLA, incidencias recurrentes, capacidad operativa y compromisos. Revisar el scorecard mensual de canales asistidos y la retro mensual de acciones e impacto del Analista (último viernes).', control: 'Políticas vigentes, brechas de capacidad documentadas y acciones del mes evaluadas por impacto.', cubre: ['Gobernanza documental', 'Rendición de cuentas', 'Venta asistida y continuidad'] },
+                    { timing: 'Cierre Mensual • Ejecutiva', owner: 'Gerente → Gerencia Sr.', title: 'Revisión Ejecutiva Mensual (9 Puntos)', goals: ['Vender', 'Mejorar la venta', 'Prevenir caídas'], desc: 'Presentar a Gerencia Sr.: 1) Ventas y presupuesto, 2) Desempeño por canal, 3) Impulsores de crecimiento, 4) Pérdidas de venta, 5) Conversión y ticket, 6) Incidencias relevantes, 7) Roadmap, 8) Acciones correctivas, 9) Decisiones y apoyos requeridos.', control: 'Rendición de cuentas con acciones, responsables y fechas.', cubre: ['Rendición de cuentas', 'Medición'] }
                 ]
             },
             roadmap: {
                 bannerTitle: 'Roadmap (RUN / GROW / TRANSFORM), Ciclo de 12 Pasos y Plan de Implementación',
                 bannerDesc: 'Priorización por impacto comercial y despliegue progresivo del modelo organizacional en 5 fases.',
                 tasks: [
-                    { timing: 'Clasificación Backlog', owner: 'Gerente (Prioriza) / TI (Estima)', title: 'RUN • GROW • TRANSFORM', goals: ['Mejorar la venta', 'Prevenir caídas'], desc: 'RUN: continuidad, soporte y correcciones. GROW: conversión, checkout, buscador, catálogo, SEO y optimización comercial. TRANSFORM: nuevas capacidades, integraciones e innovación.', control: 'Mayor capacidad enfocada en RUN y GROW; limitar TRANSFORM simultáneos.' },
-                    { timing: '8 Criterios', owner: 'Gerente E-commerce', title: 'Criterios de Priorización del Backlog', goals: ['Vender', 'Mejorar la venta'], desc: 'Evaluar cada iniciativa por: 1) Impacto en ventas, 2) Impacto en conversión, 3) Reducción de pérdidas, 4) Experiencia, 5) Riesgo, 6) Esfuerzo, 7) Dependencias y 8) Tiempo de implementación.', control: 'Backlog ordenado por impacto comercial, riesgo y esfuerzo.' },
-                    { timing: 'Ciclo en 12 Pasos', owner: 'Gerente + TI', title: 'Ciclo de Vida de una Iniciativa', goals: ['Mejorar la venta'], desc: '1. Identificación → 2. Justificación comercial → 3. Definición funcional → 4. Priorización → 5. Estimación técnica → 6. Planeación → 7. Desarrollo → 8. UAT → 9. Aceptación funcional → 10. Despliegue por TI → 11. Validación → 12. Medición.', control: 'Gerencia valida funcionalmente (UAT) y TI ejecuta despliegue.' },
-                    { timing: '5 Fases Progresivas', owner: 'Gerente + Gerencia Sr.', title: 'Plan de Implementación del Modelo', goals: ['Vender', 'Prevenir caídas'], desc: 'Fase 1: Formalización (alcance, canales, RACI, fronteras). Fase 2: Medición (KPIs, fuentes, conciliación, tablero). Fase 3: Gobernanza (cadencias, SLA, incidencias, POL-ECOM). Fase 4: Crecimiento (diagnóstico, recuperación, categorías, cesta). Fase 5: Evolución (roadmap, datos, SEO, checkout, App).', control: 'Despliegue ordenado y validado con áreas involucradas.' }
+                    { timing: 'Clasificación Backlog', owner: 'Gerente (Prioriza) / TI (Estima)', title: 'RUN • GROW • TRANSFORM', goals: ['Mejorar la venta', 'Prevenir caídas'], desc: 'RUN: continuidad, soporte y correcciones. GROW: conversión, checkout, buscador, catálogo, SEO y optimización comercial. TRANSFORM: nuevas capacidades, integraciones e innovación.', control: 'Mayor capacidad enfocada en RUN y GROW; limitar TRANSFORM simultáneos.', cubre: ['Roadmap tecnológico'] },
+                    { timing: '8 Criterios', owner: 'Gerente E-commerce', title: 'Criterios de Priorización del Backlog', goals: ['Vender', 'Mejorar la venta'], desc: 'Evaluar cada iniciativa por: 1) Impacto en ventas, 2) Impacto en conversión, 3) Reducción de pérdidas, 4) Experiencia, 5) Riesgo, 6) Esfuerzo, 7) Dependencias y 8) Tiempo de implementación.', control: 'Backlog ordenado por impacto comercial, riesgo y esfuerzo.', cubre: ['Roadmap tecnológico'] },
+                    { timing: 'Ciclo en 12 Pasos', owner: 'Gerente + TI', title: 'Ciclo de Vida de una Iniciativa', goals: ['Mejorar la venta'], desc: '1. Identificación → 2. Justificación comercial → 3. Definición funcional → 4. Priorización → 5. Estimación técnica → 6. Planeación → 7. Desarrollo → 8. UAT → 9. Aceptación funcional → 10. Despliegue por TI → 11. Validación → 12. Medición.', control: 'Gerencia valida funcionalmente (UAT) y TI ejecuta despliegue.', cubre: ['Roadmap tecnológico'] },
+                    { timing: '5 Fases Progresivas', owner: 'Gerente + Gerencia Sr.', title: 'Plan de Implementación del Modelo', goals: ['Vender', 'Prevenir caídas'], desc: 'Fase 1: Formalización (alcance, canales, RACI, fronteras). Fase 2: Medición (KPIs, fuentes, conciliación, tablero). Fase 3: Gobernanza (cadencias, SLA, incidencias, POL-ECOM). Fase 4: Crecimiento (diagnóstico, recuperación, categorías, cesta). Fase 5: Evolución (roadmap, datos, SEO, checkout, App).', control: 'Despliegue ordenado y validado con áreas involucradas.', cubre: ['Gobernanza documental'] }
                 ]
             }
         };
+
+        // Cobertura: cada responsabilidad de los 4 pilares del Gerente debe tener al menos un ritual en la cadencia
+        function respGerente(titulo) {
+            const colores = { A: 'bg-indigo-100 text-indigo-800', B: 'bg-emerald-100 text-emerald-800', C: 'bg-violet-100 text-violet-800', D: 'bg-sky-100 text-sky-800' };
+            for (const p of fourPilarsData) {
+                if (p.items.some(i => i.title === titulo)) { const letra = p.code.replace('PILAR ', ''); return { letra, pilar: p.code, cls: colores[letra] }; }
+            }
+            return { letra: '?', pilar: '', cls: 'bg-rose-100 text-rose-800' };
+        }
+        function coberturaGerente() {
+            const todas = fourPilarsData.flatMap(p => p.items.map(i => i.title));
+            const usadas = new Set(Object.values(routineData).flatMap(g => g.tasks.flatMap(t => t.cubre || [])));
+            const faltan = todas.filter(t => !usadas.has(t));
+            return { total: todas.length, cubiertas: todas.length - faltan.length, faltan };
+        }
 
         function setRoutineFreq(freq) {
             currentFreq = freq;
@@ -1846,15 +1872,17 @@
 
         function renderRoutine() {
             const group = routineData[currentFreq];
+            const cob = coberturaGerente();
             document.getElementById('routine-header-banner').innerHTML = `
                 <div class="fade-in bg-indigo-50/80 border border-indigo-200/80 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
                         <h3 class="text-sm sm:text-base font-bold text-indigo-950">${group.bannerTitle}</h3>
                         <p class="text-xs text-indigo-900/80 mt-0.5">${group.bannerDesc}</p>
                     </div>
-                    <span class="text-xs font-bold px-3 py-1 rounded-xl bg-white text-indigo-700 border border-indigo-200 shrink-0">
-                        ${group.tasks.length} Bloques
-                    </span>
+                    <div class="flex flex-wrap gap-1.5 shrink-0">
+                        <span class="text-xs font-bold px-3 py-1 rounded-xl bg-white text-indigo-700 border border-indigo-200">${group.tasks.length} Bloques</span>
+                        <span class="text-xs font-bold px-3 py-1 rounded-xl ${cob.faltan.length ? 'bg-rose-100 text-rose-800 border border-rose-200' : 'bg-emerald-100 text-emerald-800 border border-emerald-200'}" title="${cob.faltan.length ? 'Sin ritual: ' + cob.faltan.join(', ') : 'Todas las responsabilidades de los 4 pilares tienen ritual'}">Cobertura ${cob.cubiertas}/${cob.total} responsabilidades</span>
+                    </div>
                 </div>
             `;
 
@@ -1880,6 +1908,7 @@
                             ${task.goals.map(g => `<span class="px-2 py-0.5 rounded text-[11px] font-bold ${goalColors[g]}">${g}</span>`).join('')}
                         </div>
                         <p class="text-xs text-slate-600 leading-relaxed mb-3">${task.desc}</p>
+                        ${task.cubre ? `<div class="flex flex-wrap gap-1 mb-3">${task.cubre.map(c => { const r = respGerente(c); return `<span class="px-1.5 py-0.5 rounded-md text-[10px] font-extrabold ${r.cls}" title="${r.pilar}: ${c}">${r.letra} · ${c}</span>`; }).join('')}</div>` : ''}
                     </div>
                     <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200/70 text-xs">
                         <span class="font-bold text-indigo-700 uppercase text-[10px] block">Control / Entregable:</span>
