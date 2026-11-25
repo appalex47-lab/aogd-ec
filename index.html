@@ -731,7 +731,7 @@
                         <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-4 mb-5">
                             <div class="max-w-2xl">
                                 <span class="text-xs font-bold uppercase tracking-wider text-indigo-600">Matriz Integral de KPIs</span>
-                                <h2 class="text-2xl font-bold text-slate-900 mt-0.5">26 Indicadores en 5 Niveles de Gestión</h2>
+                                <h2 class="text-2xl font-bold text-slate-900 mt-0.5">36 Indicadores en 5 Niveles de Gestión</h2>
                                 <p class="text-xs sm:text-sm text-slate-600 mt-1 leading-relaxed">
                                     Sistema escalonado de medición que vincula los resultados financieros del negocio con la productividad de los canales, la demanda capturada, la continuidad operativa y los habilitadores técnicos.
                                 </p>
@@ -749,12 +749,14 @@
                         <!-- Filtros por Nivel (Por defecto Nivel 1: Negocio para vista limpia) -->
                         <div class="flex flex-wrap gap-1.5 mb-5">
                             <button type="button" onclick="filterKPIs('nivel-1')" id="kpi-filter-nivel-1" class="kpi-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-900 text-white transition">Negocio (5)</button>
-                            <button type="button" onclick="filterKPIs('nivel-2')" id="kpi-filter-nivel-2" class="kpi-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 transition">Productividad (6)</button>
-                            <button type="button" onclick="filterKPIs('nivel-3')" id="kpi-filter-nivel-3" class="kpi-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 transition">Demanda (4)</button>
-                            <button type="button" onclick="filterKPIs('nivel-4')" id="kpi-filter-nivel-4" class="kpi-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 transition">Continuidad (4)</button>
-                            <button type="button" onclick="filterKPIs('nivel-5')" id="kpi-filter-nivel-5" class="kpi-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 transition">Habilitadores (7)</button>
-                            <button type="button" onclick="filterKPIs('all')" id="kpi-filter-all" class="kpi-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 transition">Todos (26)</button>
+                            <button type="button" onclick="filterKPIs('nivel-2')" id="kpi-filter-nivel-2" class="kpi-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 transition">Productividad (9)</button>
+                            <button type="button" onclick="filterKPIs('nivel-3')" id="kpi-filter-nivel-3" class="kpi-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 transition">Demanda (6)</button>
+                            <button type="button" onclick="filterKPIs('nivel-4')" id="kpi-filter-nivel-4" class="kpi-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 transition">Continuidad (7)</button>
+                            <button type="button" onclick="filterKPIs('nivel-5')" id="kpi-filter-nivel-5" class="kpi-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 transition">Habilitadores (9)</button>
+                            <button type="button" onclick="filterKPIs('all')" id="kpi-filter-all" class="kpi-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 transition">Todos (36)</button>
                         </div>
+
+                        <div id="kpi-cobertura" class="flex flex-wrap items-center gap-2 mb-4"></div>
 
                         <div id="kpi-container"></div>
                     </div>
@@ -819,7 +821,7 @@
         <!-- ========================================================================= -->
         <main id="view-analista" class="hidden">
 
-            <!-- ==================== MÓDULO A1: ENFOQUE Y 5 PILARES (26 TAREAS) ==================== -->
+            <!-- ==================== MÓDULO A1: ENFOQUE Y 5 PILARES (36 TAREAS) ==================== -->
             <section id="an-panel-pilares" class="workspace-panel fade-in">
                 <!-- Hero Compacto Analista -->
                 <div class="bg-gradient-to-br from-slate-900 via-teal-950 to-slate-900 text-white py-7 sm:py-9 border-b border-slate-800">
@@ -933,7 +935,7 @@
                     </div>
                 </div>
 
-                <!-- Matriz de 26 Tareas en 5 Pilares -->
+                <!-- Matriz de 36 Tareas en 5 Pilares -->
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-6">
                     <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
                         <div class="max-w-2xl">
@@ -960,10 +962,10 @@
                     <!-- Filtros Pilar y Frecuencia -->
                     <div class="space-y-2.5">
                         <div class="flex flex-wrap gap-1.5">
-                            <button type="button" onclick="setAnalystPillar('all')" id="an-pil-all" class="an-pil-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-900 text-white transition">Todos (26)</button>
-                            <button type="button" onclick="setAnalystPillar('datos')" id="an-pil-datos" class="an-pil-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-white border border-slate-200 text-slate-700 transition">Datos (4)</button>
+                            <button type="button" onclick="setAnalystPillar('all')" id="an-pil-all" class="an-pil-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-900 text-white transition">Todos (36)</button>
+                            <button type="button" onclick="setAnalystPillar('datos')" id="an-pil-datos" class="an-pil-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-white border border-slate-200 text-slate-700 transition">Datos (11)</button>
                             <button type="button" onclick="setAnalystPillar('catalogo')" id="an-pil-catalogo" class="an-pil-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-white border border-slate-200 text-slate-700 transition">Catálogo (5)</button>
-                            <button type="button" onclick="setAnalystPillar('ux')" id="an-pil-ux" class="an-pil-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-white border border-slate-200 text-slate-700 transition">UX (4)</button>
+                            <button type="button" onclick="setAnalystPillar('ux')" id="an-pil-ux" class="an-pil-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-white border border-slate-200 text-slate-700 transition">UX (7)</button>
                             <button type="button" onclick="setAnalystPillar('comercial')" id="an-pil-comercial" class="an-pil-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-white border border-slate-200 text-slate-700 transition">Comercial (7)</button>
                             <button type="button" onclick="setAnalystPillar('mercado')" id="an-pil-mercado" class="an-pil-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-white border border-slate-200 text-slate-700 transition">Mercado (6)</button>
                         </div>
@@ -2452,40 +2454,50 @@
             URL.revokeObjectURL(url);
         }
 
-        // ==================== MATRIZ DE 26 KPIs EN 5 NIVELES ====================
+        // ==================== MATRIZ DE 36 KPIs EN 5 NIVELES ====================
         let currentKPIFilter = 'nivel-1';
 
         const kpisData = [
-            { level: 'nivel-1', label: 'Nivel 1 • Resultado de Negocio', color: 'indigo', title: 'Ventas digitales', target: 'Diario / mensual', desc: 'Ingresos oficiales de los canales digitales.' },
-            { level: 'nivel-1', label: 'Nivel 1 • Resultado de Negocio', color: 'indigo', title: 'Cumplimiento de presupuesto', target: 'Diario / mensual', desc: 'Venta real / presupuesto.' },
-            { level: 'nivel-1', label: 'Nivel 1 • Resultado de Negocio', color: 'indigo', title: 'Crecimiento YoY', target: 'Mensual', desc: 'Variación interanual contra el mismo periodo del año anterior.' },
-            { level: 'nivel-1', label: 'Nivel 1 • Resultado de Negocio', color: 'indigo', title: 'Pedidos', target: 'Diario', desc: 'Órdenes confirmadas según fuente oficial.' },
-            { level: 'nivel-1', label: 'Nivel 1 • Resultado de Negocio', color: 'indigo', title: 'Participación digital', target: 'Mensual', desc: 'Venta digital / venta total comparable.' },
+            { level: 'nivel-1', label: 'Nivel 1 • Resultado de Negocio', color: 'indigo', title: 'Ventas digitales', target: 'Diario / mensual', desc: 'Ingresos oficiales de los canales digitales.', ritual: ['daily', 0], mide: ['Medición', 'Estrategia comercial por canal'] },
+            { level: 'nivel-1', label: 'Nivel 1 • Resultado de Negocio', color: 'indigo', title: 'Cumplimiento de presupuesto', target: 'Diario / mensual', desc: 'Venta real / presupuesto.', ritual: ['daily', 0], mide: ['Medición', 'Rendición de cuentas'] },
+            { level: 'nivel-1', label: 'Nivel 1 • Resultado de Negocio', color: 'indigo', title: 'Crecimiento YoY', target: 'Mensual', desc: 'Variación interanual contra el mismo periodo del año anterior.', ritual: ['monthly', 0], mide: ['Medición'] },
+            { level: 'nivel-1', label: 'Nivel 1 • Resultado de Negocio', color: 'indigo', title: 'Pedidos', target: 'Diario', desc: 'Órdenes confirmadas según fuente oficial.', ritual: ['daily', 0], mide: ['Medición'] },
+            { level: 'nivel-1', label: 'Nivel 1 • Resultado de Negocio', color: 'indigo', title: 'Participación digital', target: 'Mensual', desc: 'Venta digital / venta total comparable.', ritual: ['monthly', 0], mide: ['Estrategia comercial por canal'] },
 
-            { level: 'nivel-2', label: 'Nivel 2 • Productividad Comercial', color: 'emerald', title: 'CR (Tasa de conversión)', target: 'Diario', desc: 'Pedidos / sesiones elegibles. WhatsApp y Llamadas tendrán denominadores propios y documentados.' },
-            { level: 'nivel-2', label: 'Nivel 2 • Productividad Comercial', color: 'emerald', title: 'AOV (Ticket promedio)', target: 'Diario', desc: 'Venta definida / pedidos comparables.' },
-            { level: 'nivel-2', label: 'Nivel 2 • Productividad Comercial', color: 'emerald', title: 'UPT', target: 'Semanal', desc: 'Unidades / pedidos.' },
-            { level: 'nivel-2', label: 'Nivel 2 • Productividad Comercial', color: 'emerald', title: 'AUR', target: 'Semanal', desc: 'Ingreso / unidades.' },
-            { level: 'nivel-2', label: 'Nivel 2 • Productividad Comercial', color: 'emerald', title: 'Frecuencia', target: 'Mensual', desc: 'Pedidos por cliente en el periodo.' },
-            { level: 'nivel-2', label: 'Nivel 2 • Productividad Comercial', color: 'emerald', title: 'Retención', target: 'Mensual', desc: 'Clientes recurrentes según cohorte.' },
+            { level: 'nivel-2', label: 'Nivel 2 • Productividad Comercial', color: 'emerald', title: 'CR (Tasa de conversión)', target: 'Diario', desc: 'Pedidos / sesiones elegibles. WhatsApp y Llamadas tendrán denominadores propios y documentados.', ritual: ['daily', 0], mide: ['Optimización de conversión', 'Medición'] },
+            { level: 'nivel-2', label: 'Nivel 2 • Productividad Comercial', color: 'emerald', title: 'AOV (Ticket promedio)', target: 'Diario', desc: 'Venta definida / pedidos comparables.', ritual: ['weekly', 2], mide: ['Optimización de conversión'] },
+            { level: 'nivel-2', label: 'Nivel 2 • Productividad Comercial', color: 'emerald', title: 'UPT', target: 'Semanal', desc: 'Unidades / pedidos.', ritual: ['weekly', 2], mide: ['Optimización de conversión'] },
+            { level: 'nivel-2', label: 'Nivel 2 • Productividad Comercial', color: 'emerald', title: 'AUR', target: 'Semanal', desc: 'Ingreso / unidades.', ritual: ['weekly', 2], mide: ['Optimización de conversión'] },
+            { level: 'nivel-2', label: 'Nivel 2 • Productividad Comercial', color: 'emerald', title: 'Frecuencia', target: 'Mensual', desc: 'Pedidos por cliente en el periodo.', ritual: ['monthly', 1], mide: ['Coordinación con Marketing Digital y CRM'] },
+            { level: 'nivel-2', label: 'Nivel 2 • Productividad Comercial', color: 'emerald', title: 'Retención', target: 'Mensual', desc: 'Clientes recurrentes según cohorte.', ritual: ['monthly', 1], mide: ['Coordinación con Marketing Digital y CRM'] },
+            { level: 'nivel-2', label: 'Nivel 2 • Productividad Comercial', color: 'emerald', title: 'Abandono de carrito y checkout', target: 'Diario / Semanal', desc: 'Sesiones con carrito o checkout iniciado que no terminan en pedido, contra las sesiones con carrito.', ritual: ['weekly', 3], mide: ['UX y conversión'] },
+            { level: 'nivel-2', label: 'Nivel 2 • Productividad Comercial', color: 'emerald', title: 'Venta por categoría (share y contribución)', target: 'Semanal / Mensual', desc: 'Participación de cada categoría en la venta total y su contribución a la variación contra el periodo anterior.', ritual: ['weekly', 2], mide: ['Estrategia de categorías y productos'] },
+            { level: 'nivel-2', label: 'Nivel 2 • Productividad Comercial', color: 'emerald', title: 'Venta asistida: oportunidades transferidas y recuperadas', target: 'Semanal', desc: 'Oportunidades que pasan de Web/App a WhatsApp o Llamadas y porcentaje que se recupera como venta.', ritual: ['weekly', 0], mide: ['Venta asistida y continuidad'] },
 
-            { level: 'nivel-3', label: 'Nivel 3 • Demanda y Adquisición', color: 'sky', title: 'Sesiones', target: 'Fuente: GA4', desc: 'Visitas registradas en los canales digitales.' },
-            { level: 'nivel-3', label: 'Nivel 3 • Demanda y Adquisición', color: 'sky', title: 'Usuarios', target: 'Fuente: GA4', desc: 'Usuarios medidos en plataforma analítica.' },
-            { level: 'nivel-3', label: 'Nivel 3 • Demanda y Adquisición', color: 'sky', title: 'Tráfico orgánico', target: 'Fuente: GA4 / GSC', desc: 'Sesiones provenientes de búsqueda orgánica.' },
-            { level: 'nivel-3', label: 'Nivel 3 • Demanda y Adquisición', color: 'sky', title: 'Tráfico pagado', target: 'Fuente: GA4', desc: 'Sesiones atribuidas a medios pagados.' },
+            { level: 'nivel-3', label: 'Nivel 3 • Demanda y Adquisición', color: 'sky', title: 'Sesiones', target: 'Fuente: GA4', desc: 'Visitas registradas en los canales digitales.', ritual: ['weekly', 2], mide: ['Visibilidad de demanda'] },
+            { level: 'nivel-3', label: 'Nivel 3 • Demanda y Adquisición', color: 'sky', title: 'Usuarios', target: 'Fuente: GA4', desc: 'Usuarios medidos en plataforma analítica.', ritual: ['weekly', 2], mide: ['Visibilidad de demanda'] },
+            { level: 'nivel-3', label: 'Nivel 3 • Demanda y Adquisición', color: 'sky', title: 'Tráfico orgánico', target: 'Fuente: GA4 / GSC', desc: 'Sesiones provenientes de búsqueda orgánica.', ritual: ['weekly', 3], mide: ['SEO y Core Web Vitals', 'Visibilidad de demanda'] },
+            { level: 'nivel-3', label: 'Nivel 3 • Demanda y Adquisición', color: 'sky', title: 'Tráfico pagado', target: 'Fuente: GA4', desc: 'Sesiones atribuidas a medios pagados.', ritual: ['weekly', 2], mide: ['Visibilidad de demanda'] },
+            { level: 'nivel-3', label: 'Nivel 3 • Demanda y Adquisición', color: 'sky', title: 'Calidad de fuentes (CR contra benchmark)', target: 'Semanal', desc: 'Conversión de cada fuente de tráfico frente a su propio benchmark de 28 días; separa tráfico de calidad de tráfico sin intención de compra.', ritual: ['weekly', 2], mide: ['Visibilidad de demanda', 'Diagnóstico'] },
+            { level: 'nivel-3', label: 'Nivel 3 • Demanda y Adquisición', color: 'sky', title: 'Desempeño de campañas', target: 'Quincenal', desc: 'Sesiones, conversión y venta por campaña activa frente a su benchmark. La inversión y las plataformas son de Marketing Digital.', ritual: ['weekly', 2], mide: ['Coordinación con Marketing Digital y CRM', 'Visibilidad de demanda'] },
 
-            { level: 'nivel-4', label: 'Nivel 4 • Continuidad Operativa', color: 'amber', title: 'Uptime', target: 'Referencia: ≥ 99.9%', desc: 'Disponibilidad operativa de la plataforma.' },
-            { level: 'nivel-4', label: 'Nivel 4 • Continuidad Operativa', color: 'amber', title: 'Fill Rate', target: 'Referencia: ≥ 95%', desc: 'Porcentaje de demanda surtida frente a demanda solicitada.' },
-            { level: 'nivel-4', label: 'Nivel 4 • Continuidad Operativa', color: 'amber', title: 'Cancelaciones', target: 'Tendencia decreciente', desc: 'Pedidos cancelados / pedidos confirmados.' },
-            { level: 'nivel-4', label: 'Nivel 4 • Continuidad Operativa', color: 'amber', title: 'Incidencias críticas', target: 'Seguimiento inmediato', desc: 'Eventos que afectan venta o continuidad operativa.' },
+            { level: 'nivel-4', label: 'Nivel 4 • Continuidad Operativa', color: 'amber', title: 'Uptime', target: 'Referencia: ≥ 99.9%', desc: 'Disponibilidad operativa de la plataforma.', ritual: ['daily', 1], mide: ['Roadmap tecnológico'] },
+            { level: 'nivel-4', label: 'Nivel 4 • Continuidad Operativa', color: 'amber', title: 'Fill Rate', target: 'Referencia: ≥ 95%', desc: 'Porcentaje de demanda surtida frente a demanda solicitada.', ritual: ['weekly', 0], mide: ['Abasto y demanda'] },
+            { level: 'nivel-4', label: 'Nivel 4 • Continuidad Operativa', color: 'amber', title: 'Cancelaciones', target: 'Tendencia decreciente', desc: 'Pedidos cancelados / pedidos confirmados.', ritual: ['weekly', 0], mide: ['Abasto y demanda'] },
+            { level: 'nivel-4', label: 'Nivel 4 • Continuidad Operativa', color: 'amber', title: 'Incidencias críticas', target: 'Seguimiento inmediato', desc: 'Eventos que afectan venta o continuidad operativa.', ritual: ['daily', 2], mide: ['Gobernanza documental'] },
+            { level: 'nivel-4', label: 'Nivel 4 • Continuidad Operativa', color: 'amber', title: 'Calidad de canales asistidos (llamadas y WhatsApp)', target: 'Semanal / Quincenal', desc: 'Llamadas y flujos de WhatsApp de prueba resueltos correctamente y calificación de las grabaciones auditadas.', ritual: ['biweekly', 2], mide: ['Venta asistida y continuidad'] },
+            { level: 'nivel-4', label: 'Nivel 4 • Continuidad Operativa', color: 'amber', title: 'Tickets Nivel 1 y escalamiento P0/P1', target: 'Diario', desc: 'Tickets operativos abiertos y vencidos, y tiempo de escalamiento de las incidencias P0/P1.', ritual: ['daily', 2], mide: ['Diagnóstico'] },
+            { level: 'nivel-4', label: 'Nivel 4 • Continuidad Operativa', color: 'amber', title: 'Competitividad de precios', target: 'Quincenal', desc: 'Brecha de precio frente a competidores en productos Top y solicitudes de igualación atendidas. Precios conserva la aprobación.', ritual: ['weekly', 4], mide: ['Competitividad de precios'] },
 
-            { level: 'nivel-5', label: 'Nivel 5 • Habilitadores Tecnológicos', color: 'violet', title: 'Core Web Vitals', target: 'LCP ≤ 2.5s • INP ≤ 200ms • CLS ≤ 0.1', desc: 'Control mensual de métricas oficiales de experiencia web.' },
-            { level: 'nivel-5', label: 'Nivel 5 • Habilitadores Tecnológicos', color: 'violet', title: 'Salud SEO', target: 'Semanal', desc: 'Control de indexación y desempeño orgánico.' },
-            { level: 'nivel-5', label: 'Nivel 5 • Habilitadores Tecnológicos', color: 'violet', title: 'Integridad de medición', target: 'Diario / mensual', desc: 'Conciliación de transacciones entre analítica y ventas reales.' },
-            { level: 'nivel-5', label: 'Nivel 5 • Habilitadores Tecnológicos', color: 'violet', title: 'Roadmap', target: 'Mensual', desc: 'Entregables comprometidos completados.' },
-            { level: 'nivel-5', label: 'Nivel 5 • Habilitadores Tecnológicos', color: 'violet', title: 'UAT', target: 'Por liberación', desc: 'Pruebas funcionales aprobadas.' },
-            { level: 'nivel-5', label: 'Nivel 5 • Habilitadores Tecnológicos', color: 'violet', title: 'Salud de catálogo', target: 'Semanal', desc: 'Productos publicados con información completa y correcta.' },
-            { level: 'nivel-5', label: 'Nivel 5 • Habilitadores Tecnológicos', color: 'violet', title: 'Gobernanza documental', target: 'Mensual', desc: 'Políticas y procedimientos vigentes (POL-ECOM).' }
+            { level: 'nivel-5', label: 'Nivel 5 • Habilitadores Tecnológicos', color: 'violet', title: 'Core Web Vitals', target: 'LCP ≤ 2.5s • INP ≤ 200ms • CLS ≤ 0.1', desc: 'Control mensual de métricas oficiales de experiencia web.', ritual: ['monthly', 2], mide: ['SEO y Core Web Vitals'] },
+            { level: 'nivel-5', label: 'Nivel 5 • Habilitadores Tecnológicos', color: 'violet', title: 'Salud SEO', target: 'Semanal', desc: 'Control de indexación y desempeño orgánico.', ritual: ['weekly', 3], mide: ['SEO y Core Web Vitals'] },
+            { level: 'nivel-5', label: 'Nivel 5 • Habilitadores Tecnológicos', color: 'violet', title: 'Integridad de medición', target: 'Diario / mensual', desc: 'Conciliación de transacciones entre analítica y ventas reales.', ritual: ['daily', 3], mide: ['Gobernanza de datos'] },
+            { level: 'nivel-5', label: 'Nivel 5 • Habilitadores Tecnológicos', color: 'violet', title: 'Roadmap', target: 'Mensual', desc: 'Entregables comprometidos completados.', ritual: ['monthly', 2], mide: ['Roadmap tecnológico'] },
+            { level: 'nivel-5', label: 'Nivel 5 • Habilitadores Tecnológicos', color: 'violet', title: 'UAT', target: 'Por liberación', desc: 'Pruebas funcionales aprobadas.', ritual: ['weekly', 1], mide: ['Roadmap tecnológico'] },
+            { level: 'nivel-5', label: 'Nivel 5 • Habilitadores Tecnológicos', color: 'violet', title: 'Salud de catálogo', target: 'Semanal', desc: 'Productos publicados con información completa y correcta.', ritual: ['weekly', 4], mide: ['Catálogo'] },
+            { level: 'nivel-5', label: 'Nivel 5 • Habilitadores Tecnológicos', color: 'violet', title: 'Gobernanza documental', target: 'Mensual', desc: 'Políticas y procedimientos vigentes (POL-ECOM).', ritual: ['monthly', 3], mide: ['Gobernanza documental'] },
+            { level: 'nivel-5', label: 'Nivel 5 • Habilitadores Tecnológicos', color: 'violet', title: 'Búsquedas sin resultado', target: 'Quincenal', desc: 'Búsquedas del sitio sin resultados y porcentaje resuelto con sinónimos o altas de catálogo.', ritual: ['weekly', 4], mide: ['Catálogo', 'UX y conversión'] },
+            { level: 'nivel-5', label: 'Nivel 5 • Habilitadores Tecnológicos', color: 'violet', title: 'Cumplimiento de acciones', target: 'Quincenal', desc: 'Acciones implementadas contra propuestas, con responsable, fecha y resultado medido.', ritual: ['biweekly', 0], mide: ['Rendición de cuentas', 'Diagnóstico'] }
         ];
 
         function filterKPIs(filter) {
@@ -2506,7 +2518,38 @@
             renderKPIs();
         }
 
+        // Cada KPI indica en qué ritual de la cadencia se revisa y qué responsabilidad de los 4 pilares mide
+        const nombresFreq = { daily: 'Daily', weekly: 'Weekly', biweekly: 'Quincenal', monthly: 'Monthly', roadmap: 'Roadmap' };
+        function ritualDeKPI(k) {
+            const t = k.ritual && routineData[k.ritual[0]] && routineData[k.ritual[0]].tasks[k.ritual[1]];
+            return t ? { freq: k.ritual[0], idx: k.ritual[1], texto: `${nombresFreq[k.ritual[0]]} · ${t.timing}`, tarea: t.title } : null;
+        }
+        function coberturaKPIs() {
+            const todas = fourPilarsData.flatMap(p => p.items.map(i => i.title));
+            const usadas = new Set(kpisData.flatMap(k => k.mide || []));
+            const sinResp = todas.filter(t => !usadas.has(t));
+            const sinRitual = kpisData.filter(k => !ritualDeKPI(k)).map(k => k.title);
+            return { resp: todas.length - sinResp.length, totalResp: todas.length, sinResp, ritual: kpisData.length - sinRitual.length, totalKPI: kpisData.length, sinRitual };
+        }
+        function chipRitual(k) {
+            const r = ritualDeKPI(k);
+            return r ? `<button type="button" onclick="irARitual('${r.freq}', ${r.idx})" title="${r.tarea}" class="text-left px-2 py-0.5 rounded-md bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 text-[10px] font-bold break-words transition">Se revisa en: ${r.texto} ↗</button>` : '<span class="text-[10px] font-bold text-rose-700">Sin ritual</span>';
+        }
+        function irARitual(freq, idx) {
+            switchRoleView('gerente'); setManagerTab('operacion'); setOpSubTab('cadencia'); setRoutineGoal('all'); setRoutineFreq(freq);
+            const el = document.getElementById(`routine-card-${freq}-${idx}`);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                el.classList.add('ring-2', 'ring-indigo-500');
+                setTimeout(() => el.classList.remove('ring-2', 'ring-indigo-500'), 2400);
+            }
+        }
+
         function renderKPIs() {
+            const cob = coberturaKPIs();
+            const chipCob = (ok, txt, falta) => `<span class="text-xs font-bold px-3 py-1 rounded-xl border ${ok ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-rose-100 text-rose-800 border-rose-200'}" ${falta.length ? `title="Sin cobertura: ${falta.join(', ')}"` : ''}>${txt}</span>`;
+            const cobEl = document.getElementById('kpi-cobertura');
+            if (cobEl) cobEl.innerHTML = chipCob(!cob.sinResp.length, `${cob.resp}/${cob.totalResp} responsabilidades de los 4 pilares con KPI`, cob.sinResp) + chipCob(!cob.sinRitual.length, `${cob.ritual}/${cob.totalKPI} KPIs con ritual de revisión`, cob.sinRitual);
             const q = (document.getElementById('kpi-search')?.value || '').toLowerCase().trim();
             const filtered = kpisData.filter(k => {
                 const matchLevel = currentKPIFilter === 'all' || k.level === currentKPIFilter;
@@ -2538,6 +2581,7 @@
                                     <th class="py-2.5 px-3 font-bold">KPI</th>
                                     <th class="py-2.5 px-3 font-bold">Definición / Alcance</th>
                                     <th class="py-2.5 px-3 font-bold">Frecuencia / Meta</th>
+                                    <th class="py-2.5 px-3 font-bold">Se revisa en</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
@@ -2547,6 +2591,7 @@
                                         <td class="py-2.5 px-3 font-bold text-slate-900">${k.title}</td>
                                         <td class="py-2.5 px-3 text-slate-600">${k.desc}</td>
                                         <td class="py-2.5 px-3 whitespace-nowrap"><span class="px-2 py-0.5 rounded bg-slate-900 text-emerald-300 text-[10px] font-bold">${k.target}</span></td>
+                                        <td class="py-2.5 px-3">${chipRitual(k)}</td>
                                     </tr>
                                 `).join('')}
                             </tbody>
@@ -2563,8 +2608,9 @@
                                     <h4 class="text-sm font-bold text-slate-900 leading-snug mb-1.5">${k.title}</h4>
                                     <p class="text-xs text-slate-600 leading-relaxed mb-3">${k.desc}</p>
                                 </div>
-                                <div class="pt-2.5 border-t border-slate-100">
+                                <div class="pt-2.5 border-t border-slate-100 space-y-1.5">
                                     <span class="inline-block px-2.5 py-0.5 rounded-lg bg-slate-900 text-emerald-300 text-[10px] font-bold">${k.target}</span>
+                                    <div>${chipRitual(k)}</div>
                                 </div>
                             </div>
                         `).join('')}
@@ -2606,7 +2652,7 @@
             `).join('');
         }
 
-        // ==================== ANALISTA DE E-COMMERCE (26 TAREAS + DENSITY SWITCHER) ====================
+        // ==================== ANALISTA DE E-COMMERCE (36 TAREAS + DENSITY SWITCHER) ====================
         let currentAnalystPillar = 'all';
         let currentAnalystFreq = 'all';
 
