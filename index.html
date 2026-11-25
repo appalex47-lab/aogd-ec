@@ -168,6 +168,9 @@
                     <button type="button" onclick="setHerramienta('comercial')" id="tool-tab-comercial" class="tool-tab-btn shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-white transition flex items-center gap-1.5">
                         <span>Comercial</span>
                     </button>
+                    <button type="button" onclick="setHerramienta('acciones')" id="tool-tab-acciones" class="tool-tab-btn shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-white transition flex items-center gap-1.5">
+                        <span>Acciones</span>
+                    </button>
                 </nav>
             </div>
         </div>
@@ -1228,6 +1231,25 @@
                     </div>
                 </div>
             </section>
+            <section id="tool-panel-acciones" class="tool-panel hidden fade-in">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-5">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900">Acciones y rendición de cuentas</h2>
+                            <p class="text-sm text-slate-600 mt-1">Las acciones de Revisión Diaria, Tráfico y Conversión y Comercial en un solo lugar: propuestas contra implementadas, vencidas, responsables y resultado observado. Apoya el cierre semanal, el checkpoint quincenal y la retro mensual.</p>
+                        </div>
+                        <a href="herramientas/Acciones.html" target="_blank" rel="noopener"
+                           class="shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm transition">
+                            <span>Abrir en otra pestaña</span>
+                            <span aria-hidden="true">↗</span>
+                        </a>
+                    </div>
+                    <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                        <iframe id="acciones-frame" title="Acciones" data-src="herramientas/Acciones.html"
+                                class="w-full block border-0" style="height: 78vh; min-height: 520px;" loading="lazy"></iframe>
+                    </div>
+                </div>
+            </section>
         </main>
     </div>
 
@@ -1308,7 +1330,7 @@
 
         function setHerramienta(id, sinScroll) {
             window.herramientaActiva = id;
-            ['tablero', 'trafico', 'comercial'].forEach(t => {
+            ['tablero', 'trafico', 'comercial', 'acciones'].forEach(t => {
                 document.getElementById('tool-panel-' + t).classList.toggle('hidden', t !== id);
                 document.getElementById('tool-tab-' + t).className = 'tool-tab-btn shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ' +
                     (t === id ? 'bg-slate-800 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-white');
@@ -1824,7 +1846,7 @@
                     { timing: 'Martes', owner: 'Gerente + TI', title: 'Backlog, TI, incidencias y UAT', goals: ['Mejorar la venta'], desc: 'Priorización de backlog funcional con TI, revisión de incidencias abiertas y seguimiento de entregables y pruebas UAT.', control: 'Cumplimiento de entregables comprometidos y aprobación UAT.', cubre: ['Roadmap tecnológico'] },
                     { timing: 'Miércoles', owner: 'Gerente + Analista', title: 'Categorías, AOV, UPT, AUR, demanda y coordinación comercial', goals: ['Mejorar la venta', 'Vender'], desc: 'Desempeño por categoría y productos estratégicos, AOV, UPT y AUR. Con MKT Digital y CRM: origen de tráfico, campañas activas e inversión contra resultados comerciales (pestaña Campañas de Tráfico y Conversión).', control: 'Crecimiento de cesta, prioridades comerciales compartidas y campañas evaluadas por resultado.', cubre: ['Estrategia de categorías y productos', 'Optimización de conversión', 'Coordinación con Marketing Digital y CRM', 'Visibilidad de demanda'] },
                     { timing: 'Jueves', owner: 'Gerente + Analista', title: 'SEO, Clarity y embudo', goals: ['Mejorar la venta'], desc: 'Revisión de desempeño orgánico SEO, análisis de embudo y Microsoft Clarity, evaluación de fricciones y oportunidades de conversión.', control: 'Reducción de fricciones en navegación, PDP, carrito y checkout.', cubre: ['UX y conversión', 'SEO y Core Web Vitals', 'Optimización de conversión'] },
-                    { timing: 'Viernes', owner: 'Gerente + Analista', title: 'Precios, catálogo, compromisos y rendición de cuentas', goals: ['Prevenir caídas'], desc: 'Seguimiento de precios frente a competencia (recomendaciones a Precios), salud de catálogo y altas o correcciones pendientes. Se revisa el cierre semanal de acciones del Analista: resultado, desviación, causa, responsable y fecha compromiso, y se definen las prioridades de la siguiente semana.', control: 'Salud de catálogo completa, acciones con responsable y fecha, y prioridades de la semana definidas.', cubre: ['Competitividad de precios', 'Catálogo', 'Rendición de cuentas'] }
+                    { timing: 'Viernes', owner: 'Gerente + Analista', title: 'Precios, catálogo, compromisos y rendición de cuentas', goals: ['Prevenir caídas'], desc: 'Seguimiento de precios frente a competencia (recomendaciones a Precios), salud de catálogo y altas o correcciones pendientes. Se revisa el cierre semanal de acciones del Analista en la herramienta Acciones: resultado, desviación, causa, responsable y fecha compromiso, y se definen las prioridades de la siguiente semana.', control: 'Salud de catálogo completa, acciones con responsable y fecha, y prioridades de la semana definidas.', cubre: ['Competitividad de precios', 'Catálogo', 'Rendición de cuentas'] }
                 ]
             },
             biweekly: {
@@ -2519,7 +2541,7 @@
             { level: 'nivel-5', label: 'Nivel 5 • Habilitadores Tecnológicos', color: 'violet', title: 'Salud de catálogo', target: 'Semanal', desc: 'Productos publicados con información completa y correcta.', ritual: ['weekly', 4], mide: ['Catálogo'] },
             { level: 'nivel-5', label: 'Nivel 5 • Habilitadores Tecnológicos', color: 'violet', title: 'Gobernanza documental', target: 'Mensual', desc: 'Políticas y procedimientos vigentes (POL-ECOM).', ritual: ['monthly', 3], mide: ['Gobernanza documental'] },
             { level: 'nivel-5', label: 'Nivel 5 • Habilitadores Tecnológicos', color: 'violet', title: 'Búsquedas sin resultado', target: 'Quincenal', desc: 'Búsquedas del sitio sin resultados y porcentaje resuelto con sinónimos o altas de catálogo.', ritual: ['weekly', 4], mide: ['Catálogo', 'UX y conversión'] },
-            { level: 'nivel-5', label: 'Nivel 5 • Habilitadores Tecnológicos', color: 'violet', title: 'Cumplimiento de acciones', target: 'Quincenal', desc: 'Acciones implementadas contra propuestas, con responsable, fecha y resultado medido.', ritual: ['biweekly', 0], mide: ['Rendición de cuentas', 'Diagnóstico'] }
+            { level: 'nivel-5', label: 'Nivel 5 • Habilitadores Tecnológicos', color: 'violet', title: 'Cumplimiento de acciones', target: 'Quincenal', desc: 'Acciones implementadas contra propuestas, con responsable, fecha y resultado medido. Se calcula en la herramienta Acciones.', ritual: ['biweekly', 0], mide: ['Rendición de cuentas', 'Diagnóstico'] }
         ];
 
         function filterKPIs(filter) {
@@ -2720,10 +2742,10 @@
             { pillar: 'mercado', pillarLabel: 'Investigación Mercado', freq: 'Mensual', commitment: 'Último viernes del mes', title: 'Monitoreo funcionalidades tech de competencia', objective: 'Evaluar innovaciones digitales de competidores para proponer su inclusión en el roadmap.', tool: 'Deck de Insights (PPT Vivo)', kpi: 'N.º funcionalidades evaluadas para roadmap', managerLink: 'Pilar C • Roadmap TI', drawerKey: 'pilar-c' },
 
             { pillar: 'datos', pillarLabel: 'Análisis de Datos', freq: 'Diaria', commitment: 'Todos los días 9:30 (15 a 20 min)', title: 'Pulso diario: venta, alertas y salud del sitio', objective: 'Revisar la venta de ayer contra el plan, atender las alertas de impacto alto o medio de Tráfico y Conversión, validar salud del sitio y App, checkout, pagos y precios, y registrar las acciones.', tool: 'Tablero Revisión Diaria + Tráfico y Conversión', kpi: '% de alertas de impacto alto atendidas el mismo día', managerLink: 'Ritual diario • Gerente', drawerKey: 'pilares-gerente' },
-            { pillar: 'datos', pillarLabel: 'Análisis de Datos', freq: 'Semanal', commitment: 'Cada viernes (30 min)', title: 'Cierre semanal de acciones', objective: 'Comparar las acciones propuestas con las implementadas, revisar qué movió la venta y definir las prioridades de la semana siguiente para el ritual del viernes.', tool: 'Deck de Insights (PPT Vivo) / registro de acciones del tablero', kpi: 'Acciones implementadas / propuestas', managerLink: 'Viernes • Compromisos y prioridades', drawerKey: 'pilar-a' },
-            { pillar: 'datos', pillarLabel: 'Análisis de Datos', freq: 'Quincenal', commitment: 'Viernes de quincena (semanas 2 y 4)', title: 'Checkpoint quincenal de insights y acciones', objective: 'Revisar el Deck de Insights vivo y el avance de las acciones de las dos semanas: qué se implementó, qué se atoró y por qué.', tool: 'Deck de Insights (PPT Vivo)', kpi: 'N.º de acciones atoradas con causa identificada', managerLink: 'Pilar A • Estrategia', drawerKey: 'pilar-a' },
-            { pillar: 'datos', pillarLabel: 'Análisis de Datos', freq: 'Mensual', commitment: 'Día 4 de cada mes', title: 'Insumos de la Revisión Ejecutiva Mensual', objective: 'Preparar el material para los 9 puntos de la Revisión Ejecutiva Mensual, incluidas las acciones correctivas y los apoyos requeridos.', tool: 'Master Dashboard / Deck de Insights', kpi: 'Material entregado antes del cierre comercial', managerLink: 'Cierre Mensual • Gerente', drawerKey: 'cierre-mensual' },
-            { pillar: 'datos', pillarLabel: 'Análisis de Datos', freq: 'Mensual', commitment: 'Último viernes del mes', title: 'Retro mensual de acciones e impacto', objective: 'Evaluar qué acciones del mes se implementaron, cuáles movieron la venta o la conversión y cuáles se descartan.', tool: 'Deck de Insights (PPT Vivo)', kpi: '% de acciones implementadas con impacto medido', managerLink: 'Cierre Mensual • Gerente', drawerKey: 'cierre-mensual' },
+            { pillar: 'datos', pillarLabel: 'Análisis de Datos', freq: 'Semanal', commitment: 'Cada viernes (30 min)', title: 'Cierre semanal de acciones', objective: 'Comparar las acciones propuestas con las implementadas, revisar qué movió la venta y definir las prioridades de la semana siguiente para el ritual del viernes.', tool: 'Acciones (registro unificado) / Deck de Insights (PPT Vivo)', kpi: 'Acciones implementadas / propuestas', managerLink: 'Viernes • Compromisos y prioridades', drawerKey: 'pilar-a' },
+            { pillar: 'datos', pillarLabel: 'Análisis de Datos', freq: 'Quincenal', commitment: 'Viernes de quincena (semanas 2 y 4)', title: 'Checkpoint quincenal de insights y acciones', objective: 'Revisar el Deck de Insights vivo y el avance de las acciones de las dos semanas: qué se implementó, qué se atoró y por qué.', tool: 'Acciones (registro unificado) / Deck de Insights (PPT Vivo)', kpi: 'N.º de acciones atoradas con causa identificada', managerLink: 'Pilar A • Estrategia', drawerKey: 'pilar-a' },
+            { pillar: 'datos', pillarLabel: 'Análisis de Datos', freq: 'Mensual', commitment: 'Día 4 de cada mes', title: 'Insumos de la Revisión Ejecutiva Mensual', objective: 'Preparar el material para los 9 puntos de la Revisión Ejecutiva Mensual, incluidas las acciones correctivas y los apoyos requeridos.', tool: 'Master Dashboard / Acciones (registro unificado) / Deck de Insights', kpi: 'Material entregado antes del cierre comercial', managerLink: 'Cierre Mensual • Gerente', drawerKey: 'cierre-mensual' },
+            { pillar: 'datos', pillarLabel: 'Análisis de Datos', freq: 'Mensual', commitment: 'Último viernes del mes', title: 'Retro mensual de acciones e impacto', objective: 'Evaluar qué acciones del mes se implementaron, cuáles movieron la venta o la conversión y cuáles se descartan.', tool: 'Acciones (registro unificado) / Deck de Insights (PPT Vivo)', kpi: '% de acciones implementadas con impacto medido', managerLink: 'Cierre Mensual • Gerente', drawerKey: 'cierre-mensual' },
             { pillar: 'ux', pillarLabel: 'Optimización UX', freq: 'Diaria', commitment: 'Todos los días (10 min dentro del Pulso)', title: 'Ronda visual Web/App (banners, precios y promociones vigentes)', objective: 'Recorrer Web y App como cliente: banners vigentes, precios, promociones, buscador y checkout. Lo que esté caído, vencido o incorrecto se levanta como ticket o se escala.', tool: 'Navegación manual Web/App / Bandeja de tickets', kpi: '% de hallazgos visuales corregidos en 24 h', managerLink: 'Ritual diario • Gerente', drawerKey: 'pilares-gerente' },
             { pillar: 'datos', pillarLabel: 'Análisis de Datos', freq: 'Diaria / Semanal', commitment: 'Todos los días + corte cada viernes', title: 'Bandeja de tickets Nivel 1 y escalamiento P0/P1', objective: 'Levantar y dar seguimiento a tickets operativos, negados e incidencias; filtrar lo menor y escalar de inmediato al Gerente los bloqueos críticos (P0/P1). El viernes se revisa el corte de abiertos y vencidos.', tool: 'Bandeja de tickets / Notificación Directa (Slack / Correo)', kpi: 'Tickets abiertos y vencidos; tiempo de escalamiento de P0/P1', managerLink: 'Ritual diario • Gerente', drawerKey: 'pilares-gerente' },
             { pillar: 'catalogo', pillarLabel: 'Catálogo y Contenido', freq: 'Semanal', commitment: 'Cada miércoles (después de la auditoría)', title: 'Altas y correcciones de catálogo', objective: 'Dar de alta o corregir los productos, precios, fotos y descripciones que detectó la auditoría de catálogo y las búsquedas sin resultado; dar seguimiento hasta que queden publicados.', tool: 'Gestor de catálogo / Bandeja de tickets', kpi: 'Altas y correcciones cerradas / detectadas', managerLink: 'Pilar B • Catálogo', drawerKey: 'pilar-b' },
@@ -2862,7 +2884,7 @@
             {
                 badge: 'Herramienta BI • Looker Studio / Power BI',
                 badgeClass: 'bg-teal-100 text-teal-800',
-                title: 'Master Dashboard (5 Pestañas)',
+                title: 'Master Dashboard (5 Pestañas y Registro de Acciones)',
                 desc: 'La información se extrae de GA4, las plataformas de e-commerce y el ERP, y se carga en tableros automáticos (Looker Studio / Power BI) que eliminan los reportes manuales y permiten auditar tendencias al instante.',
                 items: [
                     {
@@ -2878,6 +2900,13 @@
                         tag: 'Tablero propio',
                         href: 'herramientas/Trafico_y_Conversion.html',
                         linkLabel: 'Abrir tablero en otra pestaña'
+                    },
+                    {
+                        name: 'Registro de Acciones',
+                        detail: 'Reúne las acciones de Revisión Diaria, Tráfico y Conversión y Comercial: propuestas contra implementadas, vencidas, por responsable y con resultado observado. Alimenta el cierre semanal, el checkpoint quincenal, la retro mensual y el KPI de cumplimiento de acciones.',
+                        tag: 'Tablero propio',
+                        href: 'herramientas/Acciones.html',
+                        linkLabel: 'Abrir registro en otra pestaña'
                     },
                     { name: 'Checkout', detail: 'Abandono de carrito detallado por dispositivo, navegador y canal (Semanal).' },
                     {

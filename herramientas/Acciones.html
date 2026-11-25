@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acciones - Seguimiento y Rendición de Cuentas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background-color: #f8fafc; color: #0f172a; }
+        .num-tabular { font-variant-numeric: tabular-nums; }
+        main td, main th, main li, main p, main h3, main h4, main summary, #modal-accion label, #modal-import p { overflow-wrap: break-word; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        /* ===== Modo PDF: se activa solo durante la captura ===== */
+        .pdf-modo [data-pdf-ocultar], .pdf-modo #nube-estado, .pdf-modo #toast { display: none !important; }
+        .pdf-modo .panel-vista { display: block !important; margin-bottom: 1.5rem; }
+        .pdf-modo .panel-acciones { display: none !important; }
+        .pdf-modo .overflow-x-auto { overflow: visible !important; }
+        .pdf-modo header { position: static !important; }
+        .pdf-modo * { animation: none !important; transition: none !important; }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col antialiased selection:bg-blue-100 selection:text-blue-900">
+    <header class="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center shrink-0 text-base" aria-hidden="true">✅</div>
+                    <div><h1 class="text-base sm:text-lg font-extrabold tracking-tight text-slate-900">Acciones y rendición de cuentas</h1>
+                        <p class="text-[11px] sm:text-xs text-slate-500 hidden sm:block">Las acciones de Revisión Diaria, Tráfico y Conversión y Comercial en un solo lugar: propuestas contra implementadas, vencidas y resultado observado</p></div>
+                </div>
+                <div class="flex flex-wrap items-center gap-2" data-pdf-ocultar="true">
+                    <button type="button" onclick="descargarCSV()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs sm:text-sm font-semibold transition"><span aria-hidden="true">⬇️</span><span>Descargar CSV</span></button>
+                </div>
+            </div>
+            <div id="filtros" class="flex flex-wrap items-center gap-2 text-xs"></div>
+        </div>
+    </header>
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-5">
+        <div id="contenido" class="space-y-5"></div>
+    </main>
+
+    <div id="modal-editar" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 p-4 overflow-y-auto">
+        <form class="w-full max-w-lg bg-white rounded-3xl shadow-2xl p-6 space-y-4 my-6" onsubmit="guardarEditar(event)">
+            <div><div class="text-[10px] font-extrabold uppercase text-slate-400" id="ed-origen"></div><h3 class="text-base font-extrabold text-slate-900 break-words" id="ed-titulo"></h3><p class="text-xs text-slate-600 mt-1 break-words" id="ed-contexto"></p></div>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="text-[11px] font-bold text-slate-600">Responsable</label><input id="ed-resp" maxlength="80" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></div>
+                <div><label class="text-[11px] font-bold text-slate-600">Fecha compromiso</label><input id="ed-fecha" type="date" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></div>
+                <div><label class="text-[11px] font-bold text-slate-600">Estatus</label><select id="ed-estatus" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"><option>Pendiente</option><option>En curso</option><option>Completada</option></select></div>
+            </div>
+            <div><label class="text-[11px] font-bold text-slate-600">Resultado observado (qué cambió después de la acción)</label><textarea id="ed-resultado" rows="3" maxlength="400" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></textarea></div>
+            <p id="ed-error" class="text-xs font-semibold text-rose-600"></p>
+            <div class="flex justify-end gap-2.5"><button type="button" onclick="cerrarEditar()" class="px-4 py-2 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-700">Cancelar</button>
+                <button type="submit" id="ed-guardar" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold">Guardar</button></div>
+        </form>
+    </div>
+
+    <!-- ACCESO CON CLAVE COMPARTIDA -->
+    <div id="nube-overlay" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900 p-4">
+        <form id="nube-form" class="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6 space-y-4" autocomplete="off">
+            <div>
+                <h2 class="text-lg font-extrabold text-slate-900">Acceso</h2>
+                <p class="text-xs text-slate-500 mt-1">Escribe la clave de acceso compartida (es la misma del tablero de Revisión Diaria).</p>
+            </div>
+            <input id="nube-clave" type="password" required placeholder="Clave de acceso" autocomplete="current-password" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <p id="nube-error" class="hidden text-xs font-semibold text-rose-600"></p>
+            <button id="nube-boton" type="submit" class="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold transition">Entrar</button>
+        </form>
+    </div>
+    <div id="nube-estado" class="fixed bottom-5 left-5 z-40 hidden px-2.5 py-1 rounded-lg bg-white/90 border border-slate-200 text-[11px] font-semibold text-slate-600 shadow-sm"></div>
+    <div id="toast" class="fixed bottom-5 right-5 z-50 hidden max-w-sm bg-slate-900 text-white text-xs sm:text-sm font-medium px-4 py-3 rounded-xl shadow-xl border border-slate-700"></div>
+
+    <script>
+    // =====================================================================
+    // 1. CONSTANTES Y ESTADO
+    // =====================================================================
+    const ORIGENES = {
+        rd: { n: 'Revisión Diaria', tabla: 'tablero_estado', href: 'Tablero_de_Control_-_Revision_Diaria.html', clase: 'bg-indigo-600 text-white' },
+        tc: { n: 'Tráfico y Conversión', tabla: 'trafico_estado', href: 'Trafico_y_Conversion.html', clase: 'bg-sky-600 text-white' },
+        co: { n: 'Comercial', tabla: 'comercial_estado', href: 'Comercial.html', clase: 'bg-emerald-600 text-white' }
+    };
+    const ESTATUS = ['Pendiente', 'En curso', 'Completada'];
+    const COLOR_EST = { 'Pendiente': 'bg-amber-100 text-amber-800 border-amber-200', 'En curso': 'bg-sky-100 text-sky-800 border-sky-200', 'Completada': 'bg-emerald-100 text-emerald-800 border-emerald-200' };
+    const S = { raw: { rd: null, tc: null, co: null }, version: { rd: 0, tc: 0, co: 0 }, acciones: [], filtros: { periodo: 'todo', origen: 'todos', estatus: 'todos', resp: 'todos', vencidas: false, texto: '' }, cargado: false, editando: null };
+    const NUBE = { url: 'https://vwbhwiivynuzzxsosjgd.supabase.co', key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3Ymh3aWl2eW51enp4c29zamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTU1MzMwNjgsImV4cCI6MjExMTEwOTA2OH0.a-CP2pogi2x3zHmp0l6ErDiACTUPOLQv4OsnC-B_QbM', client: null, activo: false };
+    const esc = t => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const fmtP = (v, d = 0) => (v === null || isNaN(v)) ? '—' : `${v.toFixed(d)}%`;
+
+        function toast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg; t.classList.remove('hidden');
+        clearTimeout(window._tt); window._tt = setTimeout(() => t.classList.add('hidden'), 4500);
+    }
+    function addDias(iso, n) {
+        const [y, m, d] = iso.split('-').map(Number);
+        const dt = new Date(Date.UTC(y, m - 1, d + n));
+        return dt.toISOString().slice(0, 10);
+    }
+    function hoyISO() { const h = new Date(); return `${h.getFullYear()}-${String(h.getMonth() + 1).padStart(2, '0')}-${String(h.getDate()).padStart(2, '0')}`; }
+    function finMes(mes) { const [y, m] = mes.split('-').map(Number); return `${mes}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`; }
+    const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    function etiquetaMes(k) { const [y, m] = k.split('-').map(Number); return `${MESES[m - 1]} ${y}`; }
+    function fechaCorta(iso) { const [y, m, d] = iso.split('-'); return `${d}/${m}`; }
+
+
+    // =====================================================================
+    // 2. NORMALIZACIÓN: las tres herramientas guardan sus acciones con formatos distintos
+    // =====================================================================
+    const normEstatus = e => e === 'Completada' ? 'Completada' : (e === 'En curso' || e === 'En proceso') ? 'En curso' : 'Pendiente';
+    function normalizar(origen, a) {
+        const rd = origen === 'rd';
+        return { origen, id: a.id, titulo: (rd ? a.accion : a.titulo) || '(sin título)', contexto: (rd ? a.hallazgo : a.detalle) || '', responsable: a.responsable || '',
+            estatus: normEstatus(a.estatus), fechaCompromiso: a.fechaCompromiso || '', resultado: a.resultado || '', creada: (rd ? a.fechaRef : a.creada) || '',
+            extra: rd ? (a.canal ? `Canal: ${a.canal}` : '') : '' };
+    }
+    function reconstruir() {
+        S.acciones = [];
+        Object.keys(ORIGENES).forEach(o => (S.raw[o] || []).forEach(a => S.acciones.push(normalizar(o, a))));
+    }
+    const hoy = () => hoyISO();
+    const vencida = a => a.estatus !== 'Completada' && a.fechaCompromiso && a.fechaCompromiso < hoy();
+    function enPeriodo(a) {
+        const p = S.filtros.periodo; if (p === 'todo' || !a.creada) return true;
+        if (p === 'mes') return a.creada.slice(0, 7) === hoy().slice(0, 7);
+        return a.creada >= addDias(hoy(), -Number(p));
+    }
+    // =====================================================================
+    // 3. FILTROS Y MÉTRICAS
+    // =====================================================================
+    function filtradas(ignorarEstatus) {
+        const f = S.filtros, t = f.texto.trim().toLowerCase();
+        return S.acciones.filter(a => enPeriodo(a) && (f.origen === 'todos' || a.origen === f.origen) && (f.resp === 'todos' || (f.resp === '(sin responsable)' ? !a.responsable : a.responsable === f.resp))
+            && (ignorarEstatus || f.estatus === 'todos' || a.estatus === f.estatus) && (!f.vencidas || vencida(a)) && (!t || (a.titulo + ' ' + a.contexto + ' ' + a.responsable).toLowerCase().includes(t)));
+    }
+    function metricas(lista) {
+        const m = { total: lista.length, pend: 0, curso: 0, comp: 0, venc: 0, sinResp: 0, sinFecha: 0, conResultado: 0 };
+        lista.forEach(a => { if (a.estatus === 'Pendiente') m.pend++; else if (a.estatus === 'En curso') m.curso++; else m.comp++;
+            if (vencida(a)) m.venc++; if (a.estatus !== 'Completada') { if (!a.responsable) m.sinResp++; if (!a.fechaCompromiso) m.sinFecha++; } if (a.estatus === 'Completada' && a.resultado) m.conResultado++; });
+        m.cumpl = m.total ? m.comp / m.total * 100 : null; m.medido = m.comp ? m.conResultado / m.comp * 100 : null; return m;
+    }
+    function porResponsable(lista) {
+        const m = new Map(); lista.forEach(a => { const k = a.responsable || '(sin responsable)'; const x = m.get(k) || { k, total: 0, comp: 0, venc: 0, abiertas: 0 }; x.total++; if (a.estatus === 'Completada') x.comp++; else x.abiertas++; if (vencida(a)) x.venc++; m.set(k, x); });
+        return [...m.values()].sort((a, b) => b.venc - a.venc || b.abiertas - a.abiertas);
+    }
+    // =====================================================================
+    // 4. RENDER
+    // =====================================================================
+    function tarjeta(titulo, valor, sub, tono) {
+        const c = { rojo: 'border-rose-200 bg-rose-50/60', verde: 'border-emerald-200 bg-emerald-50/60', ambar: 'border-amber-200 bg-amber-50/60' }[tono] || 'border-slate-200 bg-white';
+        return `<div class="rounded-2xl border ${c} p-4 shadow-sm min-w-0"><div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">${titulo}</div><div class="mt-1 text-xl sm:text-2xl font-extrabold text-slate-900 num-tabular">${valor}</div><div class="mt-1 text-[11px] text-slate-500 break-words">${sub}</div></div>`;
+    }
+    function render() {
+        const cont = document.getElementById('contenido');
+        if (!S.cargado) { cont.innerHTML = '<div class="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">Cargando acciones de las tres herramientas…</div>'; return; }
+        const base = filtradas(true), lista = filtradas(false), m = metricas(base), resps = [...new Set(S.acciones.map(a => a.responsable || '(sin responsable)'))].sort();
+        const sel = (id, opts, val, fn) => `<select onchange="${fn}(this.value)" class="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold">${opts.map(([v, n]) => `<option value="${esc(v)}" ${v === val ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>`;
+        document.getElementById('filtros').innerHTML = `
+            <label class="text-[11px] font-bold uppercase text-slate-500">Periodo</label>${sel('p', [['todo', 'Todo'], ['7', 'Últimos 7 días'], ['14', 'Últimos 14 días'], ['30', 'Últimos 30 días'], ['mes', 'Este mes']], S.filtros.periodo, 'setF.periodo')}
+            <label class="text-[11px] font-bold uppercase text-slate-500 ml-1">Herramienta</label>${sel('o', [['todos', 'Todas'], ...Object.entries(ORIGENES).map(([k, v]) => [k, v.n])], S.filtros.origen, 'setF.origen')}
+            <label class="text-[11px] font-bold uppercase text-slate-500 ml-1">Responsable</label>${sel('r', [['todos', 'Todos'], ...resps.map(r => [r, r])], S.filtros.resp, 'setF.resp')}
+            <label class="text-[11px] font-bold uppercase text-slate-500 ml-1">Estatus</label>${sel('e', [['todos', 'Todos'], ...ESTATUS.map(e => [e, e])], S.filtros.estatus, 'setF.estatus')}
+            <label class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 ml-1"><input type="checkbox" ${S.filtros.vencidas ? 'checked' : ''} onchange="setF.vencidas(this.checked)"> Solo vencidas</label>
+            <input type="search" placeholder="Buscar…" value="${esc(S.filtros.texto)}" oninput="setF.texto(this.value)" class="rounded-lg border border-slate-300 px-2.5 py-1 text-xs w-36">`;
+        const tarjetas = [
+            tarjeta('Propuestas', m.total, `${m.pend} pendientes · ${m.curso} en curso · ${m.comp} completadas`),
+            tarjeta('Cumplimiento', fmtP(m.cumpl), `${m.comp} implementadas de ${m.total} propuestas`, m.cumpl === null ? '' : m.cumpl >= 70 ? 'verde' : m.cumpl >= 40 ? 'ambar' : 'rojo'),
+            tarjeta('Vencidas', m.venc, 'Abiertas con fecha compromiso ya pasada', m.venc ? 'rojo' : 'verde'),
+            tarjeta('Sin responsable o fecha', `${m.sinResp} · ${m.sinFecha}`, 'Abiertas sin responsable · abiertas sin fecha compromiso', m.sinResp + m.sinFecha ? 'ambar' : 'verde'),
+            tarjeta('Con impacto medido', fmtP(m.medido), `${m.conResultado} de ${m.comp} completadas traen resultado observado`, m.medido === null ? '' : m.medido >= 60 ? 'verde' : 'ambar')
+        ].join('');
+        const rr = porResponsable(base);
+        const tabla = `<div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden"><div class="p-4"><h3 class="text-sm font-extrabold text-slate-900">Por responsable</h3><p class="text-[11px] text-slate-500">Útil para el cierre del viernes: quién tiene acciones vencidas o abiertas.</p></div>
+            <div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular"><thead class="bg-slate-50 text-[10px] uppercase text-slate-500"><tr><th class="px-3 py-2">Responsable</th><th class="px-3 py-2 text-right">Propuestas</th><th class="px-3 py-2 text-right">Completadas</th><th class="px-3 py-2 text-right">Abiertas</th><th class="px-3 py-2 text-right">Vencidas</th><th class="px-3 py-2 text-right">Cumplimiento</th></tr></thead>
+            <tbody class="divide-y divide-slate-100">${rr.map(x => `<tr class="hover:bg-slate-50"><td class="px-3 py-2 font-bold text-slate-900 break-words">${esc(x.k)}</td><td class="px-3 py-2 text-right">${x.total}</td><td class="px-3 py-2 text-right">${x.comp}</td><td class="px-3 py-2 text-right">${x.abiertas}</td><td class="px-3 py-2 text-right font-bold ${x.venc ? 'text-rose-700' : 'text-slate-400'}">${x.venc}</td><td class="px-3 py-2 text-right">${fmtP(x.comp / x.total * 100)}</td></tr>`).join('') || '<tr><td class="px-3 py-6 text-center text-slate-500" colspan="6">Sin acciones con estos filtros.</td></tr>'}</tbody></table></div></div>`;
+        const orden = { 'Pendiente': 1, 'En curso': 0, 'Completada': 2 };
+        const ordenadas = [...lista].sort((a, b) => (vencida(b) - vencida(a)) || orden[a.estatus] - orden[b.estatus] || (a.fechaCompromiso || '9999').localeCompare(b.fechaCompromiso || '9999'));
+        const items = ordenadas.map(a => { const o = ORIGENES[a.origen], v = vencida(a);
+            return `<li class="p-4 rounded-2xl bg-white border ${v ? 'border-rose-300' : 'border-slate-200'} shadow-sm flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                <div class="min-w-0 space-y-1">
+                    <div class="flex flex-wrap items-center gap-1.5"><span class="px-2 py-0.5 rounded-md text-[10px] font-extrabold ${o.clase}">${o.n}</span><span class="px-2 py-0.5 rounded-full border text-[11px] font-bold ${COLOR_EST[a.estatus]}">${a.estatus}</span>${v ? '<span class="px-2 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-extrabold">VENCIDA</span>' : ''}${a.extra ? `<span class="text-[10px] text-slate-400">${esc(a.extra)}</span>` : ''}</div>
+                    <div class="text-sm font-extrabold text-slate-900 break-words">${esc(a.titulo)}</div>
+                    ${a.contexto ? `<div class="text-xs text-slate-600 break-words">${esc(a.contexto)}</div>` : ''}
+                    <div class="text-[11px] text-slate-500">${a.responsable ? `Responsable: <strong class="text-slate-700">${esc(a.responsable)}</strong>` : '<strong class="text-amber-700">Sin responsable</strong>'} · ${a.fechaCompromiso ? `Compromiso: <strong class="${v ? 'text-rose-700' : 'text-slate-700'}">${esc(a.fechaCompromiso)}</strong>` : '<strong class="text-amber-700">Sin fecha compromiso</strong>'}${a.creada ? ` · Registrada: ${esc(a.creada)}` : ''}</div>
+                    ${a.resultado ? `<div class="text-[11px] text-emerald-700">Resultado: ${esc(a.resultado)}</div>` : (a.estatus === 'Completada' ? '<div class="text-[11px] text-amber-700">Completada sin resultado observado.</div>' : '')}
+                </div>
+                <div class="flex items-center gap-2 shrink-0" data-pdf-ocultar="true"><button type="button" onclick="abrirEditar('${a.origen}', '${esc(a.id)}')" class="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold">Actualizar</button>
+                    <a href="${o.href}" target="_blank" rel="noopener" class="px-2.5 py-1.5 rounded-xl border border-slate-300 bg-white text-xs font-bold text-slate-600 hover:bg-slate-50" title="Abrir ${o.n}">↗</a></div></li>`; }).join('');
+        cont.innerHTML = `<div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">${tarjetas}</div>${tabla}
+            <div><h3 class="text-sm font-extrabold text-slate-900 mb-2">Acciones <span class="text-slate-400 font-semibold">(${lista.length})</span></h3><ul class="space-y-2">${items || '<li class="p-6 text-xs text-slate-500 rounded-2xl bg-slate-50 border border-slate-200">No hay acciones con estos filtros. Las acciones se registran desde cada herramienta, junto a la alerta o el hallazgo que las origina.</li>'}</ul></div>`;
+    }
+    const setF = {
+        periodo: v => { S.filtros.periodo = v; render(); }, origen: v => { S.filtros.origen = v; render(); }, resp: v => { S.filtros.resp = v; render(); },
+        estatus: v => { S.filtros.estatus = v; render(); }, vencidas: v => { S.filtros.vencidas = v; render(); },
+        texto: v => { S.filtros.texto = v; clearTimeout(window._tf); window._tf = setTimeout(() => { render(); const i = document.querySelector('#filtros input[type=search]'); if (i) { i.focus(); i.setSelectionRange(v.length, v.length); } }, 250); }
+    };
+    // =====================================================================
+    // 5. EDICIÓN (se escribe de vuelta en la herramienta de origen, respetando su formato)
+    // =====================================================================
+    function abrirEditar(origen, id) {
+        const a = S.acciones.find(x => x.origen === origen && x.id === id); if (!a) return; S.editando = { origen, id };
+        document.getElementById('ed-origen').textContent = ORIGENES[origen].n; document.getElementById('ed-titulo').textContent = a.titulo; document.getElementById('ed-contexto').textContent = a.contexto;
+        document.getElementById('ed-resp').value = a.responsable; document.getElementById('ed-fecha').value = a.fechaCompromiso; document.getElementById('ed-estatus').value = a.estatus; document.getElementById('ed-resultado').value = a.resultado;
+        document.getElementById('ed-error').textContent = ''; const m = document.getElementById('modal-editar'); m.classList.remove('hidden'); m.classList.add('flex');
+    }
+    function cerrarEditar() { const m = document.getElementById('modal-editar'); m.classList.add('hidden'); m.classList.remove('flex'); S.editando = null; }
+    async function guardarEditar(e) {
+        e.preventDefault(); const { origen, id } = S.editando || {}; if (!origen) return;
+        const estatus = document.getElementById('ed-estatus').value, resultado = document.getElementById('ed-resultado').value.trim();
+        const btn = document.getElementById('ed-guardar'); btn.disabled = true; btn.textContent = 'Guardando…';
+        try {
+            await cambiarEnOrigen(origen, id, a => {
+                a.responsable = document.getElementById('ed-resp').value.trim(); a.fechaCompromiso = document.getElementById('ed-fecha').value; a.resultado = resultado;
+                a.estatus = origen === 'rd' ? estatus : (estatus === 'En curso' ? 'En proceso' : estatus);
+            });
+            cerrarEditar(); reconstruir(); render(); toast('✅ Acción actualizada en ' + ORIGENES[origen].n + '.');
+        } catch (err) { console.error(err); document.getElementById('ed-error').textContent = err.message === 'conflicto' ? 'Otra persona guardó cambios antes que tú. Se recargó la versión más reciente; repite tu cambio.' : 'No se pudo guardar. Revisa tu conexión.'; }
+        finally { btn.disabled = false; btn.textContent = 'Guardar'; }
+    }
+    // Actualiza solo la lista de acciones de esa herramienta, con control de versión para no pisar a otra persona
+    async function cambiarEnOrigen(origen, id, fn) {
+        const t = ORIGENES[origen].tabla, copia = JSON.parse(JSON.stringify(S.raw[origen] || [])), a = copia.find(x => x.id === id); if (!a) throw new Error('no existe'); fn(a);
+        const { data, error } = await NUBE.client.from(t).update({ acciones: copia, version: S.version[origen] + 1, actualizado_en: new Date().toISOString() }).eq('id', 'principal').eq('version', S.version[origen]).select('version');
+        if (error) throw error;
+        if (!data || !data.length) { await cargarOrigen(origen); reconstruir(); render(); throw new Error('conflicto'); }
+        S.raw[origen] = copia; S.version[origen] = data[0].version;
+    }
+    function descargarCSV() {
+        const f = [['Herramienta', 'Estatus', 'Acción', 'Hallazgo o detalle', 'Responsable', 'Fecha compromiso', 'Registrada', 'Resultado observado', 'Vencida']];
+        filtradas(false).forEach(a => f.push([ORIGENES[a.origen].n, a.estatus, a.titulo, a.contexto, a.responsable, a.fechaCompromiso, a.creada, a.resultado, vencida(a) ? 'Sí' : 'No']));
+        const csv = '﻿' + f.map(r => r.map(c => /[",\n]/.test(String(c)) ? `"${String(c).replace(/"/g, '""')}"` : c).join(',')).join('\r\n');
+        const el = document.createElement('a'); el.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); el.download = `Acciones_${hoyISO()}.csv`; document.body.appendChild(el); el.click(); el.remove();
+    }
+    // =====================================================================
+    // 6. NUBE (clave compartida)
+    // =====================================================================
+        function nubeEstado(texto, tono) {
+        const el = document.getElementById('nube-estado'); el.textContent = texto;
+        el.className = 'fixed bottom-5 left-5 z-40 px-2.5 py-1 rounded-lg bg-white/90 border text-[11px] font-semibold shadow-sm ' + (tono === 'error' ? 'border-rose-300 text-rose-700' : tono === 'ok' ? 'border-emerald-300 text-emerald-700' : 'border-slate-200 text-slate-600');
+    }
+    async function cargarOrigen(o) {
+        const { data, error } = await NUBE.client.from(ORIGENES[o].tabla).select('acciones,version').eq('id', 'principal').maybeSingle(); if (error) throw error;
+        S.raw[o] = Array.isArray(data && data.acciones) ? data.acciones : []; S.version[o] = data ? data.version : 0;
+    }
+    async function cargarTodo() {
+        try { await Promise.all(Object.keys(ORIGENES).map(cargarOrigen)); S.cargado = true; reconstruir(); nubeEstado('☁️ Sincronizado', 'ok'); }
+        catch (e) { console.error(e); nubeEstado('⚠️ Sin conexión: no se pudieron cargar las acciones', 'error'); }
+        render();
+    }
+        function nubeOverlay(mostrar, error) {
+        const o = document.getElementById('nube-overlay'); o.classList.toggle('hidden', !mostrar); o.classList.toggle('flex', mostrar);
+        const e = document.getElementById('nube-error'); e.textContent = error || ''; e.classList.toggle('hidden', !error);
+        if (mostrar) document.getElementById('nube-clave').focus();
+    }
+    async function nubeEntrar() { NUBE.activo = true; nubeOverlay(false); await cargarTodo(); }
+        async function nubeArrancar() {
+        if (!window.supabase) { nubeEstado('Modo local (sin conexión a la nube)', 'error'); return; }
+        try {
+            NUBE.client = window.supabase.createClient(NUBE.url, NUBE.key, { auth: { persistSession: true, autoRefreshToken: true } });
+            const { data: { session } } = await NUBE.client.auth.getSession();
+            if (!session) { const { error } = await NUBE.client.auth.signInAnonymously(); if (error) throw error; }
+            const { data: ok, error: errAut } = await NUBE.client.rpc('tablero_es_dispositivo_autorizado'); if (errAut) throw errAut;
+            if (!ok) { nubeOverlay(true); return; }
+            await nubeEntrar();
+        } catch (e) { console.error(e); nubeEstado('Modo local (sin conexión a la nube)', 'error'); }
+    }
+    document.getElementById('nube-form').addEventListener('submit', async ev => {
+        ev.preventDefault(); const b = document.getElementById('nube-boton'); b.disabled = true;
+        try {
+            const { data, error } = await NUBE.client.rpc('tablero_activar', { codigo: document.getElementById('nube-clave').value });
+            if (error) throw error;
+            if (data === 'ok' || data === 'definida') { document.getElementById('nube-clave').value = ''; await nubeEntrar(); }
+            else nubeOverlay(true, { incorrecta: 'Clave incorrecta.', bloqueado: 'Demasiados intentos. Espera 15 minutos.', corta: 'La clave debe tener al menos 12 caracteres.' }[data] || 'No se pudo validar la clave.');
+        } catch (e) { console.error(e); nubeOverlay(true, 'No se pudo conectar. Revisa tu conexión.'); }
+        finally { b.disabled = false; }
+    });
+    window.addEventListener('load', () => {
+        render(); nubeArrancar();
+        document.addEventListener('visibilitychange', async () => { if (!document.hidden && NUBE.activo && !S.editando) await cargarTodo(); });
+    });
+
+    </script>
+</body>
+</html>
