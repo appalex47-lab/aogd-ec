@@ -1434,7 +1434,7 @@
     // =====================================================================
     // INTEGRIDAD DE DATOS (pestaña Configuración)
     // =====================================================================
-    const IG_DEF = { tolPct: 1, atrasoMax: 2, sinCatMax: 5, inicio: '' };
+    const IG_DEF = { tolPct: 1, atrasoMax: 1, sinCatMax: 5, inicio: '' };
     const IG = { raw: null, modelo: null, cargando: false };
     const igCfg = () => { const c = S.config.integridad = S.config.integridad || {}; c.aj = c.aj || {}; c.rec = c.rec || {}; return c; };
     const igAj = () => Object.assign({}, IG_DEF, igCfg().aj);
@@ -1466,13 +1466,13 @@
                     return lista.length - falt.length; });
             });
         }
-        M.cobertura.meses = meses; M.cobertura.esperados = m => esp[m]; M.cobertura.nota = finCob ? `Días con ventas cargadas contra los días del mes, de ${fechaCorta(ini)} a ${fechaCorta(finCob)} (se exige hasta ayer). Un día sin datos puede ser un error de carga o un día sin ventas (márcalo como correcto).` : 'Sin datos cargados.';
+        M.cobertura.meses = meses; M.cobertura.esperados = m => esp[m]; M.cobertura.nota = finCob ? `Días con ventas cargadas contra los días del mes, de ${fechaCorta(ini)} a ${fechaCorta(finCob)} (se exige hasta ayer: la venta llega a día vencido). Un día sin datos puede ser un error de carga o un día sin ventas (márcalo como correcto).` : 'Sin datos cargados.';
         const conDatos = CANALES_DATO.filter(c => porCanal[c].size);
         const atraso = fin ? Math.round((new Date(hoy) - new Date(fin)) / 864e5) : null;
         M.kpis = [['Historia cargada', `${meses.length} ${meses.length === 1 ? 'mes' : 'meses'}`, fin ? `${ini} → ${fin}` : 'Sin datos', meses.length ? 'ok' : 'warn'],
             ['Canales', `${conDatos.length} de ${CANALES_DATO.length}`, conDatos.join(' · ') || 'Ninguno', conDatos.length === CANALES_DATO.length ? 'ok' : 'warn'],
             ['Días-canal sin datos', fmtN(totFalt), totFalt ? `${combos} combinaciones incompletas` : 'Todo completo', totFalt ? 'warn' : 'ok'],
-            ['Última carga', fin ? fechaCorta(fin) : '—', atraso === null ? '—' : atraso <= aj.atrasoMax ? `hace ${atraso} ${atraso === 1 ? 'día' : 'días'}` : `hace ${atraso} días (tolerancia ${aj.atrasoMax})`, atraso !== null && atraso <= aj.atrasoMax ? 'ok' : 'warn']];
+            ['Última carga', fin ? fechaCorta(fin) : '—', atraso === null ? '—' : atraso <= aj.atrasoMax ? (atraso <= 1 ? 'al día: la venta llega a día vencido' : `hace ${atraso} días`) : `hace ${atraso} días (tolerancia ${aj.atrasoMax})`, atraso !== null && atraso <= aj.atrasoMax ? 'ok' : 'warn']];
         const V = M.verificaciones, accion = (t, d) => ({ t: 'accion', titulo: t, detalle: d });
         if (atraso !== null && atraso > aj.atrasoMax) V.push({ id: 'ver|fresco', tono: 'warn', titulo: `La última venta cargada es del ${fin} (hace ${atraso} días)`, detalle: `Pasa de la tolerancia de ${aj.atrasoMax} días: las lecturas del mes pueden ir atrasadas.`, acciones: [{ t: 'ack' }, accion('Cargar las ventas más recientes en Comercial', `La última fecha cargada es ${fin}.`)] });
         const futuras = [...new Set(dias.filter(r => r.f > hoy).map(r => r.f))].sort();
@@ -1502,7 +1502,7 @@
         C.filas.push({ medida: 'Venta y pedidos', canal: 'Todos', a: 'Comercial', b: 'Revisión Diaria la lee', dif: '', tono: 'ok', estado: '✓ Unificado' });
         const mp = [...new Set(Object.keys(S.planDia).map(k => k.split('|')[1].slice(0, 7)))].sort();
         C.hallazgos.push(mp.length ? { tono: 'ok', titulo: `Plan de ventas cargado en la Revisión Diaria: ${mp.length} mes(es)`, detalle: `${mp[0]} → ${mp[mp.length - 1]}. Las metas por categoría se calculan sobre ese plan.` } : { tono: 'warn', titulo: 'No hay plan de ventas en la Revisión Diaria', detalle: 'Sin plan no hay metas por categoría ni pacing.' });
-        M.ajustes = [{ k: 'atrasoMax', etiqueta: 'Atraso máximo de carga', desc: 'Después de esto la última carga se marca vencida', valor: aj.atrasoMax, unidad: 'días' },
+        M.ajustes = [{ k: 'atrasoMax', etiqueta: 'Atraso máximo de carga', desc: 'La venta llega a día vencido: con 1, lo último cargado debe ser de ayer', valor: aj.atrasoMax, unidad: 'días' },
             { k: 'sinCatMax', etiqueta: 'Venta sin categoría máxima', desc: 'Aviso si un mes pasa de este porcentaje', valor: aj.sinCatMax, unidad: '%' }, { k: 'inicio', etiqueta: 'Inicio de la historia', desc: 'Antes de esta fecha no se exige cobertura (vacío = primer día cargado)', valor: aj.inicio, unidad: '', tipo: 'date' }];
         M.notaAjustes = 'Lo que marques como correcto se guarda con su fecha y deja de contar como aviso. Los ajustes se guardan en la nube con el resto de la configuración.';
         return M;

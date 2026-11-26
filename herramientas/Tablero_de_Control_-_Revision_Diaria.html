@@ -984,12 +984,20 @@
             };
         }
 
+        // La venta llega a día vencido: un corte guardado en "hoy" se mueve a ayer (si ayer es del mismo mes)
+        function normalizarCortesHoy(cortes) {
+            const h = new Date(), iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            const hoy = iso(h), ayer = iso(new Date(h.getFullYear(), h.getMonth(), h.getDate() - 1));
+            Object.keys(cortes || {}).forEach(m => { if (cortes[m] === hoy && ayer.startsWith(m)) cortes[m] = ayer; });
+            return cortes;
+        }
+
         function cargarCortesIniciales() {
             const raw = localStorage.getItem(STORAGE_KEY_CORTES);
             if (raw) {
                 try {
                     const parsed = JSON.parse(raw);
-                    if (parsed && typeof parsed === 'object') return parsed;
+                    if (parsed && typeof parsed === 'object') return normalizarCortesHoy(parsed);
                 } catch (e) {}
             }
             return {};
@@ -1012,7 +1020,10 @@
             const hoy = new Date();
             const hoyISO = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
             if (hoyISO.startsWith(claveMes)) {
-                return hoyISO;
+                // La venta llega a día vencido: hoy todavía no hay venta, el corte natural es ayer (si hoy es día 1, el corte es hoy)
+                const ayer = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - 1);
+                const ayerISO = `${ayer.getFullYear()}-${String(ayer.getMonth() + 1).padStart(2, '0')}-${String(ayer.getDate()).padStart(2, '0')}`;
+                return ayerISO.startsWith(claveMes) ? ayerISO : hoyISO;
             }
             const [y, m] = claveMes.split('-').map(Number);
             const finMes = `${y}-${String(m).padStart(2, '0')}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`;
@@ -4714,12 +4725,12 @@
             M.cobertura.faltan = M.cobertura.faltan.filter(x => x.faltan > 0);
             M.cobertura.nota = `Días con venta (de Comercial) contra los días del mes hasta ayer (${limite}). Los meses sin venta no se muestran: solo tienen plan.`;
             const faltTot = M.cobertura.faltan.filter(x => !cfg.rec[x.id]).reduce((a, x) => a + x.faltan, 0);
-            IG_CANALES.forEach(([, n]) => { if (ultima[n]) { const d = Math.round((new Date(limite) - new Date(ultima[n])) / 864e5); if (d > atrasoMax) atrasoMax = d; } });
+            IG_CANALES.forEach(([, n]) => { if (ultima[n]) { const d = Math.round((new Date(hoy) - new Date(ultima[n])) / 864e5); if (d > atrasoMax) atrasoMax = d; } });
             const planFut = conPlan.filter(m => m >= hoy.slice(0, 7));
             M.kpis = [['Meses con plan', String(conPlan.length), conPlan.length ? `${conPlan[0]} → ${conPlan[conPlan.length - 1]}` : 'Sin plan', conPlan.length ? 'ok' : 'bad'], ['Meses con venta real', String(conReal.length), conReal.length ? `${conReal[0]} → ${conReal[conReal.length - 1]}` : 'Sin captura', conReal.length ? 'ok' : 'warn'],
-                ['Días sin capturar', igN(faltTot), faltTot ? `${M.cobertura.faltan.filter(x => !cfg.rec[x.id]).length} combinaciones` : 'Todo al día', faltTot ? 'warn' : 'ok'], ['Atraso de captura', atrasoMax ? `${atrasoMax} ${atrasoMax === 1 ? 'día' : 'días'}` : 'Al día', atrasoMax > aj.atrasoMax ? `pasa de ${aj.atrasoMax} (tolerancia)` : 'dentro de tolerancia', atrasoMax > aj.atrasoMax ? 'warn' : 'ok']];
+                ['Días sin capturar', igN(faltTot), faltTot ? `${M.cobertura.faltan.filter(x => !cfg.rec[x.id]).length} combinaciones` : 'Todo al día', faltTot ? 'warn' : 'ok'], ['Atraso de captura', atrasoMax > 1 ? `${atrasoMax - 1} ${atrasoMax - 1 === 1 ? 'día' : 'días'}` : 'Al día', atrasoMax > aj.atrasoMax ? `pasa de ${aj.atrasoMax} (tolerancia)` : 'dentro de tolerancia', atrasoMax > aj.atrasoMax ? 'warn' : 'ok']];
             const V = M.verificaciones, accion = (t, d) => ({ t: 'accion', titulo: t, detalle: d });
-            IG_CANALES.forEach(([, n]) => { if (ultima[n]) { const d = Math.round((new Date(limite) - new Date(ultima[n])) / 864e5); if (d > aj.atrasoMax) V.push({ id: `ver|atraso|${n}`, tono: 'warn', titulo: `${n}: última captura del ${ultima[n]} (${d} ${d === 1 ? 'día' : 'días'} de atraso)`, detalle: `Pasa de la tolerancia de ${aj.atrasoMax} día(s).`, acciones: [{ t: 'ack' }, accion(`Cargar en Comercial las ventas de ${n}`, `Última captura: ${ultima[n]}.`)] }); } });
+            IG_CANALES.forEach(([, n]) => { if (ultima[n]) { const d = Math.round((new Date(hoy) - new Date(ultima[n])) / 864e5); if (d > aj.atrasoMax) V.push({ id: `ver|atraso|${n}`, tono: 'warn', titulo: `${n}: última captura del ${ultima[n]} (${d} ${d === 1 ? 'día' : 'días'} de atraso)`, detalle: `Pasa de la tolerancia de ${aj.atrasoMax} día(s).`, acciones: [{ t: 'ack' }, accion(`Cargar en Comercial las ventas de ${n}`, `Última captura: ${ultima[n]}.`)] }); } });
             V.push(futuros.length ? { id: 'ver|futuro', tono: 'bad', titulo: `${futuros.length} captura(s) con fecha futura`, detalle: 'Hay venta real en días que aún no ocurren.', acciones: [{ t: 'fechas', lista: futuros }, accion('Corregir capturas con fecha futura', futuros.join(', '))] } : { tono: 'ok', titulo: 'Sin capturas con fecha futura', detalle: 'Toda la venta real es de hoy o antes.' });
             V.push(incompletos.length ? { id: 'ver|incompletos', tono: 'warn', titulo: `${incompletos.length} día(s) con venta pero sin sesiones, llamadas o mensajes`, detalle: 'Sin tráfico no se puede calcular la conversión de ese día. Web y App lo toman de Tráfico; WhatsApp y Llamadas se capturan en Captura Rápida.', acciones: [{ t: 'fechas', lista: incompletos }, { t: 'ack' }, accion('Completar el tráfico (sesiones, llamadas o mensajes) de los días incompletos', incompletos.slice(0, 40).join(', '))] } : { tono: 'ok', titulo: 'Cada día con venta trae pedidos y sesiones', detalle: 'La conversión y el ticket se pueden calcular en todos los días capturados.' });
             const sig = planFut.length;
@@ -4728,7 +4739,7 @@
             const C = M.conciliacion; C.titulo = 'De dónde sale cada dato'; C.colA = 'Fuente'; C.colB = 'Último día cargado';
             C.nota = 'La venta y los pedidos se leen de Comercial y las sesiones de Web y App de Tráfico: no se capturan aquí, así que no puede haber diferencias. Solo se capturan llamadas y mensajes.';
             const ult = raw.ult || {}, fechaTxt = f => f ? f.slice(8) + '/' + f.slice(5, 7) : '—';
-            const estadoDe = f => { if (!f) return ['bad', '✕ Sin datos']; const d = Math.round((new Date(limite) - new Date(f)) / 864e5); return d <= 0 ? ['ok', '✓ Al día'] : [d > aj.atrasoMax ? 'warn' : 'info', `${d} ${d === 1 ? 'día' : 'días'} de atraso`]; };
+            const estadoDe = f => { if (!f) return ['bad', '✕ Sin datos']; const d = Math.round((new Date(hoy) - new Date(f)) / 864e5); return d <= 1 ? ['ok', '✓ Al día (día vencido)'] : [d > aj.atrasoMax ? 'warn' : 'info', `${d - 1} ${d - 1 === 1 ? 'día' : 'días'} de atraso`]; };
             IG_CANALES.forEach(([k, n]) => { const e = estadoDe(ult[n]); C.filas.push({ medida: 'Venta y pedidos', canal: n, a: 'Comercial', b: fechaTxt(ult[n]), dif: '', tono: e[0], estado: e[1] }); });
             [['Web', 'Web'], ['App', 'App']].forEach(([n]) => { const e = estadoDe(ult['Tráfico ' + n]); C.filas.push({ medida: 'Sesiones', canal: n, a: 'Tráfico (GA4)', b: fechaTxt(ult['Tráfico ' + n]), dif: '', tono: e[0], estado: e[1] }); });
             ['whatsapp', 'llamadas'].forEach(k => { const n = CONFIG_CANALES[k].nombre; let u = null; Object.values(estadoApp.historico).forEach(dm => (dm[k] || []).forEach(r => { if (Number(r.sesionesReal) > 0 && (!u || r.fecha > u)) u = r.fecha; })); const e = estadoDe(u); C.filas.push({ medida: CONFIG_CANALES[k].etiquetaTrafico, canal: n, a: 'Captura manual', b: fechaTxt(u), dif: '', tono: e[0], estado: e[1] }); });
@@ -4736,7 +4747,7 @@
             else if (FUENTE.activa) C.hallazgos.push({ tono: 'ok', titulo: 'Venta y pedidos unificados con Comercial', detalle: 'Cualquier cambio en Comercial se refleja aquí al volver a esta pestaña.' });
             const sinPlanDia = []; // días de Comercial cuyo mes no tiene plan en la Revisión Diaria
             M.ajustes = [
-                { k: 'atrasoMax', etiqueta: 'Atraso máximo de captura', desc: 'Después de esto el canal se marca atrasado', valor: aj.atrasoMax, unidad: 'días' }, { k: 'mesesPlan', etiqueta: 'Meses de plan por adelantado', desc: 'Aviso si el plan cubre menos meses desde el mes en curso', valor: aj.mesesPlan, unidad: 'meses' }];
+                { k: 'atrasoMax', etiqueta: 'Atraso máximo de captura', desc: 'La venta llega a día vencido: con 1, lo último cargado debe ser de ayer', valor: aj.atrasoMax, unidad: 'días' }, { k: 'mesesPlan', etiqueta: 'Meses de plan por adelantado', desc: 'Aviso si el plan cubre menos meses desde el mes en curso', valor: aj.mesesPlan, unidad: 'meses' }];
             M.notaAjustes = 'Lo que marques como correcto se guarda con su fecha y deja de contar como aviso.';
             return M;
         }
@@ -4903,7 +4914,7 @@
 
         function nubeAplicarEstado(row) {
             estadoApp.historico = row.historico || {};
-            estadoApp.cortesPorMes = row.cortes || {};
+            estadoApp.cortesPorMes = normalizarCortesHoy(row.cortes || {});
             estadoApp.acciones = Array.isArray(row.acciones) ? row.acciones : [];
             estadoApp.config = (row.config && typeof row.config === 'object') ? row.config : {};
             if (!estadoApp.historico[estadoApp.mesActivo]) {
