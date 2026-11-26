@@ -1613,11 +1613,13 @@
                 <div id="exp-fechas" class="hidden grid grid-cols-2 gap-3"><label class="block text-xs font-bold text-slate-600">Desde<input id="exp-desde" type="date" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></label><label class="block text-xs font-bold text-slate-600">Hasta<input id="exp-hasta" type="date" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></label></div>
                 <label class="block text-xs font-bold text-slate-600">Formato
                     <select id="exp-formato" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold">${EXPORT_CFG.formatos.map(([v, t]) => `<option value="${v}">${t}</option>`).join('')}</select></label>
+                <p id="exp-info" class="text-[11px] leading-snug text-slate-600 rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 hidden"></p>
                 <p id="exp-msg" class="text-xs text-slate-500 min-h-[1rem]"></p>
                 <div class="flex justify-end gap-2"><button type="button" onclick="cerrarExportar()" class="px-4 py-2 rounded-xl border border-slate-300 text-sm font-bold text-slate-700 hover:bg-slate-50">Cancelar</button><button type="button" id="exp-btn" onclick="ejecutarExportar()" class="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold">Descargar</button></div></div>`;
             document.body.appendChild(m);
         }
         document.getElementById('exp-msg').textContent = ''; m.classList.remove('hidden'); m.classList.add('flex');
+        if (EXPORT_CFG.info) EXPORT_CFG.info();
     }
     function cerrarExportar() { const m = document.getElementById('modal-exportar'); if (m) { m.classList.add('hidden'); m.classList.remove('flex'); } }
     async function ejecutarExportar() {
@@ -1626,7 +1628,7 @@
         if (rango === 'mes') { if (!S.mes) { msg.textContent = 'No hay un mes activo.'; return; } desde = `${S.mes}-01`; hasta = finMes(S.mes); }
         if (rango === 'custom') { desde = document.getElementById('exp-desde').value; hasta = document.getElementById('exp-hasta').value; if (!desde || !hasta || desde > hasta) { msg.textContent = 'Indica un rango de fechas válido.'; return; } }
         btn.disabled = true; btn.textContent = 'Preparando…'; msg.textContent = 'Leyendo datos…';
-        try { const n = await EXPORT_CFG.exportar(desde, hasta, formato, msg); if (n === 0) msg.textContent = 'No hay datos en ese periodo.'; else { toast(`📥 Exportado: ${fmtN(n)} filas.`); cerrarExportar(); } }
+        try { const n = await EXPORT_CFG.exportar(desde, hasta, formato, msg); if (n === 0) msg.textContent = 'No hay datos en ese periodo.'; else { toast(`📥 Exportado: ${fmtN(n)} filas.${EXPORT_CFG.nota || ''}`); EXPORT_CFG.nota = ''; cerrarExportar(); } }
         catch (e) { console.error(e); msg.textContent = '❌ No se pudo exportar' + (e && (e.message || e.code) ? ': ' + String(e.message || e.code).slice(0, 140) : '') + '. Si es un error de conexión, inténtalo de nuevo.'; }
         finally { btn.disabled = false; btn.textContent = 'Descargar'; }
     }
@@ -1634,6 +1636,17 @@
 
     const EXPORT_CFG = {
         ayuda: 'El machote completo trae una fila por línea de pedido (con pedido_id y cliente_id) y se puede volver a cargar. El resumen trae totales por producto y por día.',
+        nota: '',
+        async info() {
+            const el = document.getElementById('exp-info'); if (!el) return; if (!NUBE.activo || S.demo) { el.classList.add('hidden'); return; }
+            el.classList.remove('hidden'); el.textContent = 'Revisando qué hay guardado…';
+            try {
+                const [mn, mx, ct] = await Promise.all([NUBE.client.from('comercial_lineas').select('fecha').order('fecha', { ascending: true }).limit(1), NUBE.client.from('comercial_lineas').select('fecha').order('fecha', { ascending: false }).limit(1), NUBE.client.from('comercial_lineas').select('*', { count: 'exact', head: true })]);
+                const a = mn.data && mn.data[0] ? mn.data[0].fecha : null, b = mx.data && mx.data[0] ? mx.data[0].fecha : null, hist = S.rangoMin ? `${S.rangoMin} a ${S.rangoMax}` : 'todo lo cargado';
+                el.innerHTML = a ? `<b>Machote completo (líneas de pedido):</b> hay líneas guardadas del ${a} al ${b} (${fmtN(ct.count)} líneas). Antes del ${a} solo existen totales, porque esos archivos se cargaron antes de guardar pedido y cliente: recárgalos para incluirlos.<br><b>Resumen:</b> cubre todo el historial (${hist}).` : `<b>Machote completo:</b> todavía no hay líneas de pedido guardadas, así que saldría vacío. <b>Resumen:</b> cubre todo el historial (${hist}).`;
+                if (!a || (S.rangoMin && a > S.rangoMin)) { const f = document.getElementById('exp-formato'); if (f && f.value.startsWith('m-')) f.value = 'xlsx'; }
+            } catch (e) { console.error(e); el.classList.add('hidden'); }
+        },
         formatos: [['m-xlsx', 'Machote completo · Excel (.xlsx) · líneas de pedido'], ['m-csv', 'Machote completo · CSV · líneas de pedido'], ['xlsx', 'Resumen · Excel · detalle por producto y totales por día'], ['csv-det', 'CSV · detalle por producto'], ['csv-dia', 'CSV · totales por día y canal']],
         async exportar(desde, hasta, formato, msg) {
             let regs, dias;
@@ -1646,6 +1659,7 @@
                     msg.textContent = `Leyendo líneas de pedido… ${fmtN(out.length)}`; if (data.length < 1000) break; pagina++;
                 }
                 if (!out.length) { msg.textContent = 'No hay líneas de pedido guardadas en ese periodo. Las cargas anteriores a esta función no las guardaron: vuelve a cargar ese archivo para respaldarlo.'; return 0; }
+                EXPORT_CFG.nota = ` Líneas guardadas del ${out[0][0]} al ${out[out.length - 1][0]}; antes de esa fecha solo existen totales (usa el Resumen para el historial completo).`;
                 const filas = [['Fecha', 'Canal', 'Pedido_ID', 'Cliente_ID', 'SKU', 'Producto', 'Categoria', 'Unidades', 'Venta'], ...out], base = `Respaldo_Comercial_Machote_${out[0][0]}_a_${out[out.length - 1][0]}`;
                 if (formato === 'm-csv') bajarArchivo(base + '.csv', new Blob([csvDe(filas)], { type: 'text/csv;charset=utf-8' }));
                 else if (out.length > 1000000) { msg.textContent = 'Son más de 1,000,000 de filas: acota el periodo o usa CSV.'; return 0; }
