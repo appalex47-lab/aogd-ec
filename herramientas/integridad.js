@@ -51,7 +51,7 @@ window.Integridad = (function () {
             const e = c.esperados(m), falt = Math.max(0, e - d), ack = r[`cob|${m}|${cn}`];
             const k = falt === 0 || ack ? 'bg-emerald-100 text-emerald-700' : falt / e <= 0.1 ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700';
             return `<td><div class="rounded-md text-center py-1.5 font-extrabold min-w-[34px] ${k}" title="${d} de ${e} días${ack ? ' · marcado como correcto' : ''}">${falt === 0 || ack ? '✓' : '−' + falt}</div></td>`; }).join('')}</tr>`).join('');
-        return `<div class="overflow-x-auto"><table class="text-[11px] border-separate" style="border-spacing:3px;width:100%"><tr><th></th>${th}</tr>${cuerpo}</table></div>
+        return `<div class="overflow-x-auto"><table class="text-[11px] border-separate" style="border-spacing:3px;width:${c.meses.length < 10 ? (c.meses.length * 58 + 100) + 'px' : '100%'}"><tr><th></th>${th}</tr>${cuerpo}</table></div>
             <div class="flex flex-wrap gap-4 mt-2 text-[11px] text-slate-500"><span><i class="inline-block w-3 h-3 rounded bg-emerald-100 align-[-2px] mr-1"></i>Completo</span><span><i class="inline-block w-3 h-3 rounded bg-amber-100 align-[-2px] mr-1"></i>Faltan ≤10% de los días</span><span><i class="inline-block w-3 h-3 rounded bg-rose-100 align-[-2px] mr-1"></i>Faltan más</span><span>“−8” = faltan 8 días</span></div>`;
     }
     function cobertura() {
