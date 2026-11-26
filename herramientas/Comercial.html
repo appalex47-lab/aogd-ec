@@ -141,6 +141,7 @@
                     <div id="imp-mapa" class="grid grid-cols-2 sm:grid-cols-3 gap-2"></div>
                     <div id="imp-cats" class="mt-2 text-xs text-slate-700 break-words"></div>
                 </div>
+                <div id="imp-impacto" class="hidden rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700 space-y-1.5"></div>
                 <div id="imp-warn" class="hidden rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 max-h-40 overflow-y-auto space-y-1"></div>
                 <div class="border border-slate-200 rounded-xl overflow-hidden max-h-56 overflow-y-auto">
                     <table class="w-full text-left text-xs num-tabular">
@@ -343,7 +344,7 @@
     };
 
     const S = {
-        registros: [], dias: [], acciones: [], metas: {}, snap: { cross: null, recompra: null }, planDia: {}, planOk: false,
+        backtest: {}, registros: [], dias: [], acciones: [], metas: {}, snap: { cross: null, recompra: null }, planDia: {}, planOk: false,
         config: { umbral: 5, impactoAlto: 1, impactoMedio: 0.3, cabeza: 50, crec: 5, sinMovDias: 90 },
         shareBase: {}, shareMes: {}, shareMesCargado: {}, metasCfg: {}, mm: null, sinMov: null, yoy: {}, realRev: {}, planPed: {}, mes: null, corte: null, canal: 'Total', ventana: 7, vista: 'resumen',
         demo: false, rangoMin: null, rangoMax: null, chart: null, filtroTipo: 'todos', verTodosProd: false, masCols: false, detMeta: {}, orden: {}
@@ -587,10 +588,16 @@
             const mes = calcularMes(CANALES_DATO.filter(okC)), todos = calcularMes(CANALES_DATO);
             const ini = ini0, nombresMes = nombres, baseMes = base, finalMes = final; A_BASE = baseMes.info;
             const T2 = mes.total, fac = T2.real > 0 && T2.pron !== null ? T2.pron / T2.real : null;
+            const pronInfo = infoPronostico(), restoMes = T2.pron !== null ? T2.pron - T2.real : null;
+            const m14 = new Map(), ini14 = addDias(S.corte, -13); S.registros.filter(r => r.f >= ini14 && r.f <= S.corte && okC(r.c)).forEach(r => m14.set(r.cat, (m14.get(r.cat) || 0) + r.v));
+            const tot14 = [...m14.values()].reduce((a, b) => a + Math.max(0, b), 0);
             const catsMes = nombresMes.map(n => { const real = mapaMes.get(n) || 0, sh = finalMes[n] / 100;
-                const meta = T2.presupuesto * sh, planMTD = T2.planMTD * sh, pron = fac !== null ? real * fac : null;
+                const meta = T2.presupuesto * sh, planMTD = T2.planMTD * sh;
+                const shHoy = T2.real > 0 ? real / T2.real : 0, sh14 = tot14 > 0 ? Math.max(0, m14.get(n) || 0) / tot14 : shHoy;
+                const shMod = pronInfo.modo === 'reciente' ? sh14 : pronInfo.modo === 'mixto' ? (shHoy + sh14) / 2 : shHoy;
+                const pron = restoMes !== null && fac !== null ? real + restoMes * shMod : null;
                 return { n, sh: finalMes[n], real, meta, planMTD, cumplMTD: planMTD > 0 ? real / planMTD * 100 : null, pacingReal: meta > 0 ? real / meta * 100 : null, pron, cumplPron: pron !== null && meta > 0 ? pron / meta * 100 : null, brecha: real - planMTD, faltaMeta: Math.max(0, meta - real) }; }).sort((a, b) => b.meta - a.meta);
-            A.mes = { ...mes, baseInfo: baseMes.info, cats: catsMes, canalesTodos: todos.por, totalTodos: todos.total, integridad: integridad({ ini, fin: S.corte }, false) };
+            A.mes = { ...mes, baseInfo: baseMes.info, pronInfo, cats: catsMes, canalesTodos: todos.por, totalTodos: todos.total, integridad: integridad({ ini, fin: S.corte }, false) };
         } else A.mes = null;
         A.canales = porCanal(V);
         A.sinMov = sinMovimiento();
@@ -773,7 +780,7 @@
             ${li(`<b>Meta en la ventana ${p.metaV !== null ? fmtM(p.metaV) : '—'}</b> = la parte de esa meta que corresponde a los días de la ventana (${fmtP(A.planVent / T.presupuesto * 100, 1)} del mes). En la ventana vendió ${fmtM(p.v)} → <b>${p.cumplV !== null ? fmtMeta(p.cumplV) : '—'}</b> de cumplimiento.`)}
             ${li(`<b>Avance del mes ${pa !== null ? fmtMeta(pa) : '—'}</b> = venta acumulada del mes ${fmtM(p.real)} ÷ meta del mes. Según el plan, al corte debería llevar ${fmtP(p.esp, 0)} (${fmtM(p.planMTD)}).`)}
             ${li(`Contra ese plan al corte lleva <b>${cumplMes !== null ? fmtMeta(cumplMes) : '—'}</b> (${fmtM(p.real)} ÷ ${fmtM(p.planMTD)}). Este es su ritmo de <b>todo el mes</b>, no solo el de la ventana: puede ir por encima en el mes y por debajo en la ventana (o al revés).`)}
-            ${li(`<b>% meta al cierre ${p.pron !== null && p.meta > 0 ? fmtMeta(p.pron / p.meta * 100) : '—'}</b>: si mantiene ese mismo ritmo del mes hasta el último día, cerraría en ${p.pron !== null ? fmtM(p.pron) : '—'}. <b>Brecha de cierre</b> = pronóstico − meta del mes = ${p.pron !== null ? (p.pron - p.meta >= 0 ? '+' : '−') + fmtM(Math.abs(p.pron - p.meta)).replace('−', '') : '—'}.`)}</ol></div>`;
+            ${li(`<b>% meta al cierre ${p.pron !== null && p.meta > 0 ? fmtMeta(p.pron / p.meta * 100) : '—'}</b>: ${A.mes.pronInfo.modo === 'reciente' ? 'el resto del mes se reparte según la participación que tuvo en los últimos 14 días' : A.mes.pronInfo.modo === 'mixto' ? 'el resto del mes se reparte mitad según su participación en el mes y mitad según los últimos 14 días' : 'si mantiene su participación del mes hasta el último día'}, cerraría en ${p.pron !== null ? fmtM(p.pron) : '—'}. <b>Brecha de cierre</b> = pronóstico − meta del mes = ${p.pron !== null ? (p.pron - p.meta >= 0 ? '+' : '−') + fmtM(Math.abs(p.pron - p.meta)).replace('−', '') : '—'}.`)}</ol></div>`;
     }
     const colorPP = v => v === null ? 'text-slate-400' : v >= 0 ? 'text-emerald-700' : 'text-rose-700';
     function chipYoY(y) { return y === undefined ? '' : y === null ? '<div class="mt-1.5 text-[10px] text-slate-400">Año anterior: sin datos</div>' : `<div class="mt-1.5 flex items-center gap-1.5 text-[11px] text-slate-500"><span>Vs. año anterior</span>${chipRitmo(y)}</div>`; }
@@ -931,7 +938,7 @@
                 <div class="p-4 sm:p-5 flex flex-wrap items-start justify-between gap-3">
                     <div class="max-w-2xl"><h3 class="text-sm font-extrabold text-slate-900">Venta y meta por categoría</h3>
                         <p class="text-[11px] text-slate-500 mt-0.5">Ordenado de mayor a menor venta; <strong>haz clic en el encabezado de cualquier columna para ordenar</strong>${M ? ' (por ejemplo, “Brecha de cierre” para ver arriba lo que más necesita acción)' : ''}. <strong>Meta en la ventana</strong> = plan de la Revisión Diaria de esos días × la participación que “Metas por categoría” asigna a la categoría; cambia con la ventana. Verde, ámbar y rojo comparan contra el presupuesto; azul y gris, contra su ritmo normal. <strong>Haz clic en una fila para ver paso a paso cómo se calculó su meta, su avance y su cierre.</strong></p></div>
-                    <div class="flex flex-wrap items-center gap-2" data-pdf-ocultar="true">${M ? `<button type="button" onclick="S.masCols=!S.masCols;renderTodo()" class="text-xs font-bold text-blue-700 hover:underline">${mas ? '− Ocultar share, contribución y AUR' : '+ Ver más columnas (share, contribución, AUR)'}</button>` : ''}
+                    <div class="flex flex-wrap items-center gap-2" data-pdf-ocultar="true">${M ? selectorPronostico(A) : ''}${M ? `<button type="button" onclick="S.masCols=!S.masCols;renderTodo()" class="text-xs font-bold text-blue-700 hover:underline">${mas ? '− Ocultar share, contribución y AUR' : '+ Ver más columnas (share, contribución, AUR)'}</button>` : ''}
                     <button type="button" onclick="abrirMetas()" class="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold">🎯 Metas por categoría</button></div>
                 </div>
                 <div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular whitespace-nowrap"><thead class="bg-slate-50 text-[10px] uppercase text-slate-500">
@@ -1470,6 +1477,7 @@
         w.innerHTML = p.advertencias.slice(0, 40).map(a => `<div>• ${esc(a)}</div>`).join('') + (p.advertencias.length > 40 ? `<div class="font-bold">… y ${p.advertencias.length - 40} más.</div>` : '');
         document.getElementById('imp-tbody').innerHTML = p.registros.slice(0, 8).map(r => `<tr><td class="px-3 py-1.5">${r.f}</td><td class="px-3 py-1.5">${r.c}</td><td class="px-3 py-1.5">${esc(r.sku)}</td><td class="px-3 py-1.5">${esc(r.n)}</td><td class="px-3 py-1.5">${esc(r.cat)}</td><td class="px-3 py-1.5 text-right">${fmtN(r.u)}</td><td class="px-3 py-1.5 text-right">${fmtN(r.v)}</td></tr>`).join('');
         const m = document.getElementById('modal-import'); m.classList.remove('hidden'); m.classList.add('flex');
+        calcularImpactoCarga(p);
     }
     function remapearImport() {
         const p = window._pendiente; if (!p) return; const manual = {};
@@ -1607,6 +1615,75 @@
         try { if (manual && S.vista === 'config') { IG.modelo = null; pintarConfig(); } IG.raw = await cargarIntegridadRaw(); IG.modelo = construirIntegridad(IG.raw); igRepintar(); }
         catch (e) { console.error(e); IG.raw = null; if (S.vista === 'config') document.getElementById('panel-config').innerHTML = '<div class="rounded-2xl bg-rose-50 border border-rose-200 p-6 text-sm text-rose-700">No se pudo revisar la integridad. Revisa tu conexión e inténtalo de nuevo.</div>'; }
         finally { IG.cargando = false; }
+    }
+
+
+    // Qué cambia esta carga: días nuevos, días que reemplaza y continuidad con lo ya cargado
+    async function calcularImpactoCarga(p) {
+        const box = document.getElementById('imp-impacto'); if (!box) return; box.classList.add('hidden');
+        if (!p.dias || !p.dias.length) return;
+        const fs = p.dias.map(d => d.f).sort(), ini = fs[0], fin = fs[fs.length - 1];
+        box.classList.remove('hidden'); box.innerHTML = '<span class="text-slate-500">Comparando contra lo que ya tienes cargado…</span>';
+        let existentes = [], ultima = S.rangoMax;
+        try {
+            if (NUBE.activo && !S.demo) existentes = (await paginar('comercial_dia', ini, fin, 'canal')).map(filaDiaDeBD); else existentes = S.dias.filter(r => r.f >= ini && r.f <= fin);
+            if (window._pendiente !== p) return;
+        } catch (e) { box.innerHTML = '<span class="text-slate-500">No se pudo comparar contra lo cargado; la importación sigue disponible.</span>'; return; }
+        const mapa = new Map(existentes.map(r => [`${r.f}|${r.c}`, r])); const nuevos = [], cambios = [];
+        p.dias.forEach(d => { const e = mapa.get(`${d.f}|${d.c}`); if (!e) nuevos.push(d); else cambios.push({ f: d.f, c: d.c, antes: e.v, despues: d.v, pa: e.p, pd: d.p }); });
+        const dif = cambios.reduce((a, x) => a + x.despues - x.antes, 0), bajas = cambios.filter(x => x.antes > 0 && (x.despues - x.antes) / x.antes <= -0.2);
+        const iguales = cambios.filter(x => Math.abs(x.despues - x.antes) < 1).length;
+        const chip = (t, k) => `<span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-bold ${k}">${t}</span>`;
+        let h = `<div class="flex flex-wrap items-center gap-2"><strong class="text-slate-900">Qué cambia esta carga</strong>${chip(`${fmtN(nuevos.length)} día-canal nuevos`, 'bg-emerald-100 text-emerald-700')}${chip(`${fmtN(cambios.length)} reemplazados (${fmtN(iguales)} sin cambio)`, cambios.length - iguales ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 text-slate-600')}${bajas.length ? chip(`${fmtN(bajas.length)} con baja de 20% o más`, 'bg-rose-100 text-rose-700') : ''}</div>`;
+        if (cambios.length - iguales) h += `<div>Los días que ya existían cambian en ${dif >= 0 ? '+' : '−'}${fmtM(Math.abs(dif))} de venta en total.</div>`;
+        const top = cambios.filter(x => Math.abs(x.despues - x.antes) >= 1).sort((a, b) => Math.abs(b.despues - b.antes) - Math.abs(a.despues - a.antes)).slice(0, 5);
+        if (top.length) h += `<div class="text-slate-600">${top.map(x => `${fechaCorta(x.f)} ${x.c}: ${fmtM(x.antes)} → ${fmtM(x.despues)} (${x.pa} → ${x.pd} pedidos)`).join(' · ')}</div>`;
+        if (bajas.length) h += `<div class="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-rose-800">Cuidado: ${bajas.length === 1 ? 'un día baja' : 'varios días bajan'} mucho contra lo que ya estaba cargado. Si tu archivo es una carga parcial (por ejemplo solo medio día), reemplazará el total completo.</div>`;
+        if (ultima && ini > ultima) { const salto = Math.round((Date.parse(ini) - Date.parse(ultima)) / 864e5) - 1; if (salto > 0) { const huecos = []; for (let f = addDias(ultima, 1); f < ini && huecos.length < 8; f = addDias(f, 1)) huecos.push(fechaCorta(f)); h += `<div class="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-amber-900">Hay un hueco: lo último cargado es del ${fechaCorta(ultima)} y tu archivo empieza el ${fechaCorta(ini)}. Faltarían ${huecos.join(', ')}${salto > 8 ? '…' : ''}.</div>`; } else h += `<div class="text-emerald-700">Continúa justo después de la última carga (${fechaCorta(ultima)}).</div>`; }
+        else if (ultima && fin < ultima && !cambios.length) h += `<div class="text-slate-600">Es un periodo anterior a lo ya cargado (hasta el ${fechaCorta(ultima)}).</div>`;
+        box.innerHTML = h;
+    }
+
+
+    // Pronóstico de cierre por categoría: el resto del mes (el pronóstico del total menos lo ya vendido) se reparte entre categorías
+    // según su participación del mes a la fecha, la de los últimos 14 días, o un promedio de ambas. El modo recomendado sale de un backtest.
+    const NOMBRE_PRON = { hoy: 'Mes a la fecha', reciente: 'Ritmo reciente (14 días)', mixto: 'Mixto' };
+    function infoPronostico() {
+        const bt = S.backtest[claveBacktest()] || null, pref = S.config.pronModo || 'auto';
+        const modo = pref === 'auto' ? (bt ? bt.mejor : 'hoy') : pref;
+        return { modo, auto: pref === 'auto', mejor: bt ? bt.mejor : null, err: bt ? bt.err : null, n: bt ? bt.n : 0 };
+    }
+    function claveBacktest() { return `${S.canal}|${S.mes}|${S.corte ? S.corte.slice(8) : ''}`; }
+    function calcularBacktest(filas) {
+        const por = {}; filas.forEach(r => { (por[r.mes] = por[r.mes] || []).push({ rh: Number(r.real_hasta), r14: Number(r.real_14), f: Number(r.real_final) }); });
+        const err = { hoy: [], reciente: [], mixto: [] };
+        Object.values(por).forEach(l => {
+            const RH = l.reduce((a, x) => a + Math.max(0, x.rh), 0), R14 = l.reduce((a, x) => a + Math.max(0, x.r14), 0), F = l.reduce((a, x) => a + x.f, 0), R = F - RH;
+            if (!(RH > 0) || !(R14 > 0) || !(F > 0) || R <= 0) return;
+            const e = fn => l.reduce((a, x) => a + Math.abs(x.rh + R * fn(x) - x.f), 0) / F * 100 / 2;
+            err.hoy.push(e(x => x.rh / RH)); err.reciente.push(e(x => x.r14 / R14)); err.mixto.push(e(x => (x.rh / RH + x.r14 / R14) / 2));
+        });
+        const n = err.hoy.length; if (n < 2) return { mejor: 'hoy', err: null, n };
+        const m = k => err[k].reduce((a, b) => a + b, 0) / n, e = { hoy: m('hoy'), reciente: m('reciente'), mixto: m('mixto') };
+        const mejor = Object.keys(e).sort((a, b) => e[a] - e[b])[0];
+        return { mejor: e[mejor] <= e.hoy - 0.3 ? mejor : 'hoy', err: e, n };
+    }
+    async function cargarBacktest() {
+        if (!NUBE.activo || S.demo || !S.mes || !S.corte) return; const clave = claveBacktest(); if (S.backtest[clave] !== undefined) return;
+        S.backtest[clave] = null;
+        try {
+            const canales = S.canal === 'Total' ? CANALES_DATO : [S.canal];
+            const { data, error } = await NUBE.client.rpc('comercial_backtest_cierre', { p_mes: `${S.mes}-01`, p_dia: Number(S.corte.slice(8)), p_canales: canales, p_meses: 6 });
+            if (error) throw error; S.backtest[clave] = calcularBacktest(data); renderTodo();
+        } catch (e) { console.error(e); delete S.backtest[clave]; }
+    }
+    function cambiarPronModo(v) { S.config.pronModo = v; persistirEstado(); renderTodo(); }
+    function selectorPronostico(A) {
+        const p = A.mes && A.mes.pronInfo; if (!p) return '';
+        const rec = p.mejor ? ` (${NOMBRE_PRON[p.mejor]})` : '';
+        const e = p.err ? `Error medio de repartir el resto del mes en los últimos ${p.n} meses: mes a la fecha ${p.err.hoy.toFixed(1)}% · ritmo reciente ${p.err.reciente.toFixed(1)}% · mixto ${p.err.mixto.toFixed(1)}% de la venta mal repartida.` : 'Aún no hay meses suficientes para recomendar un modo; se usa mes a la fecha.';
+        return `<label class="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-600" title="${esc(e)}">Pronóstico por categoría
+            <select onchange="cambiarPronModo(this.value)" class="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-800"><option value="auto" ${p.auto ? 'selected' : ''}>Recomendado${rec}</option>${Object.entries(NOMBRE_PRON).map(([k, n]) => `<option value="${k}" ${!p.auto && p.modo === k ? 'selected' : ''}>${n}</option>`).join('')}</select></label>`;
     }
 
     // ---------- Exportar datos (respaldo local) ----------
@@ -1810,7 +1887,7 @@
                 const { data, error } = await NUBE.client.rpc('comercial_sin_movimiento', { p_corte: S.corte, p_dias: 30 });
                 if (error) throw error; S.sinMov = data.map(r => ({ sku: r.sku, n: r.producto, cat: r.categoria, ultima: r.ultima_venta, dias: r.dias, prev: Number(r.venta_previa) })); S.sinMovCorte = S.corte;
             }
-            renderTodo();
+            renderTodo(); cargarBacktest();
         } catch (e) { console.error(e); }
     }
     async function subirNube(p) {
