@@ -124,13 +124,13 @@
     </main>
 
     <!-- MODAL: VISTA PREVIA DE IMPORTACIÓN -->
-    <div id="modal-import" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 p-4 overflow-y-auto">
-        <div class="w-full max-w-3xl bg-white rounded-3xl shadow-2xl overflow-hidden my-6">
-            <div class="bg-slate-900 text-white px-6 py-4">
+    <div id="modal-import" class="fixed inset-0 z-50 hidden bg-slate-900/60 p-3 sm:p-4 overflow-y-auto">
+        <div class="w-full max-w-3xl bg-white rounded-3xl shadow-2xl overflow-hidden m-auto flex flex-col max-h-[calc(100vh-1.5rem)] sm:max-h-[calc(100vh-2rem)]">
+            <div class="bg-slate-900 text-white px-6 py-4 shrink-0">
                 <h3 class="text-base font-extrabold">Validación y vista previa de importación</h3>
                 <p id="imp-sub" class="text-xs text-slate-300 mt-1"></p>
             </div>
-            <div class="p-6 space-y-4">
+            <div class="overflow-y-auto min-h-0 flex-1 p-6 space-y-4">
                 <div class="grid grid-cols-3 gap-3 text-center">
                     <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-3"><div class="text-[10px] font-bold uppercase text-emerald-700">Registros día-canal-SKU</div><div id="imp-validos" class="text-2xl font-extrabold text-emerald-900 num-tabular">0</div></div>
                     <div class="rounded-2xl border border-amber-200 bg-amber-50 p-3"><div class="text-[10px] font-bold uppercase text-amber-700">Advertencias</div><div id="imp-adv" class="text-2xl font-extrabold text-amber-900 num-tabular">0</div></div>
@@ -151,7 +151,7 @@
                 </div>
                 <p class="text-[11px] text-slate-500">Las líneas se procesan en tu navegador: a la nube se guardan los totales por día, canal y producto y también las líneas de pedido (con pedido_id y cliente_id) para poder exportar el respaldo completo. Si una fecha y canal ya existen, se reemplazan por completo con este archivo.</p>
             </div>
-            <div class="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2.5">
+            <div class="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2.5 shrink-0">
                 <button type="button" onclick="cerrarImport()" class="px-4 py-2 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-700">Cancelar</button>
                 <button type="button" id="imp-confirmar" onclick="confirmarImport()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold">Confirmar e importar</button>
             </div>
@@ -159,8 +159,8 @@
     </div>
 
     <!-- MODAL: CATÁLOGO DE CATEGORÍAS -->
-    <div id="modal-catalogo" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 p-4 overflow-y-auto">
-        <div class="w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden my-6">
+    <div id="modal-catalogo" class="fixed inset-0 z-50 hidden bg-slate-900/60 p-3 sm:p-4 overflow-y-auto">
+        <div class="w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden m-auto">
             <div class="bg-slate-900 text-white px-6 py-4"><h3 class="text-base font-extrabold">Catálogo de categorías</h3><p id="cat-sub" class="text-xs text-slate-300 mt-1"></p></div>
             <div class="p-6 space-y-3 text-xs text-slate-700">
                 <p>Este archivo trae solo SKU y categoría, así que se usa para completar las categorías que faltan en los datos ya cargados.</p>
@@ -175,8 +175,8 @@
     </div>
 
     <!-- MODAL: BORRAR DATOS -->
-    <div id="modal-borrar" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 p-4 overflow-y-auto">
-        <div class="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden my-6">
+    <div id="modal-borrar" class="fixed inset-0 z-50 hidden bg-slate-900/60 p-3 sm:p-4 overflow-y-auto">
+        <div class="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden m-auto">
             <div class="bg-rose-700 text-white px-6 py-4"><h3 class="text-base font-extrabold">Borrar datos comerciales</h3>
                 <p class="text-xs text-rose-100 mt-1">Se borran de la nube y de este equipo, para todos los que usan el tablero. No se puede deshacer.</p></div>
             <div class="p-6 space-y-3 text-sm">
@@ -195,13 +195,13 @@
     </div>
 
     <!-- MODAL: METAS POR CATEGORÍA -->
-    <div id="modal-metas" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 p-4 overflow-y-auto">
-        <div class="w-full max-w-5xl bg-white rounded-3xl shadow-2xl overflow-hidden my-6">
-            <div class="bg-slate-900 text-white px-6 py-4">
+    <div id="modal-metas" class="fixed inset-0 z-50 hidden bg-slate-900/60 p-3 sm:p-4 overflow-y-auto">
+        <div class="w-full max-w-5xl bg-white rounded-3xl shadow-2xl overflow-hidden m-auto flex flex-col max-h-[calc(100vh-1.5rem)] sm:max-h-[calc(100vh-2rem)]">
+            <div class="bg-slate-900 text-white px-6 py-4 shrink-0">
                 <h3 class="text-base font-extrabold">Metas por categoría</h3>
                 <p id="metas-sub" class="text-xs text-slate-300 mt-1"></p>
             </div>
-            <div class="p-6 space-y-4">
+            <div class="overflow-y-auto min-h-0 flex-1 p-6 space-y-4">
                 <p class="text-xs text-slate-600">La meta de cada categoría es el plan del mes de la Revisión Diaria repartido según su participación en la venta. Elige la base del reparto (el tablero deja preseleccionada la que mejor habría acertado) y mueve puntos entre categorías con el ajuste: el resto se reajusta solo y las metas siempre suman el plan total.</p>
                 <div id="metas-base"></div>
                 <div class="border border-slate-200 rounded-xl overflow-hidden max-h-96 overflow-auto">
@@ -211,66 +211,7 @@
                     </table>
                 </div>
             </div>
-            <div class="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2.5">
-                <button type="button" onclick="cerrarMetas()" class="px-4 py-2 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-700">Cancelar</button>
-                <button type="button" onclick="guardarMetas()" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold">Guardar metas</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL: CATÁLOGO DE CATEGORÍAS -->
-    <div id="modal-catalogo" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 p-4 overflow-y-auto">
-        <div class="w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden my-6">
-            <div class="bg-slate-900 text-white px-6 py-4"><h3 class="text-base font-extrabold">Catálogo de categorías</h3><p id="cat-sub" class="text-xs text-slate-300 mt-1"></p></div>
-            <div class="p-6 space-y-3 text-xs text-slate-700">
-                <p>Este archivo trae solo SKU y categoría, así que se usa para completar las categorías que faltan en los datos ya cargados.</p>
-                <div id="cat-detalle"></div>
-                <label class="flex items-start gap-2"><input type="checkbox" id="cat-sobre" class="mt-0.5"><span>Reemplazar también las categorías que ya tienen valor (por defecto solo se completan las que dicen “Sin categoría”).</span></label>
-            </div>
-            <div class="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2.5">
-                <button type="button" onclick="cerrarCatalogo()" class="px-4 py-2 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-700">Cancelar</button>
-                <button type="button" id="cat-confirmar" onclick="confirmarCatalogo()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold">Aplicar catálogo</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL: BORRAR DATOS -->
-    <div id="modal-borrar" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 p-4 overflow-y-auto">
-        <div class="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden my-6">
-            <div class="bg-rose-700 text-white px-6 py-4"><h3 class="text-base font-extrabold">Borrar datos comerciales</h3>
-                <p class="text-xs text-rose-100 mt-1">Se borran de la nube y de este equipo, para todos los que usan el tablero. No se puede deshacer.</p></div>
-            <div class="p-6 space-y-3 text-sm">
-                <label class="flex items-start gap-2"><input type="radio" name="bor-modo" id="bor-todo" checked onchange="alternarBorrado()" class="mt-1"><span><strong>Todo</strong> <span class="text-xs text-slate-500">(ventas, pedidos y los análisis de cross-selling y recompra)</span></span></label>
-                <label class="flex items-start gap-2"><input type="radio" name="bor-modo" id="bor-rango-r" onchange="alternarBorrado()" class="mt-1"><span><strong>Solo un rango de fechas</strong></span></label>
-                <div id="bor-rango" class="grid grid-cols-2 gap-2 pl-6"><input type="date" id="bor-desde" class="rounded-lg border border-slate-300 px-2 py-1 text-xs"><input type="date" id="bor-hasta" class="rounded-lg border border-slate-300 px-2 py-1 text-xs"></div>
-                <p class="text-[11px] text-slate-500">Se conservan las acciones registradas y los ajustes de metas por categoría.</p>
-                <div><label class="text-[11px] font-bold text-slate-600">Escribe BORRAR para confirmar</label><input id="bor-confirma" autocomplete="off" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></div>
-                <p id="bor-error" class="text-xs font-semibold text-rose-600"></p>
-            </div>
-            <div class="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2.5">
-                <button type="button" onclick="cerrarBorrar()" class="px-4 py-2 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-700">Cancelar</button>
-                <button type="button" id="bor-boton" onclick="confirmarBorrado()" class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold">Borrar definitivamente</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL: METAS POR CATEGORÍA -->
-    <div id="modal-metas" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 p-4 overflow-y-auto">
-        <div class="w-full max-w-3xl bg-white rounded-3xl shadow-2xl overflow-hidden my-6">
-            <div class="bg-slate-900 text-white px-6 py-4">
-                <h3 class="text-base font-extrabold">Metas por categoría</h3>
-                <p id="metas-sub" class="text-xs text-slate-300 mt-1"></p>
-            </div>
-            <div class="p-6 space-y-3">
-                <p class="text-xs text-slate-600">La meta de cada categoría es el plan del mes de la Revisión Diaria repartido según su participación histórica. Mueve puntos entre categorías con el ajuste (por ejemplo +2 a una categoría prioritaria y −2 a otra): el resto se reajusta solo y las metas siempre suman el plan total.</p>
-                <div class="border border-slate-200 rounded-xl overflow-hidden max-h-80 overflow-y-auto">
-                    <table class="w-full text-left text-xs num-tabular">
-                        <thead class="bg-slate-50 text-[10px] uppercase text-slate-500"><tr><th class="px-3 py-2">Categoría</th><th class="px-3 py-2 text-right">Participación base</th><th class="px-3 py-2 text-right">Ajuste (pp)</th><th class="px-3 py-2 text-right">Participación final</th><th class="px-3 py-2 text-right">Meta del mes</th></tr></thead>
-                        <tbody id="metas-tbody" class="divide-y divide-slate-100"></tbody>
-                    </table>
-                </div>
-            </div>
-            <div class="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2.5">
+            <div class="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2.5 shrink-0">
                 <button type="button" onclick="cerrarMetas()" class="px-4 py-2 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-700">Cancelar</button>
                 <button type="button" onclick="guardarMetas()" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold">Guardar metas</button>
             </div>
@@ -278,8 +219,8 @@
     </div>
 
     <!-- MODAL: ACCIÓN -->
-    <div id="modal-accion" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 p-4 overflow-y-auto">
-        <form id="form-accion" class="w-full max-w-lg bg-white rounded-3xl shadow-2xl p-6 space-y-4 my-6" onsubmit="guardarAccion(event)">
+    <div id="modal-accion" class="fixed inset-0 z-50 hidden bg-slate-900/60 p-3 sm:p-4 overflow-y-auto">
+        <form id="form-accion" class="w-full max-w-lg bg-white rounded-3xl shadow-2xl p-6 space-y-4 m-auto" onsubmit="guardarAccion(event)">
             <h3 id="acc-modal-titulo" class="text-base font-extrabold text-slate-900">Registrar acción</h3>
             <input type="hidden" id="acc-id">
             <div><label class="text-[11px] font-bold text-slate-600">Acción</label>
