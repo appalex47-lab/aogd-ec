@@ -1238,13 +1238,14 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
     function construirIntegridad(raw) {
         const aj = igAj(), hoy = hoyISO(), cfg = igCfg(), dias = raw.dias, rg = raw.reglas;
         const ini = aj.inicio || (dias.length ? dias.reduce((m, r) => r.f < m ? r.f : m, '9999-99-99') : null), fin = dias.length ? dias.reduce((m, r) => r.f > m ? r.f : m, '0000-00-00') : null;
+        const ayer = addDias(hoy, -1), finCob = fin ? (fin < ayer ? ayer : fin) : null;  // la cobertura se exige hasta ayer, aunque lo último cargado sea más viejo
         const M = { nombre: 'Trafico', kpis: [], cobertura: { meses: [], canales: CANALES_TRAF, datos: {}, faltan: [], sobran: [], esperados: null }, verificaciones: [], conciliacion: { filas: [], hallazgos: [] }, ajustes: [] };
         const por = {}; CANALES_TRAF.forEach(c => por[c] = new Set()); dias.forEach(r => { if (por[r.c]) por[r.c].add(r.f); });
         const esp = {}, meses = []; let totFalt = 0, combos = 0;
-        if (ini && fin) {
-            for (let m = ini.slice(0, 7); m <= fin.slice(0, 7); m = sumaMes(m, 1)) meses.push(m);
+        if (ini && finCob) {
+            for (let m = ini.slice(0, 7); m <= finCob.slice(0, 7); m = sumaMes(m, 1)) meses.push(m);
             meses.forEach(m => {
-                const a = m === ini.slice(0, 7) ? ini : `${m}-01`, b = m === fin.slice(0, 7) ? fin : `${m}-${String(diasDelMes(m)).padStart(2, '0')}`;
+                const a = m === ini.slice(0, 7) ? ini : `${m}-01`, b = m === finCob.slice(0, 7) ? finCob : `${m}-${String(diasDelMes(m)).padStart(2, '0')}`;
                 const lista = []; for (let f = a; f <= b; f = addDias(f, 1)) lista.push(f); esp[m] = lista.length;
                 M.cobertura.datos[m] = CANALES_TRAF.map(c => { const falt = lista.filter(f => !por[c].has(f));
                     if (falt.length) { M.cobertura.faltan.push({ id: `cob|${m}|${c}`, mes: m, canal: c, faltan: falt.length, fechas: falt }); if (!cfg.rec[`cob|${m}|${c}`]) { totFalt += falt.length; combos++; } }
@@ -1252,7 +1253,7 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
             });
         }
         M.cobertura.meses = meses; M.cobertura.esperados = m => esp[m];
-        M.cobertura.nota = fin ? `Días con tráfico cargado contra los días del mes, de ${fechaCorta(ini)} a ${fechaCorta(fin)}.` : 'Sin datos cargados.';
+        M.cobertura.nota = finCob ? `Días con tráfico cargado contra los días del mes, de ${fechaCorta(ini)} a ${fechaCorta(finCob)} (se exige hasta ayer).` : 'Sin datos cargados.';
         const conDatos = CANALES_TRAF.filter(c => por[c].size), nDias = ini && fin ? Math.round((new Date(fin) - new Date(ini)) / 864e5) + 1 : 0;
         const hayAnterior = fin && dias.some(r => r.f <= addDias(fin, -364));
         const atraso = fin ? Math.round((new Date(hoy) - new Date(fin)) / 864e5) : null;
