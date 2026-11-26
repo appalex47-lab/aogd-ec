@@ -168,6 +168,9 @@
                     <button type="button" onclick="setHerramienta('comercial')" id="tool-tab-comercial" class="tool-tab-btn shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-white transition flex items-center gap-1.5">
                         <span>Comercial</span>
                     </button>
+                    <button type="button" onclick="setHerramienta('demanda')" id="tool-tab-demanda" class="tool-tab-btn shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-white transition flex items-center gap-1.5">
+                        <span>Demanda</span>
+                    </button>
                     <button type="button" onclick="setHerramienta('acciones')" id="tool-tab-acciones" class="tool-tab-btn shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-white transition flex items-center gap-1.5">
                         <span>Acciones</span>
                     </button>
@@ -1231,12 +1234,31 @@
                     </div>
                 </div>
             </section>
+            <section id="tool-panel-demanda" class="tool-panel hidden fade-in">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-5">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900">Demanda</h2>
+                            <p class="text-sm text-slate-600 mt-1">Cuánta gente llega a los cuatro canales propios (Web, App, WhatsApp y Llamadas), si es normal contra su patrón y contra el plan, y cuánto vale la desviación. Alertas tempranas, productos en alza, búsquedas y negados. Uso semanal (lunes).</p>
+                        </div>
+                        <a href="herramientas/Demanda.html" target="_blank" rel="noopener"
+                           class="shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm transition">
+                            <span>Abrir en otra pestaña</span>
+                            <span aria-hidden="true">↗</span>
+                        </a>
+                    </div>
+                    <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                        <iframe id="demanda-frame" title="Demanda" data-src="herramientas/Demanda.html"
+                                class="w-full block border-0" style="height: calc(100vh - 210px); min-height: 560px;" loading="lazy"></iframe>
+                    </div>
+                </div>
+            </section>
             <section id="tool-panel-acciones" class="tool-panel hidden fade-in">
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-5">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div>
                             <h2 class="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900">Acciones y rendición de cuentas</h2>
-                            <p class="text-sm text-slate-600 mt-1">Las acciones de Revisión Diaria, Tráfico y Conversión y Comercial en un solo lugar: propuestas contra implementadas, vencidas, responsables y resultado observado. Apoya el cierre semanal, el checkpoint quincenal y la retro mensual.</p>
+                            <p class="text-sm text-slate-600 mt-1">Las acciones de Revisión Diaria, Tráfico y Conversión, Comercial y Demanda en un solo lugar: propuestas contra implementadas, vencidas, responsables y resultado observado. Apoya el cierre semanal, el checkpoint quincenal y la retro mensual.</p>
                         </div>
                         <a href="herramientas/Acciones.html" target="_blank" rel="noopener"
                            class="shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm transition">
@@ -1330,7 +1352,7 @@
 
         function setHerramienta(id, sinScroll) {
             window.herramientaActiva = id;
-            ['tablero', 'trafico', 'comercial', 'acciones'].forEach(t => {
+            ['tablero', 'trafico', 'comercial', 'demanda', 'acciones'].forEach(t => {
                 document.getElementById('tool-panel-' + t).classList.toggle('hidden', t !== id);
                 document.getElementById('tool-tab-' + t).className = 'tool-tab-btn shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ' +
                     (t === id ? 'bg-slate-800 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-white');
@@ -2903,7 +2925,7 @@
                     },
                     {
                         name: 'Registro de Acciones',
-                        detail: 'Reúne las acciones de Revisión Diaria, Tráfico y Conversión y Comercial: propuestas contra implementadas, vencidas, por responsable y con resultado observado. Alimenta el cierre semanal, el checkpoint quincenal, la retro mensual y el KPI de cumplimiento de acciones.',
+                        detail: 'Reúne las acciones de Revisión Diaria, Tráfico y Conversión, Comercial y Demanda: propuestas contra implementadas, vencidas, por responsable y con resultado observado. Alimenta el cierre semanal, el checkpoint quincenal, la retro mensual y el KPI de cumplimiento de acciones.',
                         tag: 'Tablero propio',
                         href: 'herramientas/Acciones.html',
                         linkLabel: 'Abrir registro en otra pestaña'
@@ -2916,7 +2938,13 @@
                         href: 'herramientas/Comercial.html',
                         linkLabel: 'Abrir tablero en otra pestaña'
                     },
-                    { name: 'Demanda', detail: 'Variación de demanda por canal propio y alertas tempranas (Semanal).' }
+                    {
+                        name: 'Demanda',
+                        detail: 'Variación de demanda por canal propio (Web, App, WhatsApp y Llamadas) contra su patrón (mismo día de la semana) y contra el plan, con umbral por canal y valor en pesos de la desviación. Incluye alertas tempranas, origen del tráfico, productos en alza para Abasto, búsquedas del sitio y negados por sucursal. Lee las sesiones de Tráfico y Conversión, la captura de llamadas y mensajes de la Revisión Diaria y los pedidos de Comercial (Semanal).',
+                        tag: 'Tablero propio',
+                        href: 'herramientas/Demanda.html',
+                        linkLabel: 'Abrir tablero en otra pestaña'
+                    }
                 ]
             },
             {
