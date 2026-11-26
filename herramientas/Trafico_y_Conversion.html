@@ -1214,7 +1214,7 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
     // =====================================================================
     // INTEGRIDAD DE DATOS (pestaña Configuración)
     // =====================================================================
-    const IG_DEF = { tolSes: 1, tolPed: 8, notSetMax: 5, atrasoMax: 2, inicio: '' };
+    const IG_DEF = { tolSes: 1, tolPed: 8, notSetMax: 5, atrasoMax: 1, inicio: '' };
     const IG = { raw: null, modelo: null, cargando: false };
     const CANALES_TRAF = ['Web', 'iOS', 'Android'], aApp = c => c === 'Web' ? 'Web' : 'App';
     const igCfg = () => { const c = S.config.integridad = S.config.integridad || {}; c.aj = c.aj || {}; c.rec = c.rec || {}; return c; };
@@ -1251,7 +1251,7 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
             });
         }
         M.cobertura.meses = meses; M.cobertura.esperados = m => esp[m];
-        M.cobertura.nota = finCob ? `Días con tráfico cargado contra los días del mes, de ${fechaCorta(ini)} a ${fechaCorta(finCob)} (se exige hasta ayer).` : 'Sin datos cargados.';
+        M.cobertura.nota = finCob ? `Días con tráfico cargado contra los días del mes, de ${fechaCorta(ini)} a ${fechaCorta(finCob)} (se exige hasta ayer: la información llega a día vencido).` : 'Sin datos cargados.';
         const conDatos = CANALES_TRAF.filter(c => por[c].size), nDias = ini && fin ? Math.round((new Date(fin) - new Date(ini)) / 864e5) + 1 : 0;
         const hayAnterior = fin && dias.some(r => r.f <= addDias(fin, -364));
         const atraso = fin ? Math.round((new Date(hoy) - new Date(fin)) / 864e5) : null;
@@ -1284,7 +1284,7 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
         if (!C.filas.length) C.hallazgos.push({ tono: 'info', titulo: 'Sin periodos en común para comparar', detalle: 'Hace falta venta cargada en Comercial para los mismos días que tiene Tráfico.' });
         else if (!C.hallazgos.length) C.hallazgos.push({ tono: 'ok', titulo: 'Tráfico cuadra con las otras fuentes', detalle: 'Sesiones y pedidos dentro de tolerancia.' });
         M.ajustes = [{ k: 'tolPed', etiqueta: 'Tolerancia de pedidos', desc: 'Contra Comercial. GA4 no descuenta cancelaciones: ponla cerca de tu tasa de cancelación', valor: aj.tolPed, unidad: '%' },
-            { k: 'notSetMax', etiqueta: 'Aviso de “(not set)”', desc: 'Porcentaje de sesiones sin fuente', valor: aj.notSetMax, unidad: '%' }, { k: 'atrasoMax', etiqueta: 'Atraso máximo de carga', desc: 'Después de esto se marca vencida', valor: aj.atrasoMax, unidad: 'días' },
+            { k: 'notSetMax', etiqueta: 'Aviso de “(not set)”', desc: 'Porcentaje de sesiones sin fuente', valor: aj.notSetMax, unidad: '%' }, { k: 'atrasoMax', etiqueta: 'Atraso máximo de carga', desc: 'La información llega a día vencido: con 1, lo último cargado debe ser de ayer', valor: aj.atrasoMax, unidad: 'días' },
             { k: 'inicio', etiqueta: 'Inicio de la historia', desc: 'Antes de esta fecha no se exige cobertura', valor: aj.inicio, unidad: '', tipo: 'date' }];
         M.notaAjustes = 'La tolerancia de pedidos es más amplia que la de sesiones porque GA4 y el sistema de pedidos nunca coinciden al 100%.';
         return M;
