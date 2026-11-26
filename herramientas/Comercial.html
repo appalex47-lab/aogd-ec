@@ -145,7 +145,7 @@
                         <tbody id="imp-tbody" class="divide-y divide-slate-100"></tbody>
                     </table>
                 </div>
-                <p class="text-[11px] text-slate-500">Las líneas se procesan en tu navegador: a la nube solo se envían los totales por día, canal y producto, sin cliente_id ni pedido_id. Si una fecha y canal ya existen, se reemplazan por completo con este archivo.</p>
+                <p class="text-[11px] text-slate-500">Las líneas se procesan en tu navegador: a la nube se guardan los totales por día, canal y producto y también las líneas de pedido (con pedido_id y cliente_id) para poder exportar el respaldo completo. Si una fecha y canal ya existen, se reemplazan por completo con este archivo.</p>
             </div>
             <div class="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2.5">
                 <button type="button" onclick="cerrarImport()" class="px-4 py-2 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-700">Cancelar</button>
@@ -1218,10 +1218,10 @@
                 const ini = todo ? (S.rangoMin || '2020-01-01') : desde, fin = todo ? (S.rangoMax || hoyISO()) : hasta;
                 for (let a = ini; a <= fin; a = addDias(a, 31)) {
                     const b = addDias(a, 30) < fin ? addDias(a, 30) : fin;
-                    for (const tabla of ['comercial_registros', 'comercial_dia']) { const { error } = await NUBE.client.from(tabla).delete().gte('fecha', a).lte('fecha', b); if (error) throw error; }
+                    for (const tabla of ['comercial_registros', 'comercial_dia', 'comercial_lineas']) { const { error } = await NUBE.client.from(tabla).delete().gte('fecha', a).lte('fecha', b); if (error) throw error; }
                     nubeEstado(`☁️ Borrando hasta ${fechaCorta(b)}…`);
                 }
-                if (todo) { for (const tabla of ['comercial_registros', 'comercial_dia']) { const { error } = await NUBE.client.from(tabla).delete().lt('fecha', ini); if (error) throw error; const r2 = await NUBE.client.from(tabla).delete().gt('fecha', fin); if (r2.error) throw r2.error; } }
+                if (todo) { for (const tabla of ['comercial_registros', 'comercial_dia', 'comercial_lineas']) { const { error } = await NUBE.client.from(tabla).delete().lt('fecha', ini); if (error) throw error; const r2 = await NUBE.client.from(tabla).delete().gt('fecha', fin); if (r2.error) throw r2.error; } }
             }
             const dentro = r => r.f >= desde && r.f <= hasta;
             S.registros = S.registros.filter(r => !dentro(r)); S.dias = S.dias.filter(r => !dentro(r)); S.sinMov = null; S.shareBase = {}; S.shareMes = {}; S.shareMesCargado = {};
@@ -1378,7 +1378,7 @@
         if (lotes < 28) adv.push(`El archivo cubre ${lotes} día(s). Para detectar productos sin movimiento la primera carga debe traer al menos 180 días.`);
         const categorias = {}; registros.forEach(r => { categorias[r.cat] = (categorias[r.cat] || 0) + r.v; });
         const sinCatPorMes = Object.keys(totMes).sort().map(m => [m, (sinCatMes[m] || 0) / totMes[m] * 100]).filter(x => x[1] > 0);
-        return { registros, dias, cross, recompra, cabecera, mapaUsado, categorias, sinCatPorMes, rellenadas, advertencias: adv, omitidas, lineas, tieneCliente, tieneCanal, pedidos: dias.reduce((s, d) => s + d.p, 0) };
+        return { registros, dias, lineasDetalle: lineasOk, cross, recompra, cabecera, mapaUsado, categorias, sinCatPorMes, rellenadas, advertencias: adv, omitidas, lineas, tieneCliente, tieneCanal, pedidos: dias.reduce((s, d) => s + d.p, 0) };
     }
     // Un archivo solo con SKU y categoría (sin pedido, unidades ni venta) es un catálogo para completar las categorías faltantes
     function detectarCatalogo(wb) {
@@ -1524,10 +1524,25 @@
     function hojaXlsx(wb, nombre, filas) { const ws = XLSX.utils.aoa_to_sheet(filas); ws['!cols'] = filas[0].map((h, i) => ({ wch: Math.min(40, Math.max(String(h).length + 2, ...filas.slice(1, 60).map(f => String(f[i] ?? '').length + 1))) })); XLSX.utils.book_append_sheet(wb, ws, nombre); }
 
     const EXPORT_CFG = {
-        ayuda: 'Respaldo con los totales que guarda el tablero (por día, canal y producto). No incluye pedido_id ni cliente_id: esos no se guardan en la nube.',
-        formatos: [['xlsx', 'Excel (.xlsx) · 2 hojas: detalle por producto y totales por día'], ['csv-det', 'CSV · detalle por producto'], ['csv-dia', 'CSV · totales por día y canal']],
+        ayuda: 'El machote completo trae una fila por línea de pedido (con pedido_id y cliente_id) y se puede volver a cargar. El resumen trae totales por producto y por día.',
+        formatos: [['m-xlsx', 'Machote completo · Excel (.xlsx) · líneas de pedido'], ['m-csv', 'Machote completo · CSV · líneas de pedido'], ['xlsx', 'Resumen · Excel · detalle por producto y totales por día'], ['csv-det', 'CSV · detalle por producto'], ['csv-dia', 'CSV · totales por día y canal']],
         async exportar(desde, hasta, formato, msg) {
             let regs, dias;
+            if (formato.startsWith('m-')) {
+                if (!NUBE.activo || S.demo) { msg.textContent = 'El machote completo solo está disponible con datos guardados en la nube.'; return 0; }
+                const out = []; let pagina = 0;
+                for (;;) {
+                    const { data, error } = await NUBE.client.from('comercial_lineas').select('fecha,canal,pedido_id,cliente_id,sku,producto,categoria,unidades,venta').gte('fecha', desde).lte('fecha', hasta).order('fecha').order('canal').order('pedido_id').order('id').range(pagina * 1000, pagina * 1000 + 999);
+                    if (error) throw error; out.push(...data.map(r => [r.fecha, r.canal, r.pedido_id, r.cliente_id, r.sku, r.producto, r.categoria, Number(r.unidades), Number(r.venta)]));
+                    msg.textContent = `Leyendo líneas de pedido… ${fmtN(out.length)}`; if (data.length < 1000) break; pagina++;
+                }
+                if (!out.length) { msg.textContent = 'No hay líneas de pedido guardadas en ese periodo. Las cargas anteriores a esta función no las guardaron: vuelve a cargar ese archivo para respaldarlo.'; return 0; }
+                const filas = [['Fecha', 'Canal', 'Pedido_ID', 'Cliente_ID', 'SKU', 'Producto', 'Categoria', 'Unidades', 'Venta'], ...out], base = `Respaldo_Comercial_Machote_${out[0][0]}_a_${out[out.length - 1][0]}`;
+                if (formato === 'm-csv') bajarArchivo(base + '.csv', new Blob([csvDe(filas)], { type: 'text/csv;charset=utf-8' }));
+                else if (out.length > 1000000) { msg.textContent = 'Son más de 1,000,000 de filas: acota el periodo o usa CSV.'; return 0; }
+                else { const wb = XLSX.utils.book_new(); hojaXlsx(wb, 'Lineas de pedido', filas); XLSX.writeFile(wb, base + '.xlsx'); }
+                return out.length;
+            }
             if (NUBE.activo && !S.demo) {
                 const pedirTodo = async (tabla, orden, map) => { const out = []; let pagina = 0; for (;;) { const { data, error } = await NUBE.client.from(tabla).select('*').gte('fecha', desde).lte('fecha', hasta).order('fecha').order('canal').order(orden).range(pagina * 1000, pagina * 1000 + 999); if (error) throw error; out.push(...data.map(map)); msg.textContent = `Leyendo ${tabla.replace('comercial_', '')}… ${fmtN(out.length)} filas`; if (data.length < 1000) break; pagina++; } return out; };
                 dias = await pedirTodo('comercial_dia', 'canal', filaDiaDeBD);
@@ -1685,6 +1700,16 @@
         nubeEstado('☁️ Preparando…');
         for (const tabla of ['comercial_registros', 'comercial_dia']) {
             const { error } = await NUBE.client.from(tabla).delete().gte('fecha', fechas[0]).lte('fecha', fechas[fechas.length - 1]).in('canal', canales); if (error) throw error;
+        }
+        const lin = p.lineasDetalle || [];
+        for (let a = fechas[0]; a <= fechas[fechas.length - 1]; a = addDias(a, 31)) {
+            const b = addDias(a, 30) < fechas[fechas.length - 1] ? addDias(a, 30) : fechas[fechas.length - 1];
+            const { error } = await NUBE.client.from('comercial_lineas').delete().gte('fecha', a).lte('fecha', b).in('canal', canales); if (error) throw error;
+        }
+        for (let i = 0; i < lin.length; i += 1000) {
+            const lote = lin.slice(i, i + 1000).map(([f, c, ped, sku, n, cat, u, v, cli]) => ({ fecha: f, canal: c, pedido_id: ped, cliente_id: cli || '', sku, producto: n || '', categoria: cat || 'Sin categoría', unidades: u, venta: v }));
+            const { error } = await NUBE.client.from('comercial_lineas').insert(lote); if (error) throw error;
+            nubeEstado(`☁️ Guardando líneas ${Math.min(i + 1000, lin.length)} / ${lin.length}…`);
         }
         const filasD = p.dias.map(d => ({ fecha: d.f, canal: d.c, pedidos: d.p, unidades: d.u, venta: Math.round(d.v * 100) / 100 }));
         const { error: eD } = await NUBE.client.from('comercial_dia').upsert(filasD, { onConflict: 'fecha,canal' }); if (eD) throw eD;
