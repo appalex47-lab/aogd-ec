@@ -21,7 +21,9 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
     <!-- SheetJS para lectura y exportación de Excel / CSV -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="integridad.js"></script>
     <style>
+        body.vista-config #capture-gap-alert, body.vista-config #mtd-diagnostic-banner, body.vista-config #kpi-cards-container, body.vista-config #pacing-operational-card, body.vista-config #consolidated-channels-matrix { display: none !important; }
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background-color: #f8fafc;
@@ -100,6 +102,7 @@
                 <div class="flex flex-wrap items-center justify-end gap-2">
                     <!-- Canal y acciones de las tres herramientas -->
                     <select id="selector-canal-barra" aria-label="Canal" title="Canal" onchange="cambiarCanal(this.value)" class="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-semibold text-slate-800 cursor-pointer"></select>
+                    <button type="button" id="chip-datos" onclick="cambiarVista('config')" title="Estado de los datos: abre Configuración e integridad" class="hidden inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold whitespace-nowrap transition"></button>
                     <a id="chip-acciones" href="Acciones.html" target="_blank" rel="noopener" title="Acciones abiertas y vencidas de las tres herramientas. Abre el registro unificado" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 whitespace-nowrap transition hover:bg-slate-50"><span aria-hidden="true">✅</span><span id="chip-acciones-txt">Acciones</span></a>
 
                     <!-- Acción Primaria: Captura Rápida Manual -->
@@ -216,6 +219,7 @@
                     <span>Acciones y Seguimiento</span>
                     <span id="badge-acciones-count" class="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-200 text-slate-700 num-tabular">0</span>
                 </button>
+                <button type="button" onclick="cambiarVista('config')" id="tab-vista-config" class="px-3.5 py-2.5 text-xs font-bold transition whitespace-nowrap cursor-pointer border-b-2 text-slate-500 border-transparent hover:text-slate-900">⚙ Configuración</button>
             </nav>
         </div>
     </header>
@@ -412,6 +416,8 @@
         <!-- ================================================================= -->
         <!-- VISTA 4: ACCIONES CORRECTIVAS Y SEGUIMIENTO OPERATIVO (P2)        -->
         <!-- ================================================================= -->
+        <section id="view-config" class="hidden space-y-6"></section>
+
         <section id="view-acciones" class="hidden space-y-6">
             <div class="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-2xs">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 pb-4 border-b border-slate-100">
@@ -1034,6 +1040,7 @@
             simCRPct: 0,
             simTicketPct: 0,
             historico: historicoMeses,
+            config: (() => { try { return JSON.parse(localStorage.getItem('tablero_config_v1') || '{}') || {}; } catch (e) { return {}; } })(),
             acciones: cargarAccionesIniciales(),
             importacionPendiente: null,
             get datos() {
@@ -1089,6 +1096,8 @@
         }
 
         function guardarEstadoLocal() {
+            try { localStorage.setItem('tablero_config_v1', JSON.stringify(estadoApp.config || {})); } catch (e) {}
+            try { if (IG.raw) { IG.modelo = construirIntegridad(IG.raw); igRepintar(); } } catch (e) {}
             try {
                 estadoApp.cortesPorMes[estadoApp.mesActivo] = estadoApp.fechaCorte;
                 localStorage.setItem(STORAGE_KEY_HISTORICO, JSON.stringify(estadoApp.historico));
@@ -1791,7 +1800,8 @@
 
         function cambiarVista(nuevaVista) {
             estadoApp.vista = nuevaVista;
-            ['mtd', 'tipodia', 'semanal', 'acciones'].forEach(v => {
+            document.body.classList.toggle('vista-config', nuevaVista === 'config');
+            ['mtd', 'tipodia', 'semanal', 'acciones', 'config'].forEach(v => {
                 const btn = document.getElementById(`tab-vista-${v}`);
                 const sec = document.getElementById(`view-${v}`);
                 if (!btn || !sec) return;
@@ -4619,6 +4629,107 @@
         // =====================================================================
         // 18. RENDERIZADO MAESTRO E INICIALIZACIÓN
         // =====================================================================
+
+        // =====================================================================
+        // INTEGRIDAD DE DATOS (pestaña Configuración)
+        // =====================================================================
+        const IG_DEF = { tolVenta: 1, tolSes: 1, atrasoMax: 1, mesesPlan: 2 };
+        const IG = { raw: null, modelo: null, cargando: false };
+        const IG_CANALES = [['ecommerce', 'Web'], ['app', 'App'], ['whatsapp', 'WhatsApp'], ['llamadas', 'Llamadas']];
+        const igHoy = () => { const h = new Date(); return `${h.getFullYear()}-${String(h.getMonth() + 1).padStart(2, '0')}-${String(h.getDate()).padStart(2, '0')}`; };
+        const igSuma = (iso, n) => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+        const igCfg = () => { const c = estadoApp.config = estadoApp.config || {}; const i = c.integridad = c.integridad || {}; i.aj = i.aj || {}; i.rec = i.rec || {}; return i; };
+        const igAj = () => Object.assign({}, IG_DEF, igCfg().aj);
+        const igN = v => new Intl.NumberFormat('es-MX', { maximumFractionDigits: 0 }).format(Math.round(v));
+        const igSumaMes = (m, n) => { const [y, mm] = m.split('-').map(Number); const k = y * 12 + (mm - 1) + n; return `${Math.floor(k / 12)}-${String(k % 12 + 1).padStart(2, '0')}`; };
+        async function igPedir(tabla, cols, orden) { const out = []; let pg = 0; for (;;) { const { data, error } = await NUBE.client.from(tabla).select(cols).order(orden).range(pg * 1000, pg * 1000 + 999); if (error) throw error; out.push(...data); if (data.length < 1000) break; pg++; } return out; }
+        async function cargarIntegridadRaw() {
+            const raw = { com: {}, ses: {}, nube: false };
+            if (!NUBE.activo) return raw;
+            raw.nube = true;
+            (await igPedir('comercial_dia', 'fecha,canal,pedidos,venta', 'fecha')).forEach(x => { raw.com[`${x.canal}|${x.fecha}`] = { p: Number(x.pedidos), v: Number(x.venta) }; });
+            const r = await NUBE.client.rpc('trafico_integridad');
+            if (!r.error && r.data) r.data.dias.forEach(x => { const c = x.c === 'Web' ? 'Web' : 'App'; raw.ses[`${c}|${x.f}`] = (raw.ses[`${c}|${x.f}`] || 0) + Number(x.ses); });
+            return raw;
+        }
+        function construirIntegridad(raw) {
+            const aj = igAj(), hoy = igHoy(), limite = igSuma(hoy, -1), cfg = igCfg(), H = estadoApp.historico;
+            const meses = Object.keys(H).sort(), capt = (r) => evaluarIntegridadRegistroCanal(r).estado !== 'SIN_CAPTURA';
+            const M = { nombre: 'Revision_Diaria', kpis: [], cobertura: { meses: [], canales: IG_CANALES.map(c => c[1]), datos: {}, faltan: [], sobran: [], esperados: null }, verificaciones: [], conciliacion: { filas: [], hallazgos: [] }, ajustes: [] };
+            const esp = {}, conPlan = [], conReal = []; let atrasoMax = 0, ultima = {}; const incompletos = [], futuros = [];
+            meses.forEach(m => {
+                const mesD = H[m] || {}; const planSum = IG_CANALES.reduce((a, [k]) => a + (mesD[k] || []).reduce((x, r) => x + (Number(r.ventaPlan) || 0), 0), 0);
+                if (planSum > 0) conPlan.push(m);
+                const dMes = (mesD.ecommerce || []).map(r => r.fecha), a = dMes[0], z = dMes[dMes.length - 1]; if (!a) return;
+                const tope = z < limite ? z : limite; const lista = dMes.filter(f => f <= tope); esp[m] = lista.length;
+                const hayReal = IG_CANALES.some(([k]) => (mesD[k] || []).some(capt)); if (hayReal) conReal.push(m);
+                if (!hayReal && !lista.length) return; if (!hayReal && planSum <= 0) return;
+                M.cobertura.datos[m] = IG_CANALES.map(([k, nombre]) => {
+                    const reg = mesD[k] || [], capSet = new Set(reg.filter(capt).map(r => r.fecha));
+                    const falt = lista.filter(f => !capSet.has(f)); if (falt.length && hayReal) { M.cobertura.faltan.push({ id: `cob|${m}|${nombre}`, mes: m, canal: nombre, faltan: falt.length, fechas: falt }); }
+                    reg.forEach(r => { if (!capt(r)) return; if (r.fecha > hoy) futuros.push(`${r.fecha} ${nombre}`); if (evaluarIntegridadRegistroCanal(r).estado === 'INCOMPLETA') incompletos.push(`${r.fecha} ${nombre}`); if (!ultima[nombre] || r.fecha > ultima[nombre]) ultima[nombre] = r.fecha; });
+                    return hayReal ? lista.length - falt.length : null; });
+            });
+            M.cobertura.meses = Object.keys(M.cobertura.datos); M.cobertura.esperados = m => esp[m];
+            M.cobertura.faltan = M.cobertura.faltan.filter(x => x.faltan > 0);
+            M.cobertura.nota = `Días con venta real capturada contra los días del mes hasta ayer (${limite}). Los meses sin captura real no se muestran: solo tienen plan.`;
+            const faltTot = M.cobertura.faltan.filter(x => !cfg.rec[x.id]).reduce((a, x) => a + x.faltan, 0);
+            IG_CANALES.forEach(([, n]) => { if (ultima[n]) { const d = Math.round((new Date(limite) - new Date(ultima[n])) / 864e5); if (d > atrasoMax) atrasoMax = d; } });
+            const planFut = conPlan.filter(m => m >= hoy.slice(0, 7));
+            M.kpis = [['Meses con plan', String(conPlan.length), conPlan.length ? `${conPlan[0]} → ${conPlan[conPlan.length - 1]}` : 'Sin plan', conPlan.length ? 'ok' : 'bad'], ['Meses con venta real', String(conReal.length), conReal.length ? `${conReal[0]} → ${conReal[conReal.length - 1]}` : 'Sin captura', conReal.length ? 'ok' : 'warn'],
+                ['Días sin capturar', igN(faltTot), faltTot ? `${M.cobertura.faltan.filter(x => !cfg.rec[x.id]).length} combinaciones` : 'Todo al día', faltTot ? 'warn' : 'ok'], ['Atraso de captura', atrasoMax ? `${atrasoMax} ${atrasoMax === 1 ? 'día' : 'días'}` : 'Al día', atrasoMax > aj.atrasoMax ? `pasa de ${aj.atrasoMax} (tolerancia)` : 'dentro de tolerancia', atrasoMax > aj.atrasoMax ? 'warn' : 'ok']];
+            const V = M.verificaciones, accion = (t, d) => ({ t: 'accion', titulo: t, detalle: d });
+            IG_CANALES.forEach(([, n]) => { if (ultima[n]) { const d = Math.round((new Date(limite) - new Date(ultima[n])) / 864e5); if (d > aj.atrasoMax) V.push({ id: `ver|atraso|${n}`, tono: 'warn', titulo: `${n}: última captura del ${ultima[n]} (${d} ${d === 1 ? 'día' : 'días'} de atraso)`, detalle: `Pasa de la tolerancia de ${aj.atrasoMax} día(s).`, acciones: [{ t: 'ack' }, accion(`Capturar la venta real de ${n} en la Revisión Diaria`, `Última captura: ${ultima[n]}.`)] }); } });
+            V.push(futuros.length ? { id: 'ver|futuro', tono: 'bad', titulo: `${futuros.length} captura(s) con fecha futura`, detalle: 'Hay venta real en días que aún no ocurren.', acciones: [{ t: 'fechas', lista: futuros }, accion('Corregir capturas con fecha futura', futuros.join(', '))] } : { tono: 'ok', titulo: 'Sin capturas con fecha futura', detalle: 'Toda la venta real es de hoy o antes.' });
+            V.push(incompletos.length ? { id: 'ver|incompletos', tono: 'warn', titulo: `${incompletos.length} día(s) con venta pero sin pedidos o sin sesiones`, detalle: 'Sin ambos datos no se puede calcular la conversión ni el ticket de ese día.', acciones: [{ t: 'fechas', lista: incompletos }, { t: 'ack' }, accion('Completar pedidos y sesiones de los días incompletos', incompletos.slice(0, 40).join(', '))] } : { tono: 'ok', titulo: 'Cada día con venta trae pedidos y sesiones', detalle: 'La conversión y el ticket se pueden calcular en todos los días capturados.' });
+            const sig = planFut.length;
+            V.push(sig < aj.mesesPlan ? { id: 'ver|plan', tono: 'warn', titulo: `Plan cargado solo para ${sig} mes(es) hacia adelante`, detalle: `Se esperan al menos ${aj.mesesPlan} meses de plan desde el mes en curso.`, acciones: [{ t: 'ack' }, accion('Cargar el plan de ventas de los próximos meses', `Hoy hay plan para ${sig} mes(es) desde el mes en curso.`)] } : { tono: 'ok', titulo: `Plan cargado ${sig} mes(es) hacia adelante`, detalle: `${planFut[0]} → ${planFut[planFut.length - 1]}.` });
+            const sinSes = []; meses.filter(m => conReal.includes(m)).forEach(m => IG_CANALES.forEach(([k, n]) => (H[m][k] || []).forEach(r => { if (capt(r) && !(Number(r.sesionesReal) > 0) && r.fecha <= limite) sinSes.push(`${r.fecha} ${n}`); })));
+            const C = M.conciliacion; C.titulo = 'Revisión Diaria vs. Comercial y Tráfico'; C.colA = 'Rev. Diaria'; C.colB = 'Otra fuente';
+            C.nota = `Solo se comparan los días capturados en la Revisión Diaria. Tolerancia de venta y pedidos ±${aj.tolVenta}%, de sesiones ±${aj.tolSes}%.`;
+            const comp = (medida, k, nombre, getRD, getOtro, tol, fuente) => {
+                let a = 0, b = 0, n = 0; const dist = [];
+                meses.forEach(m => (H[m][k] || []).forEach(r => { if (!capt(r) || r.fecha > limite) return; const o = getOtro(`${nombre}|${r.fecha}`); if (o === undefined) return; const x = getRD(r); if (!(x >= 0)) return; a += x; b += o; n++; if (o > 0 && Math.abs(x - o) / o * 100 > Math.max(tol, 3)) dist.push(`${r.fecha} (${x > o ? '+' : '−'}${igN(Math.abs(x - o))})`); }));
+                if (!n || !b) return; const dif = (a - b) / b * 100, ok = Math.abs(dif) <= tol;
+                C.filas.push({ medida: `${medida} vs. ${fuente} (${n} días)`, canal: nombre, a: igN(a), b: igN(b), dif: (dif >= 0 ? '+' : '') + dif.toFixed(1) + '%', tono: ok ? 'ok' : Math.abs(dif) > tol * 3 ? 'bad' : 'warn', estado: ok ? '✓ Cuadra' : '! Revisar' });
+                if (dist.length) C.hallazgos.push({ id: `con|${medida}|${nombre}`, tono: 'warn', titulo: `${nombre}: ${dist.length} día(s) con ${medida.toLowerCase()} distinta a ${fuente}`, detalle: 'Diferencia de más de 3% en el mismo día. Revisa cuál de las dos fuentes está bien.', acciones: [{ t: 'fechas', lista: dist }, { t: 'ack' }, accion(`Conciliar ${medida.toLowerCase()} de ${nombre} con ${fuente}`, dist.slice(0, 40).join(', '))] });
+            };
+            IG_CANALES.forEach(([k, n]) => { comp('Venta', k, n, r => Number(r.ventaReal), key => raw.com[key] ? raw.com[key].v : undefined, aj.tolVenta, 'Comercial'); comp('Pedidos', k, n, r => Number(r.pedidosReal), key => raw.com[key] ? raw.com[key].p : undefined, aj.tolVenta, 'Comercial'); });
+            [['ecommerce', 'Web'], ['app', 'App']].forEach(([k, n]) => comp('Sesiones', k, n, r => Number(r.sesionesReal), key => raw.ses[key], aj.tolSes, 'Tráfico'));
+            // días con venta en Comercial y sin captura en la Revisión Diaria
+            IG_CANALES.forEach(([k, n]) => { const tarde = []; Object.keys(raw.com).forEach(key => { if (!key.startsWith(n + '|')) return; const f = key.split('|')[1]; if (f > limite) return; const m = f.slice(0, 7); if (!conReal.includes(m)) return; const r = ((H[m] || {})[k] || []).find(x => x.fecha === f); if ((!r || !capt(r)) && raw.com[key].v > 0) tarde.push(`${f} (+$${igN(raw.com[key].v)})`); });
+                if (tarde.length) C.hallazgos.push({ id: `con|tarde|${n}`, tono: 'warn', titulo: `${n}: ${tarde.length} día(s) con venta en Comercial sin capturar aquí`, detalle: 'Captura tardía en la Revisión Diaria. Comercial ya trae esa venta.', acciones: [{ t: 'fechas', lista: tarde }, { t: 'ack' }, accion(`Capturar los días faltantes de ${n}`, tarde.join(', '))] }); });
+            if (sinSes.length) C.hallazgos.push({ id: 'con|sinsesiones', tono: 'info', titulo: `${sinSes.length} día(s) con venta capturada y sesiones vacías`, detalle: 'En Web y App las sesiones se pueden tomar de Tráfico (GA4); en WhatsApp y Llamadas hay que capturarlas.', acciones: [{ t: 'fechas', lista: sinSes.slice(0, 80) }, { t: 'ack' }] });
+            if (!C.filas.length) C.hallazgos.push({ tono: 'info', titulo: raw.nube ? 'Sin periodos en común para comparar' : 'Sin conexión a la nube', detalle: raw.nube ? 'Hace falta venta cargada en Comercial para los días capturados aquí.' : 'La conciliación necesita leer Comercial y Tráfico desde la nube.' });
+            else if (!C.hallazgos.length) C.hallazgos.push({ tono: 'ok', titulo: 'La Revisión Diaria cuadra con Comercial y Tráfico', detalle: 'Venta, pedidos y sesiones dentro de tolerancia.' });
+            M.ajustes = [{ k: 'tolVenta', etiqueta: 'Tolerancia de venta y pedidos', desc: 'Contra Comercial', valor: aj.tolVenta, unidad: '%' }, { k: 'tolSes', etiqueta: 'Tolerancia de sesiones', desc: 'Contra Tráfico (GA4)', valor: aj.tolSes, unidad: '%' },
+                { k: 'atrasoMax', etiqueta: 'Atraso máximo de captura', desc: 'Después de esto el canal se marca atrasado', valor: aj.atrasoMax, unidad: 'días' }, { k: 'mesesPlan', etiqueta: 'Meses de plan por adelantado', desc: 'Aviso si el plan cubre menos meses desde el mes en curso', valor: aj.mesesPlan, unidad: 'meses' }];
+            M.notaAjustes = 'Lo que marques como correcto se guarda con su fecha y deja de contar como aviso.';
+            return M;
+        }
+        const IG_HOOKS = {
+            reconocidos: () => igCfg().rec,
+            reconocer(id) { igCfg().rec[id] = { f: igHoy() }; guardarEstadoLocal(); igRepintar(); },
+            quitarReconocido(id) { delete igCfg().rec[id]; guardarEstadoLocal(); igRepintar(); },
+            crearAccion(p) { abrirModalAccion(null, `${p.titulo}${p.detalle ? ' — ' + p.detalle : ''}`); },
+            guardarAjustes(o) { igCfg().aj = { ...o }; guardarEstadoLocal(); IG.modelo = construirIntegridad(IG.raw); igRepintar(); mostrarNotificacion('✅ Ajustes guardados.'); },
+            restablecer() { igCfg().aj = {}; guardarEstadoLocal(); IG.modelo = construirIntegridad(IG.raw); igRepintar(); },
+            descargarCSV(nombre, filas) { const csv = '﻿' + filas.map(f => f.map(c => /[",\n\r]/.test(String(c)) ? `"${String(c).replace(/"/g, '""')}"` : c).join(',')).join('\r\n'); const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); a.download = nombre; document.body.appendChild(a); a.click(); a.remove(); },
+            recalcular() { IG.raw = null; refrescarIntegridad(true); }
+        };
+        function igRepintar() { if (!IG.modelo) return; Integridad.pintarChip(document.getElementById('chip-datos'), IG.modelo, IG_HOOKS); if (estadoApp.vista === 'config') pintarConfigIntegridad(); }
+        function pintarConfigIntegridad() {
+            const el = document.getElementById('view-config'); if (!el) return;
+            if (!IG.modelo) { el.innerHTML = '<div class="rounded-2xl bg-white border border-slate-200 p-6 text-sm text-slate-500">Revisando los datos…</div>'; return; }
+            Integridad.montar(el, IG.modelo, IG_HOOKS);
+        }
+        async function refrescarIntegridad(manual) {
+            if (IG.cargando) return; IG.cargando = true;
+            try { if (manual && estadoApp.vista === 'config') { IG.modelo = null; pintarConfigIntegridad(); } IG.raw = await cargarIntegridadRaw(); IG.modelo = construirIntegridad(IG.raw); igRepintar(); }
+            catch (e) { console.error(e); IG.raw = null; if (estadoApp.vista === 'config') document.getElementById('view-config').innerHTML = '<div class="rounded-2xl bg-rose-50 border border-rose-200 p-6 text-sm text-rose-700">No se pudo revisar la integridad. Revisa tu conexión e inténtalo de nuevo.</div>'; }
+            finally { IG.cargando = false; }
+        }
+
         function renderizarTodo() {
             renderizarSelectorMeses();
             renderizarSelectorCanales();
@@ -4633,7 +4744,10 @@
                 renderizarVistaSemanal();
             } else if (estadoApp.vista === 'acciones') {
                 renderizarVistaAcciones();
+            } else if (estadoApp.vista === 'config') {
+                pintarConfigIntegridad();
             }
+            if (!IG.raw && !IG.cargando) refrescarIntegridad();
             actualizarHrefMachoteCSV();
             lucide.createIcons();
         }
@@ -4704,6 +4818,7 @@
             estadoApp.historico = row.historico || {};
             estadoApp.cortesPorMes = row.cortes || {};
             estadoApp.acciones = Array.isArray(row.acciones) ? row.acciones : [];
+            estadoApp.config = (row.config && typeof row.config === 'object') ? row.config : {};
             if (!estadoApp.historico[estadoApp.mesActivo]) {
                 estadoApp.mesActivo = Object.keys(estadoApp.historico).sort()[0] || estadoApp.mesActivo;
             }
@@ -4733,7 +4848,7 @@
             }
             // Servidor vacío: se sube lo que ya existe en este navegador.
             const { error } = await NUBE.client.from('tablero_estado').insert({
-                id: 'principal', historico: estadoApp.historico, cortes: estadoApp.cortesPorMes, acciones: estadoApp.acciones, version: 1
+                id: 'principal', historico: estadoApp.historico, cortes: estadoApp.cortesPorMes, acciones: estadoApp.acciones, config: estadoApp.config || {}, version: 1
             });
             if (error) {
                 if (error.code === '23505') { return nubeSincronizarInicial(); }
@@ -4751,7 +4866,7 @@
             try {
                 estadoApp.cortesPorMes[estadoApp.mesActivo] = estadoApp.fechaCorte;
                 const { data, error } = await NUBE.client.from('tablero_estado')
-                    .update({ historico: estadoApp.historico, cortes: estadoApp.cortesPorMes, acciones: estadoApp.acciones,
+                    .update({ historico: estadoApp.historico, cortes: estadoApp.cortesPorMes, acciones: estadoApp.acciones, config: estadoApp.config || {},
                               version: NUBE.version + 1, actualizado_en: new Date().toISOString() })
                     .eq('id', 'principal').eq('version', NUBE.version).select('version');
                 if (error) throw error;
