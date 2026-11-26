@@ -1225,10 +1225,8 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
     async function cargarIntegridadRaw() {
         if (NUBE.activo && !S.demo) {
             const r = await NUBE.client.rpc('trafico_integridad'); if (r.error) throw r.error;
-            const rd = {}, h = await NUBE.client.from('tablero_estado').select('historico').eq('id', 'principal').maybeSingle();
-            if (!h.error && h.data) Object.values(h.data.historico || {}).forEach(mes => [['ecommerce', 'Web'], ['app', 'App']].forEach(([k, c]) => (mes[k] || []).forEach(d => { if (Number(d.sesionesReal) > 0) rd[`${c}|${d.fecha}`] = Number(d.sesionesReal); })));
             const com = {}; (await pedirTodo('comercial_dia', 'fecha,canal,pedidos', 'fecha')).forEach(x => { if (x.canal === 'Web' || x.canal === 'App') com[`${x.canal}|${x.fecha}`] = Number(x.pedidos); });
-            return { dias: r.data.dias, reglas: r.data.reglas, rd, com, nube: true };
+            return { dias: r.data.dias, reglas: r.data.reglas, rd: {}, com, nube: true };
         }
         const m = new Map(); const rg = { filas: S.registros.length, carritos_gt_pdp: 0, checkouts_gt_carritos: 0, pedidos_gt_checkouts: 0, ses_cero: 0, sesiones: 0, sesiones_not_set: 0, negativos: 0 };
         S.registros.forEach(r => { const k = `${r.f}|${r.c}`, o = m.get(k) || { f: r.f, c: r.c, ses: 0, ped: 0 }; o.ses += r.ses; o.ped += r.ped; m.set(k, o);
@@ -1272,13 +1270,9 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
         const pns = rg.sesiones ? rg.sesiones_not_set / rg.sesiones * 100 : 0;
         V.push(pns > aj.notSetMax ? { id: 'ver|notset', tono: 'warn', titulo: `${pns.toFixed(1)}% de las sesiones sin fuente (“(not set)”)`, detalle: `Pasa del ${aj.notSetMax}% permitido: hay tráfico sin etiquetar (UTM) que no se puede atribuir.`, acciones: [{ t: 'ack' }, accion('Revisar el etiquetado UTM del tráfico sin fuente', `${pns.toFixed(1)}% de las sesiones.`)] } : { tono: 'ok', titulo: `Tráfico sin fuente en ${pns.toFixed(1)}% de las sesiones`, detalle: `Dentro del ${aj.notSetMax}% permitido.` });
         // Conciliación
-        const C = M.conciliacion; C.titulo = 'Tráfico vs. Revisión Diaria y Comercial'; C.colA = 'Tráfico (GA4)'; C.colB = 'Otra fuente';
-        C.nota = `Solo se comparan los días en que ambas fuentes tienen dato. Tolerancia de sesiones ±${aj.tolSes}%, de pedidos hasta +${aj.tolPed}% (GA4 no descuenta cancelaciones).`;
+        const C = M.conciliacion; C.titulo = 'Tráfico vs. Comercial'; C.colA = 'Tráfico (GA4)'; C.colB = 'Comercial';
+        C.nota = `Solo se comparan los días en que ambas fuentes tienen dato. Tolerancia de pedidos: hasta +${aj.tolPed}% (GA4 no descuenta cancelaciones). Las sesiones de Web y App también alimentan la Revisión Diaria, que las lee de aquí.`;
         const sesGA = {}, pedGA = {}; dias.forEach(r => { const c = aApp(r.c); sesGA[`${c}|${r.f}`] = (sesGA[`${c}|${r.f}`] || 0) + r.ses; pedGA[`${c}|${r.f}`] = (pedGA[`${c}|${r.f}`] || 0) + r.ped; });
-        ['Web', 'App'].forEach(c => {
-            let a = 0, b = 0, n = 0; Object.keys(raw.rd).forEach(k => { if (!k.startsWith(c + '|') || sesGA[k] === undefined) return; a += sesGA[k]; b += raw.rd[k]; n++; });
-            if (n) { const dif = (a - b) / b * 100, ok = Math.abs(dif) <= aj.tolSes; C.filas.push({ medida: `Sesiones vs. Rev. Diaria (${n} días)`, canal: c, a: fmtN(a), b: fmtN(b), dif: (dif >= 0 ? '+' : '') + dif.toFixed(1) + '%', tono: ok ? 'ok' : Math.abs(dif) > aj.tolSes * 3 ? 'bad' : 'warn', estado: ok ? '✓ Cuadra' : '! Revisar' }); }
-        });
         ['Web', 'App'].forEach(c => {
             let a = 0, b = 0, n = 0; Object.keys(raw.com).forEach(k => { if (!k.startsWith(c + '|') || pedGA[k] === undefined) return; a += pedGA[k]; b += raw.com[k]; n++; });
             if (!n || !b) return; const dif = (a - b) / b * 100, ok = dif <= aj.tolPed && dif >= -aj.tolPed, grave = dif > aj.tolPed * 3;
@@ -1287,9 +1281,9 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
                 detalle: dif > 0 ? 'Causas probables: pedidos cancelados que GA4 nunca descuenta (la más común), evento de compra duplicado o pedidos de prueba. Compara la diferencia con la tasa de cancelación del canal: si coincide, es solo cancelación y basta con subir la tolerancia; si es mayor, revisa el etiquetado. Mientras tanto la conversión de este canal está inflada.' : 'Probable evento de compra que no se dispara en parte de los pedidos (etiquetado incompleto).',
                 acciones: [{ t: 'ack' }, accion(dif > 0 ? `Revisar por qué GA4 trae más pedidos que Comercial en ${c}` : `Revisar eventos de compra faltantes en GA4 (${c})`, `Diferencia de ${dif.toFixed(1)}% en ${n} días comparables (${fmtN(a)} en GA4 vs. ${fmtN(b)} en Comercial).`)] });
         });
-        if (!C.filas.length) C.hallazgos.push({ tono: 'info', titulo: 'Sin periodos en común para comparar', detalle: 'Hace falta venta cargada en Comercial y sesiones capturadas en la Revisión Diaria para los mismos días.' });
+        if (!C.filas.length) C.hallazgos.push({ tono: 'info', titulo: 'Sin periodos en común para comparar', detalle: 'Hace falta venta cargada en Comercial para los mismos días que tiene Tráfico.' });
         else if (!C.hallazgos.length) C.hallazgos.push({ tono: 'ok', titulo: 'Tráfico cuadra con las otras fuentes', detalle: 'Sesiones y pedidos dentro de tolerancia.' });
-        M.ajustes = [{ k: 'tolSes', etiqueta: 'Tolerancia de sesiones', desc: 'Contra la Revisión Diaria', valor: aj.tolSes, unidad: '%' }, { k: 'tolPed', etiqueta: 'Tolerancia de pedidos', desc: 'Contra Comercial. GA4 no descuenta cancelaciones: ponla cerca de tu tasa de cancelación', valor: aj.tolPed, unidad: '%' },
+        M.ajustes = [{ k: 'tolPed', etiqueta: 'Tolerancia de pedidos', desc: 'Contra Comercial. GA4 no descuenta cancelaciones: ponla cerca de tu tasa de cancelación', valor: aj.tolPed, unidad: '%' },
             { k: 'notSetMax', etiqueta: 'Aviso de “(not set)”', desc: 'Porcentaje de sesiones sin fuente', valor: aj.notSetMax, unidad: '%' }, { k: 'atrasoMax', etiqueta: 'Atraso máximo de carga', desc: 'Después de esto se marca vencida', valor: aj.atrasoMax, unidad: 'días' },
             { k: 'inicio', etiqueta: 'Inicio de la historia', desc: 'Antes de esta fecha no se exige cobertura', valor: aj.inicio, unidad: '', tipo: 'date' }];
         M.notaAjustes = 'La tolerancia de pedidos es más amplia que la de sesiones porque GA4 y el sistema de pedidos nunca coinciden al 100%.';
