@@ -409,22 +409,8 @@
         return { ini, fin, n, dias, regs, esc: V.dias / n };
     }
     // Control de integridad: la venta de Comercial contra la venta real capturada en la Revisión Diaria, solo en los días que ambos tienen
-    function integridad(V, todos) {
-        const por = []; const faltan = new Set(); let rev = 0, com = 0;
-        (todos ? CANALES_DATO : CANALES_DATO.filter(okC)).forEach(c => {
-            let r = 0, m = 0;
-            for (let f = V.ini; f <= V.fin; f = addDias(f, 1)) {
-                const x = S.realRev[`${c}|${f}`]; if (!(x > 0)) continue;
-                const dia = S.dias.find(d => d.f === f && d.c === c);
-                if (!dia) { faltan.add(f); continue; } r += x; m += dia.v;
-            }
-            if (r > 0) { por.push({ c, rev: r, com: m, dif: (m - r) / r * 100 }); rev += r; com += m; }
-        });
-        if (!por.length && !faltan.size) return null;
-        const dif = rev > 0 ? (com - rev) / rev * 100 : null;
-        const nivel = faltan.size ? 'rojo' : dif === null ? 'gris' : Math.abs(dif) <= 1 ? 'verde' : Math.abs(dif) <= 3 ? 'ambar' : 'rojo';
-        return { por, rev, com, dif, faltan: [...faltan].sort(), nivel };
-    }
+    // Retirado: la Revisión Diaria ya no captura venta ni pedidos, los lee de Comercial, así que no hay nada que comparar.
+    function integridad() { return null; }
     // Seguimiento de la meta mensual con las MISMAS fórmulas que la Revisión Diaria (pacing, plan equivalente observado y pronóstico de 4 componentes)
     function completarMes(x, diasRest) {
         x.indice = x.planEq > 0 ? x.real / x.planEq : null;
@@ -759,7 +745,7 @@
         return `${n}: ${fechaCorta(V.ini)} – ${fechaCorta(V.fin)} · Benchmark propio: ${fechaCorta(V.bIni)} – ${fechaCorta(V.bFin)}`;
     }
     function bannerIntegridad(A, gExt) {
-        const g = gExt !== undefined ? gExt : A.integridad; if (!g) return '<div class="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-[11px] text-slate-500">Control de integridad: no hay venta real capturada en la Revisión Diaria para estas fechas, así que no se puede comparar.</div>';
+        const g = gExt !== undefined ? gExt : A.integridad; if (!g) return '';
         const est = { verde: ['border-emerald-200 bg-emerald-50 text-emerald-900', '✔ Cuadra con la Revisión Diaria'], ambar: ['border-amber-300 bg-amber-50 text-amber-900', '⚠ Diferencia moderada con la Revisión Diaria'], rojo: ['border-rose-300 bg-rose-50 text-rose-900', '✖ No cuadra con la Revisión Diaria'], gris: ['border-slate-200 bg-white text-slate-600', 'Control de integridad'] }[g.nivel];
         return `<details class="rounded-2xl border ${est[0]} px-4 py-2.5 text-xs"><summary class="cursor-pointer font-bold">${est[1]}: Comercial ${fmtM(g.com)} · Revisión Diaria ${fmtM(g.rev)}${g.dif !== null ? ` · diferencia ${txtDelta(g.dif)}` : ''}${g.faltan.length ? ` · faltan ${g.faltan.length} día(s) en Comercial` : ''}</summary>
             <div class="mt-2 space-y-0.5">${g.por.map(x => `<div>${x.c}: Comercial ${fmtM(x.com)} · Revisión Diaria ${fmtM(x.rev)} (${txtDelta(x.dif)})</div>`).join('')}
@@ -1511,27 +1497,12 @@
             V.push(malSC.length ? { id: 'ver|sincat', tono: 'warn', titulo: `Venta sin categoría por arriba de ${aj.sinCatMax}% en ${malSC.length} mes(es)`, detalle: 'Esos meses distorsionan las metas por categoría. Carga el catálogo de categorías o recarga el archivo con categorías.', acciones: [{ t: 'fechas', lista: malSC }, { t: 'ack' }, accion('Completar categorías de los meses con venta sin categoría', malSC.join(', '))] } : { tono: 'ok', titulo: `Venta sin categoría por debajo de ${aj.sinCatMax}%`, detalle: 'Todos los meses tienen categorías suficientes para repartir metas.' });
         } else V.push({ tono: 'info', titulo: 'Verificaciones de la base no disponibles', detalle: 'Sin conexión a la nube: solo se revisan los datos que están en pantalla.' });
         // Conciliación con la Revisión Diaria
-        const C = M.conciliacion; C.titulo = 'Comercial vs. Revisión Diaria'; C.colA = 'Comercial'; C.colB = 'Rev. Diaria';
-        const rdKeys = Object.keys(S.realRev), vCom = {}; dias.forEach(r => { vCom[`${r.c}|${r.f}`] = r.v; });
-        if (rdKeys.length) {
-            const rdFechas = rdKeys.map(k => k.split('|')[1]).sort(), rIni = rdFechas[0], rFin = rdFechas[rdFechas.length - 1];
-            C.nota = `Venta real por canal del ${rIni} al ${rFin}, en los días donde la Revisión Diaria tiene captura. Tolerancia: ±${aj.tolPct}%.`;
-            CANALES_DATO.forEach(c => {
-                let a = 0, b = 0; const tarde = [], distintos = [];
-                for (let f = rIni; f <= rFin; f = addDias(f, 1)) { const rd = S.realRev[`${c}|${f}`] || 0, cm = vCom[`${c}|${f}`] || 0;
-                    if (rd > 0) { a += cm; b += rd; if (rd && Math.abs(cm - rd) / rd * 100 > Math.max(aj.tolPct, 3)) distintos.push(`${f} (${cm >= rd ? '+' : '−'}$${fmtN(Math.abs(cm - rd))})`); }
-                    else if (cm > 0) tarde.push(`${f} (+$${fmtN(cm)})`); }
-                if (!b && !tarde.length) return;
-                const dif = b ? (a - b) / b * 100 : 0, ok = Math.abs(dif) <= aj.tolPct && !tarde.length;
-                C.filas.push({ medida: 'Venta real', canal: c, a: '$' + fmtN(a), b: '$' + fmtN(b), dif: (dif >= 0 ? '+' : '') + dif.toFixed(1) + '%', tono: ok ? 'ok' : (tarde.length ? 'warn' : Math.abs(dif) > aj.tolPct * 3 ? 'bad' : 'warn'), estado: ok ? '✓ Cuadra' : tarde.length ? '! Captura tardía' : '! Revisar' });
-                if (tarde.length) C.hallazgos.push({ id: `con|tarde|${c}`, tono: 'warn', titulo: `${c}: ${tarde.length} día(s) con venta en Comercial que la Revisión Diaria no tiene`, detalle: 'Probable captura tardía en la Revisión Diaria.', acciones: [{ t: 'fechas', lista: tarde }, { t: 'ack' }, accion(`Capturar en la Revisión Diaria los días faltantes de ${c}`, tarde.join(', '))] });
-                if (distintos.length) C.hallazgos.push({ id: `con|dif|${c}`, tono: 'warn', titulo: `${c}: ${distintos.length} día(s) con capturas distintas`, detalle: 'Diferencia de más de 3% entre lo capturado en la Revisión Diaria y lo cargado en Comercial.', acciones: [{ t: 'fechas', lista: distintos }, { t: 'ack' }] });
-            });
-            if (!C.hallazgos.length && C.filas.length) C.hallazgos.push({ tono: 'ok', titulo: 'Comercial y Revisión Diaria cuadran', detalle: 'Mismo periodo, misma venta por canal.' });
-        } else C.nota = 'La Revisión Diaria no tiene venta real capturada para comparar.';
+        const C = M.conciliacion; C.titulo = 'Comercial y Revisión Diaria'; C.colA = 'Dato'; C.colB = 'Fuente';
+        C.nota = 'Desde ahora la Revisión Diaria lee de Comercial la venta y los pedidos de cada día: no se capturan allá, así que no hay diferencias que conciliar. Lo que cargues aquí se refleja allá al abrirla.';
+        C.filas.push({ medida: 'Venta y pedidos', canal: 'Todos', a: 'Comercial', b: 'Revisión Diaria la lee', dif: '', tono: 'ok', estado: '✓ Unificado' });
         const mp = [...new Set(Object.keys(S.planDia).map(k => k.split('|')[1].slice(0, 7)))].sort();
         C.hallazgos.push(mp.length ? { tono: 'ok', titulo: `Plan de ventas cargado en la Revisión Diaria: ${mp.length} mes(es)`, detalle: `${mp[0]} → ${mp[mp.length - 1]}. Las metas por categoría se calculan sobre ese plan.` } : { tono: 'warn', titulo: 'No hay plan de ventas en la Revisión Diaria', detalle: 'Sin plan no hay metas por categoría ni pacing.' });
-        M.ajustes = [{ k: 'tolPct', etiqueta: 'Tolerancia de conciliación', desc: 'Diferencia aceptada contra la Revisión Diaria', valor: aj.tolPct, unidad: '%' }, { k: 'atrasoMax', etiqueta: 'Atraso máximo de carga', desc: 'Después de esto la última carga se marca vencida', valor: aj.atrasoMax, unidad: 'días' },
+        M.ajustes = [{ k: 'atrasoMax', etiqueta: 'Atraso máximo de carga', desc: 'Después de esto la última carga se marca vencida', valor: aj.atrasoMax, unidad: 'días' },
             { k: 'sinCatMax', etiqueta: 'Venta sin categoría máxima', desc: 'Aviso si un mes pasa de este porcentaje', valor: aj.sinCatMax, unidad: '%' }, { k: 'inicio', etiqueta: 'Inicio de la historia', desc: 'Antes de esta fecha no se exige cobertura (vacío = primer día cargado)', valor: aj.inicio, unidad: '', tipo: 'date' }];
         M.notaAjustes = 'Lo que marques como correcto se guarda con su fecha y deja de contar como aviso. Los ajustes se guardan en la nube con el resto de la configuración.';
         return M;
