@@ -75,7 +75,7 @@
                         </div>
                     </details>
                     <button type="button" id="chip-datos" onclick="cambiarVista('config')" title="Estado de los datos: abre Configuración e integridad" class="hidden inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold whitespace-nowrap transition"></button>
-                    <a id="chip-acciones" href="Acciones.html" target="_blank" rel="noopener" title="Acciones abiertas y vencidas de las tres herramientas. Abre el registro unificado" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 whitespace-nowrap transition hover:bg-slate-50"><span aria-hidden="true">✅</span><span id="chip-acciones-txt">Acciones</span></a>
+                    <a id="chip-acciones" href="Acciones.html" target="_blank" rel="noopener" title="Acciones abiertas y vencidas de las herramientas. Abre el registro unificado" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 whitespace-nowrap transition hover:bg-slate-50"><span aria-hidden="true">✅</span><span id="chip-acciones-txt">Acciones</span></a>
                     <label for="file-upload" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition cursor-pointer">
                         <span aria-hidden="true">⬆️</span><span>Cargar CSV</span>
                         <input id="file-upload" type="file" accept=".csv,.xlsx,.xls" class="hidden" onchange="procesarArchivo(event)">
@@ -1508,12 +1508,12 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
         if (mostrar) document.getElementById('nube-clave').focus();
     }
 
-    // Chip de acciones: abiertas y vencidas de las tres herramientas, con enlace al registro unificado
+    // Chip de acciones: abiertas y vencidas de las herramientas, con enlace al registro unificado
     async function refrescarChipAcciones() {
         const el = document.getElementById('chip-acciones'), tx = document.getElementById('chip-acciones-txt');
         if (!el || !tx || !NUBE.activo || !NUBE.client || S.demo) return;
         try {
-            const res = await Promise.all(['tablero_estado', 'trafico_estado', 'comercial_estado'].map(t => NUBE.client.from(t).select('acciones').eq('id', 'principal').maybeSingle()));
+            const res = await Promise.all(['tablero_estado', 'trafico_estado', 'comercial_estado', 'demanda_estado'].map(t => NUBE.client.from(t).select('acciones').eq('id', 'principal').maybeSingle()));
             let ab = 0, ve = 0; const hoy = hoyISO();
             res.forEach(r => (r.data && Array.isArray(r.data.acciones) ? r.data.acciones : []).forEach(a => { if (a.estatus === 'Completada') return; ab++; if (a.fechaCompromiso && a.fechaCompromiso < hoy) ve++; }));
             tx.textContent = ab ? `${ab} abierta${ab === 1 ? '' : 's'}${ve ? ` · ${ve} vencida${ve === 1 ? '' : 's'}` : ''}` : 'Sin acciones abiertas';
