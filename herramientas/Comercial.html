@@ -1622,12 +1622,12 @@
     function cerrarExportar() { const m = document.getElementById('modal-exportar'); if (m) { m.classList.add('hidden'); m.classList.remove('flex'); } }
     async function ejecutarExportar() {
         const msg = document.getElementById('exp-msg'), btn = document.getElementById('exp-btn'); const rango = document.getElementById('exp-rango').value, formato = document.getElementById('exp-formato').value;
-        let desde = '0000-01-01', hasta = '9999-12-31';
+        let desde = '1900-01-01', hasta = '2999-12-31';
         if (rango === 'mes') { if (!S.mes) { msg.textContent = 'No hay un mes activo.'; return; } desde = `${S.mes}-01`; hasta = finMes(S.mes); }
         if (rango === 'custom') { desde = document.getElementById('exp-desde').value; hasta = document.getElementById('exp-hasta').value; if (!desde || !hasta || desde > hasta) { msg.textContent = 'Indica un rango de fechas válido.'; return; } }
         btn.disabled = true; btn.textContent = 'Preparando…'; msg.textContent = 'Leyendo datos…';
         try { const n = await EXPORT_CFG.exportar(desde, hasta, formato, msg); if (n === 0) msg.textContent = 'No hay datos en ese periodo.'; else { toast(`📥 Exportado: ${fmtN(n)} filas.`); cerrarExportar(); } }
-        catch (e) { console.error(e); msg.textContent = '❌ No se pudo exportar. Revisa tu conexión e inténtalo de nuevo.'; }
+        catch (e) { console.error(e); msg.textContent = '❌ No se pudo exportar' + (e && (e.message || e.code) ? ': ' + String(e.message || e.code).slice(0, 140) : '') + '. Si es un error de conexión, inténtalo de nuevo.'; }
         finally { btn.disabled = false; btn.textContent = 'Descargar'; }
     }
     function hojaXlsx(wb, nombre, filas) { const ws = XLSX.utils.aoa_to_sheet(filas); ws['!cols'] = filas[0].map((h, i) => ({ wch: Math.min(40, Math.max(String(h).length + 2, ...filas.slice(1, 60).map(f => String(f[i] ?? '').length + 1))) })); XLSX.utils.book_append_sheet(wb, ws, nombre); }
