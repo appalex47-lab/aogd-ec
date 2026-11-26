@@ -1465,13 +1465,14 @@
     function construirIntegridad(raw) {
         const aj = igAj(), hoy = hoyISO(), dias = raw.dias; const cfg = igCfg();
         const ini = aj.inicio || (dias.length ? dias.reduce((m, r) => r.f < m ? r.f : m, '9999-99-99') : null), fin = dias.length ? dias.reduce((m, r) => r.f > m ? r.f : m, '0000-00-00') : null;
+        const ayer = addDias(hoy, -1), finCob = fin ? (fin < ayer ? ayer : fin) : null;  // la cobertura se exige hasta ayer, aunque lo último cargado sea más viejo
         const M = { nombre: 'Comercial', kpis: [], cobertura: { meses: [], canales: CANALES_DATO, datos: {}, faltan: [], sobran: [], esperados: null }, verificaciones: [], conciliacion: { filas: [], hallazgos: [] }, ajustes: [] };
         const porCanal = {}; CANALES_DATO.forEach(c => porCanal[c] = new Set()); dias.forEach(r => { if (porCanal[r.c]) porCanal[r.c].add(r.f); });
         const esp = {}; let totFalt = 0, combos = 0, meses = [];
-        if (ini && fin) {
-            for (let m = ini.slice(0, 7); m <= fin.slice(0, 7); m = sumaMes(m, 1)) meses.push(m);
+        if (ini && finCob) {
+            for (let m = ini.slice(0, 7); m <= finCob.slice(0, 7); m = sumaMes(m, 1)) meses.push(m);
             meses.forEach(m => {
-                const a = m === ini.slice(0, 7) ? ini : `${m}-01`, b = m === fin.slice(0, 7) ? fin : `${m}-${String(diasDelMes(m)).padStart(2, '0')}`;
+                const a = m === ini.slice(0, 7) ? ini : `${m}-01`, b = m === finCob.slice(0, 7) ? finCob : `${m}-${String(diasDelMes(m)).padStart(2, '0')}`;
                 const lista = []; for (let f = a; f <= b; f = addDias(f, 1)) lista.push(f); esp[m] = lista.length;
                 M.cobertura.datos[m] = CANALES_DATO.map(c => {
                     const falt = lista.filter(f => !porCanal[c].has(f)); const rec = !!cfg.rec[`cob|${m}|${c}`];
@@ -1479,7 +1480,7 @@
                     return lista.length - falt.length; });
             });
         }
-        M.cobertura.meses = meses; M.cobertura.esperados = m => esp[m]; M.cobertura.nota = fin ? `Días con ventas cargadas contra los días del mes, de ${fechaCorta(ini)} a ${fechaCorta(fin)}. Un día sin datos puede ser un error de carga o un día sin ventas (márcalo como correcto).` : 'Sin datos cargados.';
+        M.cobertura.meses = meses; M.cobertura.esperados = m => esp[m]; M.cobertura.nota = finCob ? `Días con ventas cargadas contra los días del mes, de ${fechaCorta(ini)} a ${fechaCorta(finCob)} (se exige hasta ayer). Un día sin datos puede ser un error de carga o un día sin ventas (márcalo como correcto).` : 'Sin datos cargados.';
         const conDatos = CANALES_DATO.filter(c => porCanal[c].size);
         const atraso = fin ? Math.round((new Date(hoy) - new Date(fin)) / 864e5) : null;
         M.kpis = [['Historia cargada', `${meses.length} ${meses.length === 1 ? 'mes' : 'meses'}`, fin ? `${ini} → ${fin}` : 'Sin datos', meses.length ? 'ok' : 'warn'],
