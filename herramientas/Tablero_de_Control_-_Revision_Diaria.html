@@ -231,6 +231,8 @@
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
         <!-- Alerta P0 de Integridad de Captura Omnicanal / Brechas al Corte -->
+        <div id="estado-captura" class="hidden rounded-2xl border border-slate-200 bg-white px-4 py-2.5 shadow-2xs"></div>
+
         <div id="capture-gap-alert" class="hidden rounded-2xl border border-amber-300 bg-amber-50/90 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-amber-900">
         </div>
 
@@ -492,7 +494,7 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                     <div class="space-y-3 bg-blue-50/50 p-3.5 rounded-xl border border-blue-100">
                         <div class="text-xs font-extrabold uppercase tracking-wider text-blue-800">Resultados Reales (0 es válido)</div>
-                        <p class="text-[11px] leading-snug text-blue-900/80">Venta y pedidos vienen de <strong>Comercial</strong> y las sesiones de Web y App de <strong>Tráfico</strong>. Aquí solo se capturan las <strong>llamadas</strong> y los <strong>mensajes</strong>.</p>
+                        <p id="nota-fuentes-captura" class="text-[11px] leading-snug text-blue-900/80">Venta y pedidos vienen de <strong>Comercial</strong> y las sesiones de Web y App de <strong>Tráfico</strong>. Aquí solo se capturan las <strong>llamadas</strong> y los <strong>mensajes</strong>.</p>
                         <div>
                             <label class="block text-xs font-semibold text-slate-700 mb-1">Venta Real ($)</label>
                             <input type="number" step="0.01" min="0" id="input-venta-real" placeholder="Vacío = sin captura" oninput="actualizarPreviewCR()" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold num-tabular focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -1180,6 +1182,8 @@
                             ventaRealSubtotal: 0,
                             ventaPlan: 0,
                             ventaPlanCanalesCapturados: 0,
+                            pedidosPlanCanalesCapturados: 0,
+                            sesionesPlanCanalesCapturados: 0,
                             pedidosRealSubtotal: 0,
                             pedidosPlan: 0,
                             sesionesRealSubtotal: 0,
@@ -1199,6 +1203,8 @@
                         item.canalesCapturados.push(cKey);
                         item.ventaRealSubtotal += Number(r.ventaReal);
                         item.ventaPlanCanalesCapturados += Number(r.ventaPlan || 0);
+                        item.pedidosPlanCanalesCapturados += Number(r.pedidosPlan || 0);
+                        item.sesionesPlanCanalesCapturados += Number(r.sesionesPlan || 0);
                         if (esNumeroValidoNoNegativo(r.pedidosReal)) {
                             item.pedidosRealSubtotal += Number(r.pedidosReal);
                         }
@@ -1246,6 +1252,8 @@
                         ventaReal: tieneAlgunaCaptura ? d.ventaRealSubtotal : null,
                         ventaPlan: d.ventaPlan,
                         ventaPlanCanalesCapturados: d.ventaPlanCanalesCapturados,
+                        pedidosPlanCanalesCapturados: d.pedidosPlanCanalesCapturados,
+                        sesionesPlanCanalesCapturados: d.sesionesPlanCanalesCapturados,
                         pedidosReal: tieneAlgunaCaptura ? d.pedidosRealSubtotal : null,
                         pedidosPlan: d.pedidosPlan,
                         sesionesReal: tieneAlgunaCaptura ? d.sesionesRealSubtotal : null,
@@ -1273,6 +1281,8 @@
                 return {
                     ...r,
                     ventaPlanCanalesCapturados: ev.tieneVenta ? Number(r.ventaPlan || 0) : 0,
+                    pedidosPlanCanalesCapturados: ev.tieneVenta ? Number(r.pedidosPlan || 0) : 0,
+                    sesionesPlanCanalesCapturados: ev.tieneVenta ? Number(r.sesionesPlan || 0) : 0,
                     integridad: {
                         estado: ev.estado,
                         capturadosCount: ev.tieneVenta ? 1 : 0,
@@ -1322,6 +1332,10 @@
                 const planCap = b.ventaPlanCanalesCapturados !== undefined ? b.ventaPlanCanalesCapturados : b.ventaPlan;
                 return a + Number(planCap || 0);
             }, 0);
+
+            // Plan de pedidos y sesiones de los canales y días que sí tienen captura (para comparar lo parcial contra lo justo)
+            const planPedidosEq = conCapturaAlCorte.reduce((a, b) => a + Number(b.pedidosPlanCanalesCapturados !== undefined ? b.pedidosPlanCanalesCapturados : b.pedidosPlan || 0), 0);
+            const planSesionesEq = conCapturaAlCorte.reduce((a, b) => a + Number(b.sesionesPlanCanalesCapturados !== undefined ? b.sesionesPlanCanalesCapturados : b.sesionesPlan || 0), 0);
 
             // B. Resultado Observado (suma de ventas válidas registradas <= corte)
             const ventaRealObservada = conCapturaAlCorte.reduce((a, b) => a + Number(b.ventaReal), 0);
@@ -1389,6 +1403,8 @@
                 planPedidosMTD,
                 planSesionesMTD,
                 planEquivalenteObservado,
+                planPedidosEq,
+                planSesionesEq,
                 coberturaPlanCapturaPct,
                 esConsolidadoParcial,
                 // 4 componentes explícitos del pronóstico:
@@ -1980,11 +1996,11 @@
                 titulares.push(`Este mes no tiene plan cargado, así que no se puede comparar contra la meta. Venta al corte: ${montoCorto(mtd.ventaRealObservada)}. Carga el plan (CSV o captura) para ver el resumen completo.`);
                 return { titulares, canalesTitulo: '', canales: [], resta: '', suma: '', nota: '' };
             }
-            const brecha = mtd.ventaRealObservada - mtd.planVentaMTD, pct = mtd.cumplimientoVentaMTD;
-            // Primer párrafo: dónde estamos contra el plan y hacia dónde va el ritmo
-            let p1 = `Día ${mtd.diasTranscurridosCalendario}/${mtd.totalDiasMes}: ${montoCorto(mtd.ventaRealObservada)}, ${Math.abs(pct - 100).toFixed(1)}% ${brecha >= 0 ? 'sobre' : 'bajo'} el plan (${corto(brecha)}).`;
-            // Con captura incompleta, la brecha puede venir de datos que faltan y no de un mal desempeño
-            if (esConsolidado && mtd.cumplimientoSobreCapturado !== null && Math.abs(mtd.cumplimientoSobreCapturado - pct) >= 1) p1 += ` Sobre lo capturado va ${mtd.cumplimientoSobreCapturado.toFixed(1)}%.`;
+            const parcialN = esConsolidado && mtd.esConsolidadoParcial && mtd.planEquivalenteObservado > 0 && mtd.cumplimientoSobreCapturado !== null;
+            const planBase = parcialN ? mtd.planEquivalenteObservado : mtd.planVentaMTD, brecha = mtd.ventaRealObservada - planBase, pct = parcialN ? mtd.cumplimientoSobreCapturado : mtd.cumplimientoVentaMTD;
+            // Primer párrafo: dónde estamos contra el plan y hacia dónde va el ritmo. Con captura parcial se compara contra el plan de lo capturado
+            let p1 = `Día ${mtd.diasTranscurridosCalendario}/${mtd.totalDiasMes}: ${montoCorto(mtd.ventaRealObservada)}${parcialN ? ' de los canales capturados' : ''}, ${Math.abs(pct - 100).toFixed(1)}% ${brecha >= 0 ? 'sobre' : 'bajo'} el plan${parcialN ? ' de esos canales' : ''} (${corto(brecha)}).`;
+            if (parcialN) p1 += ` El plan total al corte es ${montoCorto(mtd.planVentaMTD)}: incluye canales que aún no se capturan.`;
             if (rachaInfo.pct7d !== null) p1 += ` Últimos 7 días: ${rachaInfo.pct7d.toFixed(1)}% (${rachaInfo.pct7d >= pct ? 'mejora' : 'se debilita'} vs ${pct.toFixed(1)}% del mes).`;
             titulares.push(p1);
             // Segundo párrafo: cierre estimado y lo que falta
@@ -2017,14 +2033,44 @@
             </div>`;
         }
 
+
+        // Estado de captura de cada canal al corte: hasta qué día llega, cuántos días faltan y cuáles son provisionales (venta capturada a mano)
+        function estadoCapturaCanales() {
+            const corte = estadoApp.fechaCorte, mesCorte = corte.slice(0, 7);
+            return Object.keys(CONFIG_CANALES).map(k => {
+                const regs = ((estadoApp.historico[mesCorte] || {})[k] || []).filter(r => r.fecha <= corte), cap = regs.filter(r => esNumeroValidoNoNegativo(r.ventaReal));
+                const ult = cap.length ? cap[cap.length - 1].fecha : null, pend = regs.filter(r => !esNumeroValidoNoNegativo(r.ventaReal)).map(r => r.fecha), prov = cap.filter(r => r.fuenteVenta === 'manual').map(r => r.fecha);
+                const alDia = pend.length === 0 && regs.length > 0, corteOk = cap.some(r => r.fecha === corte);
+                return { k, nombre: CONFIG_CANALES[k].nombre, ultima: ult, pendientes: pend, provisionales: prov, alDia, corteOk };
+            });
+        }
+        function renderizarEstadoCaptura() {
+            const el = document.getElementById('estado-captura'); if (!el) return;
+            const L = estadoCapturaCanales(), hayDatos = L.some(c => c.ultima); if (!hayDatos) { el.classList.add('hidden'); return; }
+            const f = iso => iso.slice(8) + '/' + iso.slice(5, 7), ok = L.filter(c => c.pendientes.length === 0), pend = L.filter(c => c.pendientes.length > 0);
+            const chip = c => c.pendientes.length === 0
+                ? `<span class="px-2 py-0.5 rounded-full border text-[11px] font-bold bg-emerald-50 border-emerald-200 text-emerald-800">✓ ${c.nombre} · al día${c.provisionales.length ? ` · ${c.provisionales.length} provisional${c.provisionales.length === 1 ? '' : 'es'}` : ''}</span>`
+                : `<span class="px-2 py-0.5 rounded-full border text-[11px] font-bold bg-amber-50 border-amber-300 text-amber-800" title="Días sin venta: ${c.pendientes.map(f).join(', ')}">⏳ ${c.nombre} · ${c.ultima ? 'llega al ' + f(c.ultima) : 'sin captura'} · faltan ${c.pendientes.length} día${c.pendientes.length === 1 ? '' : 's'}${c.provisionales.length ? ` · ${c.provisionales.length} provisional${c.provisionales.length === 1 ? '' : 'es'}` : ''}</span>`;
+            const resumen = pend.length ? `El consolidado usa <strong>${ok.map(c => c.nombre).join(' + ') || 'los canales con captura'}</strong>; ${pend.map(c => c.nombre).join(' y ')} se suma${pend.length === 1 ? '' : 'n'} cuando se capture${pend.length === 1 ? '' : 'n'}. Las comparaciones usan el plan de lo capturado.` : 'Los cuatro canales están capturados al corte.';
+            el.classList.remove('hidden');
+            el.innerHTML = `<div class="flex flex-wrap items-center gap-x-3 gap-y-1.5"><span class="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">Captura al corte ${f(estadoApp.fechaCorte)}</span>${L.map(chip).join('')}</div><p class="mt-1 text-[11px] text-slate-500">${resumen}</p>`;
+        }
+
         function renderizarTarjetasMTD() {
             const registros = obtenerRegistrosCanalActivo();
             const mtd = calcularMetricasCalendarioMTD(registros, estadoApp.fechaCorte);
             const esConsolidado = estadoApp.canal === 'consolidado';
+            // Con un consolidado parcial (por ejemplo, WhatsApp y Llamadas llegan después) se compara contra el plan de los canales capturados
+            const parcial = esConsolidado && mtd.esConsolidadoParcial && mtd.planEquivalenteObservado > 0 && mtd.diasCapturadosCount > 0;
+            const pV = parcial ? mtd.planEquivalenteObservado : mtd.planVentaMTD, pP = parcial ? mtd.planPedidosEq : mtd.planPedidosMTD, pS = parcial ? mtd.planSesionesEq : mtd.planSesionesMTD;
+            const cumplV = parcial ? mtd.cumplimientoSobreCapturado : mtd.cumplimientoVentaMTD, brechaV = mtd.ventaRealObservada - pV;
+            const estCap = estadoCapturaCanales(), pendNombres = estCap.filter(c => c.pendientes.length).map(c => c.nombre);
 
             const etiquetaTrafico = esConsolidado
                 ? 'Interacciones (Agregado Auxiliar)'
                 : (CONFIG_CANALES[estadoApp.canal]?.etiquetaTrafico || 'Tráfico');
+
+            renderizarEstadoCaptura();
 
             // 1. Alerta P0 de Integridad Omnicanal / Brechas al Corte
             const gapAlertEl = document.getElementById('capture-gap-alert');
@@ -2060,20 +2106,20 @@
             // 2. Banner de Diagnóstico Ejecutivo en 3 Niveles
             const diagMTD = diagnosticarDesempeno({
                 ventaReal: mtd.diasCapturadosCount > 0 ? mtd.ventaRealObservada : null,
-                ventaPlan: mtd.planVentaMTD,
+                ventaPlan: pV,
                 pedidosReal: mtd.realPedidosMTD,
-                pedidosPlan: mtd.planPedidosMTD,
+                pedidosPlan: pP,
                 sesionesReal: mtd.realSesionesMTD,
-                sesionesPlan: mtd.planSesionesMTD,
+                sesionesPlan: pS,
                 integridad: esConsolidado ? {
                     estado: mtd.esConsolidadoParcial ? 'PARCIAL' : (mtd.diasCapturadosCount > 0 ? 'COMPLETA' : 'SIN_CAPTURA'),
-                    capturadosCount: mtd.esConsolidadoParcial ? 3 : (mtd.diasCapturadosCount > 0 ? 4 : 0),
-                    canalesFaltantes: []
+                    capturadosCount: mtd.esConsolidadoParcial ? Math.max(1, Object.keys(CONFIG_CANALES).length - estCap.filter(c => c.pendientes.length).length) : (mtd.diasCapturadosCount > 0 ? 4 : 0),
+                    canalesFaltantes: estCap.filter(c => c.pendientes.length).map(c => c.k)
                 } : null
             }, esConsolidado ? 'interacciones' : CONFIG_CANALES[estadoApp.canal].etiquetaTrafico, esConsolidado);
 
             const rachaInfo = analizarRachaYVelocidad(mtd.capturadosAlCorte);
-            const cumpleGlobal = mtd.cumplimientoVentaMTD !== null && mtd.cumplimientoVentaMTD >= 100;
+            const cumpleGlobal = cumplV !== null && cumplV >= 100;
             const nombreVistaActual = esConsolidado
                 ? (mtd.esConsolidadoParcial ? 'Consolidado Omnicanal (SUBTOTAL PARCIAL)' : 'Consolidado Omnicanal (4/4 Canales)')
                 : `Canal ${CONFIG_CANALES[estadoApp.canal]?.nombre}`;
@@ -2101,7 +2147,7 @@
                     <div class="space-y-1 min-w-0 flex-1">
                         <div class="flex flex-wrap items-center gap-2">
                             <span class="text-xs font-extrabold uppercase tracking-wider text-slate-500">${nombreVistaActual} • Corte ${estadoApp.fechaCorte} (Día ${mtd.diasTranscurridosCalendario}/${mtd.totalDiasMes})</span>
-                            ${obtenerSemaforoHTML(mtd.cumplimientoVentaMTD, mtd.diasCapturadosCount === 0)}
+                            ${obtenerSemaforoHTML(cumplV, mtd.diasCapturadosCount === 0)}
                             ${badgeCoberturaHTML}
                             ${badgeRachaHTML}
                             ${badgeVel7dHTML}
@@ -2125,15 +2171,15 @@
             `;
 
             // 3. Tarjetas KPI Ejecutivas
-            const pctPedidos = mtd.planPedidosMTD > 0 ? (mtd.realPedidosMTD / mtd.planPedidosMTD) * 100 : null;
-            const pctSesiones = mtd.planSesionesMTD > 0 ? (mtd.realSesionesMTD / mtd.planSesionesMTD) * 100 : null;
+            const pctPedidos = pP > 0 ? (mtd.realPedidosMTD / pP) * 100 : null;
+            const pctSesiones = pS > 0 ? (mtd.realSesionesMTD / pS) * 100 : null;
 
             const ticketRealMTD = mtd.realPedidosMTD > 0 ? (mtd.ventaRealObservada / mtd.realPedidosMTD) : 0;
-            const ticketPlanMTD = mtd.planPedidosMTD > 0 ? (mtd.planVentaMTD / mtd.planPedidosMTD) : 0;
+            const ticketPlanMTD = pP > 0 ? (pV / pP) : 0;
             const pctTicketMTD = ticketPlanMTD > 0 ? (ticketRealMTD / ticketPlanMTD) * 100 : null;
 
             const crReal = calcularCR(mtd.realPedidosMTD, mtd.realSesionesMTD);
-            const crPlan = calcularCR(mtd.planPedidosMTD, mtd.planSesionesMTD);
+            const crPlan = calcularCR(pP, pS);
             const pctCR = crPlan > 0 ? (crReal / crPlan) * 100 : null;
 
             const serieVenta = mtd.capturadosAlCorte.map(d => d.ventaReal);
@@ -2155,26 +2201,29 @@
 
             const kpis = [
                 {
-                    titulo: esConsolidado && mtd.esConsolidadoParcial ? 'Venta Observada (Subtotal Parcial)' : 'Venta Acumulada (MTD)',
+                    titulo: parcial ? 'Venta de los canales capturados' : (esConsolidado && mtd.esConsolidadoParcial ? 'Venta Observada (Subtotal Parcial)' : 'Venta Acumulada (MTD)'),
                     icono: 'dollar-sign',
                     real: fmtMoneda(mtd.ventaRealObservada),
-                    plan: fmtMoneda(mtd.planVentaMTD),
-                    pct: mtd.cumplimientoVentaMTD,
-                    diff: mtd.brechaVentaMTD,
-                    diffFmt: (mtd.brechaVentaMTD >= 0 ? '+' : '') + fmtMoneda(mtd.brechaVentaMTD),
+                    plan: fmtMoneda(pV),
+                    planEtiqueta: parcial ? 'Plan de lo capturado' : 'Plan Corte',
+                    pct: cumplV,
+                    diff: brechaV,
+                    diffFmt: (brechaV >= 0 ? '+' : '') + fmtMoneda(brechaV),
+                    notaParcial: parcial ? `Plan total al corte ${fmtMoneda(mtd.planVentaMTD)}${pendNombres.length ? ' · pendientes: ' + pendNombres.join(', ') : ''}` : null,
                     sparkline: serieVenta,
                     subFooter: mtd.pronosticoCierreBase !== null
                         ? `Pronóstico cierre: <strong class="text-slate-800">${fmtMoneda(mtd.pronosticoCierreBase)}</strong> (${mtd.cumplimientoPronosticoBase.toFixed(1)}%)${esConsolidado && mtd.esConsolidadoParcial ? ' <span class="text-amber-700 font-bold">(Provisional)</span>' : ''}`
                         : 'Información insuficiente para pronóstico'
                 },
                 {
-                    titulo: esConsolidado && mtd.esConsolidadoParcial ? 'Pedidos Observados (Parcial)' : 'Pedidos Acumulados (MTD)',
+                    titulo: parcial ? 'Pedidos de los canales capturados' : (esConsolidado && mtd.esConsolidadoParcial ? 'Pedidos Observados (Parcial)' : 'Pedidos Acumulados (MTD)'),
                     icono: 'shopping-bag',
                     real: fmtNumero(mtd.realPedidosMTD),
-                    plan: fmtNumero(mtd.planPedidosMTD),
+                    plan: fmtNumero(pP),
+                    planEtiqueta: parcial ? 'Plan de lo capturado' : 'Plan Corte',
                     pct: pctPedidos,
-                    diff: mtd.realPedidosMTD - mtd.planPedidosMTD,
-                    diffFmt: (mtd.realPedidosMTD >= mtd.planPedidosMTD ? '+' : '') + fmtNumero(mtd.realPedidosMTD - mtd.planPedidosMTD),
+                    diff: mtd.realPedidosMTD - pP,
+                    diffFmt: (mtd.realPedidosMTD >= pP ? '+' : '') + fmtNumero(mtd.realPedidosMTD - pP),
                     sparkline: seriePedidos,
                     subFooter: mtd.diasCapturadosCount > 0
                         ? `Prom. observado: <strong class="text-slate-800">${fmtNumero(mtd.realPedidosMTD / mtd.diasCapturadosCount)}</strong> ped/día (sin deduplicar)`
@@ -2184,10 +2233,11 @@
                     titulo: esConsolidado ? 'Interacciones Agregadas' : `${etiquetaTrafico} MTD`,
                     icono: 'activity',
                     real: fmtNumero(mtd.realSesionesMTD),
-                    plan: fmtNumero(mtd.planSesionesMTD),
+                    plan: fmtNumero(pS),
+                    planEtiqueta: parcial ? 'Plan de lo capturado' : 'Plan Corte',
                     pct: pctSesiones,
-                    diff: mtd.realSesionesMTD - mtd.planSesionesMTD,
-                    diffFmt: (mtd.realSesionesMTD >= mtd.planSesionesMTD ? '+' : '') + fmtNumero(mtd.realSesionesMTD - mtd.planSesionesMTD),
+                    diff: mtd.realSesionesMTD - pS,
+                    diffFmt: (mtd.realSesionesMTD >= pS ? '+' : '') + fmtNumero(mtd.realSesionesMTD - pS),
                     sparkline: serieSesiones,
                     subFooter: esConsolidado
                         ? 'Suma auxiliar de sesiones, llamadas y mensajes'
@@ -2198,6 +2248,7 @@
                     icono: 'receipt',
                     real: fmtMoneda(ticketRealMTD),
                     plan: fmtMoneda(ticketPlanMTD),
+                    planEtiqueta: parcial ? 'Plan de lo capturado' : 'Plan Corte',
                     pct: pctTicketMTD,
                     diff: ticketRealMTD - ticketPlanMTD,
                     diffFmt: (ticketRealMTD >= ticketPlanMTD ? '+' : '') + fmtMoneda(ticketRealMTD - ticketPlanMTD),
@@ -2237,7 +2288,7 @@
                                 ${obtenerSemaforoHTML(k.pct, sinDatos)}
                             </div>
                             <div class="flex items-center justify-between text-xs text-slate-500 mb-3 num-tabular">
-                                <span>Plan Corte: <strong class="text-slate-700">${k.plan}</strong></span>
+                                <span>${k.planEtiqueta || 'Plan Corte'}: <strong class="text-slate-700">${k.plan}</strong></span>
                                 <span class="${sinDatos ? 'text-slate-400' : (k.diff >= 0 ? 'text-emerald-700 font-semibold' : 'text-rose-700 font-semibold')}">
                                     ${sinDatos ? '' : k.diffFmt}
                                 </span>
@@ -2247,7 +2298,7 @@
                             <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
                                 <div class="h-full ${barColor} rounded-full transition-all duration-500" style="width: ${barWidth}%"></div>
                             </div>
-                            ${k.subFooter ? `<div class="mt-2 pt-2 border-t border-slate-100 text-[11px] text-slate-500 num-tabular truncate" title="${k.subFooter.replace(/<[^>]*>/g, '')}">${k.subFooter}</div>` : ''}
+                            ${k.notaParcial ? `<div class="mt-2 text-[11px] font-semibold text-amber-800 num-tabular truncate" title="${k.notaParcial}">${k.notaParcial}</div>` : ''}${k.subFooter ? `<div class="mt-2 pt-2 border-t border-slate-100 text-[11px] text-slate-500 num-tabular truncate" title="${k.subFooter.replace(/<[^>]*>/g, '')}">${k.subFooter}</div>` : ''}
                         </div>
                     </div>
                 `;
@@ -3505,11 +3556,12 @@
             const registros = datosMes[canalModal] || [];
             const existente = registros.find(r => r.fecha === fechaStr);
             const sesManual = canalModal === 'whatsapp' || canalModal === 'llamadas';
-            [['input-venta-real', true, 'Desde Comercial'], ['input-pedidos-real', true, 'Desde Comercial'], ['input-sesiones-real', !sesManual, 'Desde Tráfico']].forEach(([id, bloquear, ph]) => {
-                const el = document.getElementById(id); el.disabled = bloquear; el.placeholder = bloquear ? ph : 'Vacío = sin captura';
+            [['input-venta-real', !sesManual, 'Desde Comercial'], ['input-pedidos-real', !sesManual, 'Desde Comercial'], ['input-sesiones-real', !sesManual, 'Desde Tráfico']].forEach(([id, bloquear, ph]) => {
+                const el = document.getElementById(id); el.disabled = bloquear; el.placeholder = bloquear ? ph : (sesManual && id !== 'input-sesiones-real' ? 'Provisional hasta cargar Comercial' : 'Vacío = sin captura');
                 el.classList.toggle('bg-slate-100', bloquear); el.classList.toggle('cursor-not-allowed', bloquear); el.classList.toggle('text-slate-500', bloquear);
             });
 
+            const nota = document.getElementById('nota-fuentes-captura'); if (nota) nota.innerHTML = sesManual ? 'En este canal la <strong>venta y los pedidos</strong> pueden venir de otro equipo: captúralos aquí como <strong>provisionales</strong>. Cuando se carguen en <strong>Comercial</strong>, se usan los de Comercial.' : 'Venta y pedidos vienen de <strong>Comercial</strong> y las sesiones de Web y App de <strong>Tráfico</strong>. Aquí solo se capturan las <strong>llamadas</strong> y los <strong>mensajes</strong>.';
             if (existente) {
                 document.getElementById('input-tipo-dia').value = existente.tipoDia;
                 document.getElementById('input-venta-real').value = esNumeroValidoNoNegativo(existente.ventaReal) ? existente.ventaReal : '';
@@ -3632,6 +3684,11 @@
                 sesionesReal,
                 sesionesPlan: isNaN(sesionesPlan) ? 0 : sesionesPlan
             };
+            if (canalModal === 'whatsapp' || canalModal === 'llamadas') {   // venta y pedidos provisionales hasta que Comercial los tenga
+                const previo = idx >= 0 ? registros[idx] : null;
+                nuevoRegistro.ventaManual = ventaReal !== null ? ventaReal : null; nuevoRegistro.pedidosManual = pedidosReal !== null ? pedidosReal : null;
+                if (previo && previo.fuenteVenta === 'comercial') { nuevoRegistro.ventaManual = ventaReal !== null && previo.ventaManual !== undefined ? previo.ventaManual : nuevoRegistro.ventaManual; }
+            }
 
             if (idx >= 0) {
                 registros[idx] = nuevoRegistro;
@@ -3703,7 +3760,9 @@
                 'Venta_Plan',
                 'Pedidos_Plan',
                 'Interacciones_Real',
-                'Interacciones_Plan'
+                'Interacciones_Plan',
+                'Venta_Real',
+                'Pedidos_Real'
             ];
 
             const lineas = [encabezados.join(',')];
@@ -3719,7 +3778,9 @@
                         r.ventaPlan || 0,
                         r.pedidosPlan || 0,
                         esNumeroValidoNoNegativo(r.sesionesReal) ? r.sesionesReal : '',
-                        r.sesionesPlan || 0
+                        r.sesionesPlan || 0,
+                        (cKey === 'whatsapp' || cKey === 'llamadas') && esNumeroValidoNoNegativo(r.ventaManual) ? r.ventaManual : '',
+                        (cKey === 'whatsapp' || cKey === 'llamadas') && esNumeroValidoNoNegativo(r.pedidosManual) ? r.pedidosManual : ''
                     ].join(','));
                 });
             });
@@ -4040,6 +4101,8 @@
                     diaNombre: item.diaNombre,
                     tipoDia: item.tipoDia,
                     ventaReal: FUENTE.activa ? null : item.ventaReal,       // la venta y los pedidos reales vienen de Comercial
+                    ventaManual: (item.canal === 'whatsapp' || item.canal === 'llamadas') && esNumeroValidoNoNegativo(item.ventaReal) ? item.ventaReal : undefined,
+                    pedidosManual: (item.canal === 'whatsapp' || item.canal === 'llamadas') && esNumeroValidoNoNegativo(item.pedidosReal) ? item.pedidosReal : undefined,
                     ventaPlan: item.ventaPlan,
                     pedidosReal: FUENTE.activa ? null : item.pedidosReal,
                     pedidosPlan: item.pedidosPlan,
@@ -4674,10 +4737,17 @@
                 cfg.fuenteComercial = { desde: igHoy(), respaldoCapturaManual: resp }; cambio = true;
             }
             const poner = (r, campo, v) => { if (r[campo] !== v) { r[campo] = v; cambio = true; } };
+            // WhatsApp y Llamadas suelen llegar de otro equipo, después del resto: se recupera lo que ya estaba capturado a mano (una sola vez)
+            if (!cfg.fuenteComercial.manualRestaurado) {
+                const rs = cfg.fuenteComercial.respaldoCapturaManual || {};
+                ['whatsapp', 'llamadas'].forEach(k => Object.entries(rs).forEach(([mes, o]) => ((o && o[k]) || []).forEach(x => { const r = ((estadoApp.historico[mes] || {})[k] || []).find(y => y.fecha === x.f); if (r && esNumeroValidoNoNegativo(x.v) && r.ventaManual === undefined) { r.ventaManual = x.v; r.pedidosManual = esNumeroValidoNoNegativo(x.p) ? x.p : null; } })));
+                cfg.fuenteComercial.manualRestaurado = true; cambio = true;
+            }
             Object.entries(estadoApp.historico).forEach(([mes, dm]) => IG_CANALES.forEach(([k, nombre]) => (dm[k] || []).forEach(r => {
-                const c = FUENTE.com[`${nombre}|${r.fecha}`];
-                if (c) { poner(r, 'ventaReal', c.v); poner(r, 'pedidosReal', c.p); }
-                else { const ok0 = rec[`cob|${mes}|${nombre}`]; const cero = ok0 && r.fecha <= ok0.f && r.fecha <= ayer; poner(r, 'ventaReal', cero ? 0 : null); poner(r, 'pedidosReal', cero ? 0 : null); }
+                const c = FUENTE.com[`${nombre}|${r.fecha}`], tardio = k === 'whatsapp' || k === 'llamadas';
+                if (c) { poner(r, 'ventaReal', c.v); poner(r, 'pedidosReal', c.p); poner(r, 'fuenteVenta', 'comercial'); }
+                else if (tardio && esNumeroValidoNoNegativo(r.ventaManual)) { poner(r, 'ventaReal', r.ventaManual); poner(r, 'pedidosReal', esNumeroValidoNoNegativo(r.pedidosManual) ? r.pedidosManual : null); poner(r, 'fuenteVenta', 'manual'); }
+                else { if (r.fuenteVenta) { delete r.fuenteVenta; cambio = true; } const ok0 = rec[`cob|${mes}|${nombre}`]; const cero = ok0 && r.fecha <= ok0.f && r.fecha <= ayer; poner(r, 'ventaReal', cero ? 0 : null); poner(r, 'pedidosReal', cero ? 0 : null); }
                 if (k === 'ecommerce' || k === 'app') { const t = FUENTE.ses[`${nombre}|${r.fecha}`]; poner(r, 'sesionesReal', t !== undefined ? t : null); }
             })));
             return cambio;
@@ -4733,6 +4803,11 @@
             IG_CANALES.forEach(([, n]) => { if (ultima[n]) { const d = Math.round((new Date(hoy) - new Date(ultima[n])) / 864e5); if (d > aj.atrasoMax) V.push({ id: `ver|atraso|${n}`, tono: 'warn', titulo: `${n}: última captura del ${ultima[n]} (${d} ${d === 1 ? 'día' : 'días'} de atraso)`, detalle: `Pasa de la tolerancia de ${aj.atrasoMax} día(s).`, acciones: [{ t: 'ack' }, accion(`Cargar en Comercial las ventas de ${n}`, `Última captura: ${ultima[n]}.`)] }); } });
             V.push(futuros.length ? { id: 'ver|futuro', tono: 'bad', titulo: `${futuros.length} captura(s) con fecha futura`, detalle: 'Hay venta real en días que aún no ocurren.', acciones: [{ t: 'fechas', lista: futuros }, accion('Corregir capturas con fecha futura', futuros.join(', '))] } : { tono: 'ok', titulo: 'Sin capturas con fecha futura', detalle: 'Toda la venta real es de hoy o antes.' });
             V.push(incompletos.length ? { id: 'ver|incompletos', tono: 'warn', titulo: `${incompletos.length} día(s) con venta pero sin sesiones, llamadas o mensajes`, detalle: 'Sin tráfico no se puede calcular la conversión de ese día. Web y App lo toman de Tráfico; WhatsApp y Llamadas se capturan en Captura Rápida.', acciones: [{ t: 'fechas', lista: incompletos }, { t: 'ack' }, accion('Completar el tráfico (sesiones, llamadas o mensajes) de los días incompletos', incompletos.slice(0, 40).join(', '))] } : { tono: 'ok', titulo: 'Cada día con venta trae pedidos y sesiones', detalle: 'La conversión y el ticket se pueden calcular en todos los días capturados.' });
+            const provis = [], difs = [];
+            meses.forEach(m => ['whatsapp', 'llamadas'].forEach(k => ((H[m] || {})[k] || []).forEach(r => { const nm = CONFIG_CANALES[k].nombre; if (r.fuenteVenta === 'manual') provis.push(`${r.fecha} ${nm}`);
+                const cm = raw.com[`${nm}|${r.fecha}`]; if (cm && cm.v > 0 && esNumeroValidoNoNegativo(r.ventaManual) && Math.abs(r.ventaManual - cm.v) / cm.v * 100 > aj.tolVenta) difs.push(`${r.fecha} ${nm}: capturado ${igN(r.ventaManual)} · Comercial ${igN(cm.v)}`); })));
+            if (provis.length) V.push({ id: 'ver|provisional', tono: 'info', titulo: `${provis.length} día(s) de WhatsApp o Llamadas con venta provisional`, detalle: 'Se capturaron aquí mientras la venta llega de otro equipo. Cuando se cargue en Comercial, el tablero usa la de Comercial automáticamente.', acciones: [{ t: 'fechas', lista: provis }, { t: 'ack' }, accion('Cargar en Comercial la venta de WhatsApp y Llamadas', `${provis.length} día(s) con venta capturada a mano.`)] });
+            if (difs.length) V.push({ id: 'ver|dif_manual', tono: 'warn', titulo: `${difs.length} día(s) donde lo capturado a mano no coincide con Comercial`, detalle: `Diferencia de más de ${aj.tolVenta}%. El tablero ya usa la venta de Comercial; revisa cuál de las dos estaba bien.`, acciones: [{ t: 'fechas', lista: difs }, { t: 'ack' }] });
             const sig = planFut.length;
             V.push(sig < aj.mesesPlan ? { id: 'ver|plan', tono: 'warn', titulo: `Plan cargado solo para ${sig} mes(es) hacia adelante`, detalle: `Se esperan al menos ${aj.mesesPlan} meses de plan desde el mes en curso.`, acciones: [{ t: 'ack' }, accion('Cargar el plan de ventas de los próximos meses', `Hoy hay plan para ${sig} mes(es) desde el mes en curso.`)] } : { tono: 'ok', titulo: `Plan cargado ${sig} mes(es) hacia adelante`, detalle: `${planFut[0]} → ${planFut[planFut.length - 1]}.` });
             const sinSes = []; meses.filter(m => conReal.includes(m)).forEach(m => IG_CANALES.forEach(([k, n]) => (H[m][k] || []).forEach(r => { if (capt(r) && !(Number(r.sesionesReal) > 0) && r.fecha <= limite) sinSes.push(`${r.fecha} ${n}`); })));
