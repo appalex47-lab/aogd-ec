@@ -98,6 +98,7 @@
     </header>
 
     <main class="flex-1 w-full px-3 sm:px-5 py-5 space-y-5">
+        <div id="aviso-corte" class="hidden rounded-2xl border border-amber-300 bg-amber-50 px-4 py-2 text-xs text-amber-900"></div>
         <div id="banner-demo" class="hidden rounded-2xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-xs text-amber-900 flex items-center justify-between gap-3">
             <span><strong>Modo demostración:</strong> datos de ejemplo generados al azar. No se guardan ni se mezclan con tus datos reales.</span>
             <button type="button" onclick="salirDemo()" class="shrink-0 px-3 py-1 rounded-lg bg-amber-200 hover:bg-amber-300 font-bold" data-pdf-ocultar="true">Salir</button>
@@ -1013,11 +1014,13 @@
         sel.innerHTML = meses.length ? meses.map(m => `<option value="${m}" ${m === S.mes ? 'selected' : ''}>${etiquetaMes(m)}</option>`).join('') : '<option>—</option>';
         if (S.mes) {
             const maxMes = S.dias.filter(r => r.f.startsWith(S.mes)).map(r => r.f).sort().pop();
-            if (!S.corte || (!S.corte.startsWith(S.mes) && !(S.sinVentasMes && S.corte === addDias(`${S.mes}-01`, -1)))) S.corte = maxMes || addDias(`${S.mes}-01`, -1);   // mes sin ventas: el corte es el día anterior a su inicio
+            // La venta llega a día vencido: al abrir, el corte es ayer (si el mes es el de ayer); en meses anteriores, su último día con datos
+            const ayerCorte = addDias(hoyISO(), -1);
+            if (!S.corte || (!S.corte.startsWith(S.mes) && !(S.sinVentasMes && S.corte === addDias(`${S.mes}-01`, -1)))) S.corte = ayerCorte.startsWith(S.mes) ? ayerCorte : (maxMes || addDias(`${S.mes}-01`, -1));   // mes sin ventas: el corte es el día anterior a su inicio
             S.sinVentasMes = !maxMes;
             const c = document.getElementById('sel-corte'); c.value = S.corte; c.min = addDias(`${S.mes}-01`, -1); c.max = finMes(S.mes);
         }
-        renderTabsYFiltros();
+        renderTabsYFiltros(); avisoCorte();
         document.querySelectorAll('.panel-vista').forEach(p => p.classList.add('hidden'));
         if (S.vista === 'config') { document.getElementById('panel-config').classList.remove('hidden'); pintarConfig(); }
         if (!hayDatos) { if (S.vista === 'config') return; if (S.vista === 'acciones') { document.getElementById('panel-acciones').classList.remove('hidden'); renderAcciones({ alertas: [] }); } return; }
@@ -1025,6 +1028,11 @@
         renderResumen(A); renderCategorias(A); renderProductos(A); renderCanales(A); renderCross(A); renderSinMov(A); renderAcciones(A);
         document.getElementById('panel-' + S.vista).classList.remove('hidden');
         if (!IG.raw && !IG.cargando) refrescarIntegridad();
+    }
+    function avisoCorte() {
+        const el = document.getElementById('aviso-corte'); if (!el) return; const ult = S.dias.length ? S.dias.reduce((m, r) => r.f > m ? r.f : m, '0000') : null;
+        const falta = !S.demo && S.corte && ult && S.corte > ult && S.corte <= addDias(hoyISO(), -1) && S.dias.length > 0;
+        el.classList.toggle('hidden', !falta); if (falta) el.innerHTML = `<strong>Falta la venta del ${fechaCorta(S.corte)}.</strong> El corte es ${fechaCorta(S.corte)} (la venta llega a día vencido) y lo último cargado es del ${fechaCorta(ult)}. Carga el archivo para completar el corte.`;
     }
     function cambiarVista(v) { S.vista = v; renderTodo(); }
     async function cambiarCanal(c) { S.canal = c; renderTodo(); await cargarDerivados(); }
@@ -1733,7 +1741,7 @@
     }
     function entrarDemo() {
         const d = generarDemo(); S.demo = true; S.registros = d.registros; S.dias = d.dias; S.planDia = d.planDia; S.planOk = true; S.realRev = d.realRev; S.planPed = d.planPed; S.yoy = {};
-        S.snap = { cross: d.cross, recompra: d.recompra }; S.mes = hoyISO().slice(0, 7); S.corte = hoyISO(); S.rangoMin = null; S.rangoMax = null; S.shareBase = {}; S.shareMes = {}; S.shareMesCargado = {}; S.sinMov = null;
+        S.snap = { cross: d.cross, recompra: d.recompra }; S.mes = hoyISO().slice(0, 7); S.corte = addDias(hoyISO(), -1); S.rangoMin = null; S.rangoMax = null; S.shareBase = {}; S.shareMes = {}; S.shareMesCargado = {}; S.sinMov = null;
         renderTodo(); toast('Modo demostración activado.');
     }
     function salirDemo(silencioso) {

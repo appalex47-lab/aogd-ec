@@ -990,7 +990,8 @@
         function normalizarCortesHoy(cortes) {
             const h = new Date(), iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
             const hoy = iso(h), ayer = iso(new Date(h.getFullYear(), h.getMonth(), h.getDate() - 1));
-            Object.keys(cortes || {}).forEach(m => { if (cortes[m] === hoy && ayer.startsWith(m)) cortes[m] = ayer; });
+            // La venta llega a día vencido: al abrir, el corte del mes de ayer es siempre ayer, aunque se haya dejado otro día en la sesión anterior
+            cortes = cortes || {}; cortes[ayer.slice(0, 7)] = ayer;
             return cortes;
         }
 
@@ -1037,7 +1038,9 @@
 
         const historicoMeses = cargarHistoricoInicial();
         const cortesGuardados = cargarCortesIniciales();
-        const mesInicial = localStorage.getItem(STORAGE_KEY_MES_ACTIVO) || localStorage.getItem('tablero_mes_activo_v8') || '2026-11';
+        let mesInicial = localStorage.getItem(STORAGE_KEY_MES_ACTIVO) || localStorage.getItem('tablero_mes_activo_v8') || '2026-11';
+        { const h0 = new Date(), a0 = new Date(h0.getFullYear(), h0.getMonth(), h0.getDate() - 1), mA = `${a0.getFullYear()}-${String(a0.getMonth() + 1).padStart(2, '0')}`, mH = `${h0.getFullYear()}-${String(h0.getMonth() + 1).padStart(2, '0')}`;
+          if (mesInicial === mH && mA !== mH && historicoMeses[mA]) mesInicial = mA; }   // día 1: el corte de ayer cae en el mes anterior
         const mesActivoValido = historicoMeses[mesInicial] ? mesInicial : Object.keys(historicoMeses)[0];
 
         let estadoApp = {
@@ -4987,9 +4990,9 @@
             if (mostrar) document.getElementById('nube-clave').focus();
         }
 
-        function nubeAplicarEstado(row) {
+        function nubeAplicarEstado(row, inicial) {
             estadoApp.historico = row.historico || {};
-            estadoApp.cortesPorMes = normalizarCortesHoy(row.cortes || {});
+            estadoApp.cortesPorMes = inicial ? normalizarCortesHoy(row.cortes || {}) : (row.cortes || {});
             estadoApp.acciones = Array.isArray(row.acciones) ? row.acciones : [];
             estadoApp.config = (row.config && typeof row.config === 'object') ? row.config : {};
             if (!estadoApp.historico[estadoApp.mesActivo]) {
@@ -5015,7 +5018,7 @@
         async function nubeSincronizarInicial() {
             const row = await nubeLeer();
             if (row) {
-                nubeAplicarEstado(row);
+                nubeAplicarEstado(row, true);
                 nubeEstado('☁️ Sincronizado', 'ok');
                 return;
             }
