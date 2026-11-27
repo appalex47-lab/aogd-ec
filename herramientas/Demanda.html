@@ -144,7 +144,7 @@ const VISTAS = [{ id: 'resumen', n: 'Resumen' }, { id: 'canales', n: 'Canales pr
 const CACHE_KEY = 'demanda_cache_v1';
 const CFG_DEF = { piso: { Web: 10, App: 10, WhatsApp: 10, Llamadas: 10 }, k: 1.5, minBase: 2, ventana: 7 };
 const S = {
-    acciones: [], config: JSON.parse(JSON.stringify(CFG_DEF)), ses: {}, plan: {}, com: {}, fuentes: null, prod: null, busq: [], neg: [],
+    acciones: [], negSel: 0, ventasSem: null, ga4: null, config: JSON.parse(JSON.stringify(CFG_DEF)), ses: {}, plan: {}, com: {}, fuentes: null, prod: null, busq: [], neg: [],
     corte: null, canal: 'Todos', ventana: 7, vista: 'resumen', demo: false, chart: null, rangoMax: null, rangoMin: null, ult: {}, cargando: false, imp: null
 };
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -341,26 +341,83 @@ function renderBusquedas() {
     el.innerHTML = `<p class="text-[11px] text-slate-500">${nombreVentana()} (${fechaCorta(addDias(S.corte, -(S.ventana - 1)))} – ${fechaCorta(S.corte)}) contra la ventana anterior · ${fmtN(tot)} búsquedas · ${tot ? (totSR / tot * 100).toFixed(1) : '0'}% sin resultado.</p>
         <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">${tb('Búsquedas en alza', 'Términos que más crecieron: anticipa lo que pide el mercado.', sube, 'text-emerald-700')}${tb('Búsquedas sin resultado', 'Venta que se pierde por cero resultados: candidatos a catálogo, sinónimos o abasto.', sinRes, 'text-slate-700')}</div>`;
 }
+// ---- Negados: lista y ficha de Abasto (piezas por semana y sucursal) ----
+const SEMANAS = 12;
+const semAb = () => (S.config.abasto = Object.assign({ semMin: 6, semAlta: 8 }, S.config.abasto || {}));
+function idxSemana(f) { const d = Math.floor((Date.parse(S.corte + 'T12:00:00') - Date.parse(f + 'T12:00:00')) / 864e5); if (d < 0 || d >= 7 * SEMANAS) return -1; return SEMANAS - 1 - Math.floor(d / 7); }
+const inicioSemana = i => addDias(S.corte, -(7 * (SEMANAS - i)) + 1);
+const prom4 = a => a.slice(-4).reduce((x, y) => x + y, 0) / 4;
+function serieNegados() {
+    const aur = new Map(); (S.prod || []).forEach(r => { const u = r.uAct + r.uPrev; if (u > 0) aur.set(r.sku, (r.vAct + r.vPrev) / u); });
+    const m = new Map(), z = () => Array(SEMANAS).fill(0);
+    S.neg.forEach(r => {
+        const i = idxSemana(r.fecha); if (i < 0) return; let o = m.get(r.sku); if (!o) { o = { sku: r.sku, n: r.producto, cat: r.categoria, pz: z(), ve: z(), mo: z(), sucs: new Map(), hayEst: false }; m.set(r.sku, o); }
+        if (r.producto) o.n = r.producto; if (r.categoria && r.categoria !== 'Sin categoría') o.cat = r.categoria;
+        const pz = r.piezas > 0 ? r.piezas : r.veces; o.pz[i] += pz; o.ve[i] += r.veces;
+        let mo = r.monto; if (mo === null || mo === undefined) { const p = aur.get(r.sku); mo = p ? pz * p : 0; o.hayEst = true; } o.mo[i] += mo;
+        const sk = r.sucursal || '(sin sucursal)'; let su = o.sucs.get(sk); if (!su) { su = { suc: sk, pz: z(), mo: z() }; o.sucs.set(sk, su); } su.pz[i] += pz; su.mo[i] += mo;
+    });
+    const alza = new Set(calcAlza().map(r => r.sku)), lista = [...m.values()];
+    lista.forEach(o => {
+        o.sem = o.pz.filter(v => v > 0).length; o.pzSem = Math.round(prom4(o.pz)); o.moSem = prom4(o.mo); o.primera = o.pz.findIndex(v => v > 0);
+        o.pzTot = o.pz.reduce((x, y) => x + y, 0); o.moTot = o.mo.reduce((x, y) => x + y, 0);
+        const v = S.ventasSem && S.ventasSem[o.sku]; o.ven = v || null; const vt = v ? v.reduce((x, y) => x + y, 0) : null; o.dna = vt !== null && o.pzTot + vt > 0 ? o.pzTot / (o.pzTot + vt) * 100 : null;
+        o.ga = S.ga4 && S.ga4[o.sku] ? S.ga4[o.sku] : null; o.alza = alza.has(o.sku);
+        o.sucl = [...o.sucs.values()].map(su => ({ suc: su.suc, sem: su.pz.filter(x => x > 0).length, pzSem: Math.round(prom4(su.pz)), moSem: prom4(su.mo) })).sort((a, b) => b.sem - a.sem || b.pzSem - a.pzSem);
+        o.aCubrir = o.sucl.filter(su => su.sem >= semAb().semMin).reduce((x, su) => x + su.pzSem, 0);
+    });
+    const mos = lista.map(o => o.moSem).sort((a, b) => a - b), p75 = mos.length ? mos[Math.floor(mos.length * 0.75)] : 0;
+    lista.forEach(o => { const gaUp = o.ga && o.ga.vis && o.ga.vis.length >= 8 && prom4(o.ga.vis) > o.ga.vis.slice(-8, -4).reduce((x, y) => x + y, 0) / 4 * 1.1;
+        const pts = (o.sem >= semAb().semAlta ? 2 : o.sem >= 5 ? 1 : 0) + (o.moSem >= p75 && o.moSem > 0 ? 1 : 0) + (o.alza || gaUp ? 1 : 0); o.pri = pts >= 3 ? 'a' : pts === 2 ? 'm' : 'b'; o.pts = pts; });
+    const orden = { a: 0, m: 1, b: 2 };
+    return lista.sort((a, b) => orden[a.pri] - orden[b.pri] || b.moSem - a.moSem || b.pzSem - a.pzSem);
+}
+const PRI = { a: ['Alta', 'bg-rose-100 text-rose-700 border-rose-200'], m: ['Media', 'bg-amber-100 text-amber-800 border-amber-300'], b: ['Baja', 'bg-slate-100 text-slate-600 border-slate-200'] };
+const chipPri = p => `<span class="px-2 py-0.5 rounded-full border text-[11px] font-extrabold ${PRI[p][1]}">${PRI[p][0]}</span>`;
+function barrasSVG(a) { const mx = Math.max(...a, 1); return `<svg viewBox="0 0 300 72" style="width:100%;height:auto" role="img" aria-label="Piezas negadas por semana">${a.map((v, i) => `<rect x="${i * 25 + 2}" y="${64 - v / mx * 58}" width="20" height="${v / mx * 58}" rx="3" fill="${v ? '#e11d48' : '#e2e8f0'}"/><text x="${i * 25 + 12}" y="71" text-anchor="middle" style="font-size:8px;fill:#64748b">${i + 1}</text>`).join('')}</svg>`; }
+function lineaSVG(a, col) { const mx = Math.max(...a), mn = Math.min(...a), st = 300 / (a.length - 1); return `<svg viewBox="0 0 300 60" style="width:100%;height:auto"><polyline fill="none" stroke="${col}" stroke-width="2.2" points="${a.map((v, i) => `${(i * st).toFixed(1)},${(55 - (v - mn) / (mx - mn || 1) * 50).toFixed(1)}`).join(' ')}"/></svg>`; }
+function textoAbasto(o) {
+    const desde = o.primera >= 0 ? fechaCorta(inicioSemana(o.primera)) : '—', nSuc = o.sucl.length, tot = o.pzTot, dna = o.dna;
+    const gaTxt = o.ga && o.ga.vis ? ` En GA4 las vistas del producto ${prom4(o.ga.vis) >= o.ga.vis.slice(-8, -4).reduce((x, y) => x + y, 0) / 4 ? 'suben' : 'bajan'} contra las 4 semanas anteriores.` : '';
+    const venTxt = o.ven ? ` La demanda no atendida es ${dna.toFixed(0)}% de lo que se pidió (vendidas + negadas).${o.ven.slice(-4).reduce((x, y) => x + y, 0) < o.ven.slice(0, 4).reduce((x, y) => x + y, 0) && o.pzSem > prom4(o.pz.slice(0, 8)) ? ' La venta baja mientras el negado crece: no falta demanda, falta producto.' : ''}` : '';
+    return `${o.n || o.sku} (${o.sku}) se ha negado en ${o.sem} de las últimas ${SEMANAS} semanas, desde la semana del ${desde}, en ${nSuc} sucursal${nSuc === 1 ? '' : 'es'}: ${fmtN(tot)} piezas (${o.hayEst ? '~' : ''}${fmtM(o.moTot)}) en el periodo.${venTxt}${gaTxt} Se propone cubrir ${fmtN(o.aCubrir)} piezas por semana, repartidas en las sucursales donde se niega con constancia (${semAb().semMin} o más de ${SEMANAS} semanas).`;
+}
+function selNeg(i) { S.negSel = i; renderNegados(); }
+function copiarTexto(i) { const o = S._negLista[i]; if (!o) return; const t = textoAbasto(o); (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('📋 Texto copiado.')).catch(() => { const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); toast('📋 Texto copiado.'); } catch (e) {} ta.remove(); }); }
+function accionAbasto(i) { const o = S._negLista[i]; if (!o) return; abrirAccion(JSON.stringify({ titulo: `Reforzar ${o.n || o.sku}: ${fmtN(o.aCubrir)} piezas por semana`, detalle: textoAbasto(o) })); }
 function renderNegados() {
     const el = document.getElementById('panel-negados'); if (!S.neg.length) { el.innerHTML = vacioFase2('negados'); return; }
-    const { act, prev } = ventanaPrev(S.neg);
-    // precio promedio por producto (Comercial) para estimar el monto cuando el archivo no lo trae
-    const aur = new Map(); (S.prod || []).forEach(r => { const u = r.uAct + r.uPrev; if (u > 0) aur.set(r.sku, (r.vAct + r.vPrev) / u); });
-    const montoDe = (o) => { if (o.monto !== null && o.monto !== undefined) return { m: o.monto, est: false }; const p = aur.get(o.sku); return p ? { m: (o.piezas || o.veces) * p, est: true } : { m: null, est: true }; };
-    const agr = (rows, k) => { const m = new Map(); rows.forEach(r => { const key = k(r), o = m.get(key.k) || { ...key, veces: 0, piezas: 0, monto: null, estM: 0, hayEst: false }; o.veces += r.veces; o.piezas += r.piezas; const md = montoDe({ ...r }); if (md.m !== null) { if (md.est) { o.estM += md.m; o.hayEst = true; } else o.monto = (o.monto || 0) + md.m; } m.set(key.k, o); }); return m; };
-    const porSku = agr(act, r => ({ k: r.sku, sku: r.sku, n: r.producto, cat: r.categoria })), porSuc = agr(act, r => ({ k: r.sucursal || '(sin sucursal)', suc: r.sucursal || '(sin sucursal)' })), prevSku = agr(prev, r => ({ k: r.sku }));
-    const enAlza = new Set(calcAlza().map(r => r.sku)), total = o => (o.monto || 0) + (o.estM || 0);
-    const skus = [...porSku.values()].map(o => ({ ...o, antes: prevSku.get(o.sku) ? prevSku.get(o.sku).veces : 0, alza: enAlza.has(o.sku), mt: total(o) })).sort((a, b) => (b.alza - a.alza) || b.mt - a.mt || b.veces - a.veces).slice(0, 20);
-    const sucs = [...porSuc.values()].map(o => ({ ...o, mt: total(o) })).sort((a, b) => b.mt - a.mt || b.veces - a.veces).slice(0, 15);
-    const totV = [...porSku.values()].reduce((s, o) => s + o.veces, 0), totM = [...porSku.values()].reduce((s, o) => s + total(o), 0), hayEst = [...porSku.values()].some(o => o.hayEst);
-    const fm = o => o.mt > 0 ? `${o.hayEst ? '~' : ''}${fmtM(o.mt)}` : '—';
-    el.innerHTML = `<p class="text-[11px] text-slate-500">${nombreVentana()} (${fechaCorta(addDias(S.corte, -(S.ventana - 1)))} – ${fechaCorta(S.corte)}) · ${fmtN(totV)} negados en ${porSku.size} productos y ${porSuc.size} sucursales · <strong>${fmtM(totM)} de venta negada${hayEst ? ' (incluye estimados con el precio promedio de Comercial, marcados con ~)' : ''}</strong>. Los productos que además están en alza van primero: son la prioridad de Abasto.</p>
-        <div class="grid grid-cols-1 xl:grid-cols-3 gap-4"><div class="xl:col-span-2 rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden"><div class="px-4 pt-4 flex items-center justify-between gap-2"><h3 class="text-sm font-extrabold text-slate-900">Productos más negados</h3><button type="button" onclick="negadosCSV()" class="text-[11px] font-bold text-blue-700 hover:underline">Descargar (CSV)</button></div>
-        <div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular mt-2"><thead class="bg-slate-50 text-[10px] uppercase text-slate-500"><tr><th class="px-3 py-2">Producto</th><th class="px-2 py-2">Categoría</th><th class="px-2 py-2 text-right">Veces</th><th class="px-2 py-2 text-right">Piezas</th><th class="px-2 py-2 text-right">Monto negado</th><th class="px-2 py-2 text-right">Antes (veces)</th><th class="px-2 py-2">Señal</th></tr></thead><tbody>${skus.map(r => `<tr class="border-t border-slate-100"><td class="px-3 py-2 font-semibold text-slate-800">${esc(r.n || r.sku)}<div class="text-[10px] text-slate-400 font-normal">${esc(r.sku)}</div></td><td class="px-2 py-2 text-slate-600">${esc(r.cat)}</td><td class="px-2 py-2 text-right font-bold">${fmtN(r.veces)}</td><td class="px-2 py-2 text-right">${fmtN(r.piezas)}</td><td class="px-2 py-2 text-right font-bold text-rose-700">${fm(r)}</td><td class="px-2 py-2 text-right text-slate-500">${fmtN(r.antes)}</td><td class="px-2 py-2">${r.alza ? '<span class="px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[11px] font-extrabold">En alza y negado</span>' : ''}</td></tr>`).join('')}</tbody></table></div></div>
-        <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden"><div class="px-4 pt-4"><h3 class="text-sm font-extrabold text-slate-900">Sucursales con más negados</h3></div><div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular mt-2"><thead class="bg-slate-50 text-[10px] uppercase text-slate-500"><tr><th class="px-3 py-2">Sucursal</th><th class="px-2 py-2 text-right">Veces</th><th class="px-2 py-2 text-right">Monto</th></tr></thead><tbody>${sucs.map(r => `<tr class="border-t border-slate-100"><td class="px-3 py-2 font-semibold">${esc(r.suc)}</td><td class="px-2 py-2 text-right font-bold">${fmtN(r.veces)}</td><td class="px-2 py-2 text-right text-rose-700 font-bold">${fm(r)}</td></tr>`).join('')}</tbody></table></div></div></div>`;
-    S._negSku = skus;
+    const L = serieNegados(); S._negLista = L; if (!L.length) { el.innerHTML = '<div class="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">No hay negados en las últimas 12 semanas.</div>'; return; }
+    if (S.negSel === undefined || S.negSel === null || S.negSel >= L.length) S.negSel = 0; const x = L[S.negSel];
+    const tm = L.reduce((s, o) => s + o.moTot, 0), tv = L.reduce((s, o) => s + o.ve.reduce((a, b) => a + b, 0), 0), hayEst = L.some(o => o.hayEst), nSuc = new Set(L.flatMap(o => [...o.sucs.keys()])).size;
+    const kpi = (t, v, s) => `<div class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm"><div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">${t}</div><div class="mt-0.5 text-2xl font-extrabold text-slate-900 num-tabular">${v}</div><div class="text-[11px] text-slate-500 mt-0.5">${s}</div></div>`;
+    const fm = (m, est) => m > 0 ? `${est ? '~' : ''}${fmtM(m)}` : '—';
+    const sinVen = !x.ven, sinGa = !x.ga;
+    el.innerHTML = `<p class="text-[11px] text-slate-500">Las últimas ${SEMANAS} semanas terminan el ${fechaCorta(S.corte)}. Se arma con los negados por día y sucursal que cargas, la venta de Comercial y, cuando exista, el export de GA4 por producto. No incluye existencias.</p>
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">${kpi('Venta negada', fm(tm, hayEst), `${SEMANAS} semanas${hayEst ? ' · incluye estimados (~)' : ''}`)}${kpi('Veces negado', fmtN(L.reduce((s, o) => s + o.ve.reduce((a, b) => a + b, 0), 0)), `en ${L.length} productos`)}${kpi('Sucursales con negados', fmtN(nSuc), 'en el periodo')}${kpi('Prioridad alta', (n => `${n} producto${n === 1 ? '' : 's'}`)(L.filter(o => o.pri === 'a').length), 'constantes, de monto alto o en alza')}</div>
+        <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden"><div class="px-4 pt-4 flex flex-wrap items-center justify-between gap-2"><div><h3 class="text-sm font-extrabold text-slate-900">Productos que se niegan, de más a menos urgente</h3><p class="text-[11px] text-slate-500">Haz clic en un producto para ver su ficha. La prioridad sube con la constancia (semanas negado), el monto y si el interés o la venta del producto van en alza.</p></div><button type="button" onclick="pedidoSucursalCSV()" class="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold">⬇ Pedido por sucursal (CSV)</button></div>
+        <div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular mt-2"><thead class="bg-slate-50 text-[10px] uppercase text-slate-500"><tr><th class="px-3 py-2">Producto</th><th class="px-2 py-2">Categoría</th><th class="px-2 py-2 text-right">Semanas negado (de ${SEMANAS})</th><th class="px-2 py-2 text-right">Piezas / semana</th><th class="px-2 py-2 text-right">Sucursales</th><th class="px-2 py-2 text-right">Monto / semana</th><th class="px-2 py-2 text-right">Demanda no atendida</th><th class="px-2 py-2">Señal</th><th class="px-2 py-2">Prioridad</th></tr></thead><tbody>${L.slice(0, 40).map((o, i) => `<tr onclick="selNeg(${i})" class="border-t border-slate-100 cursor-pointer hover:bg-slate-50 ${i === S.negSel ? 'bg-blue-50' : ''}"><td class="px-3 py-2 font-semibold text-slate-800">${esc(o.n || o.sku)}<div class="text-[10px] text-slate-400 font-normal">${esc(o.sku)}</div></td><td class="px-2 py-2 text-slate-600">${esc(o.cat)}</td><td class="px-2 py-2 text-right font-bold">${o.sem}</td><td class="px-2 py-2 text-right font-bold">${fmtN(o.pzSem)}</td><td class="px-2 py-2 text-right">${o.sucl.length}</td><td class="px-2 py-2 text-right font-bold text-rose-700">${fm(o.moSem, o.hayEst)}</td><td class="px-2 py-2 text-right ${o.dna !== null && o.dna > 40 ? 'font-bold text-rose-700' : ''}">${o.dna === null ? '—' : o.dna.toFixed(0) + '%'}</td><td class="px-2 py-2">${o.alza ? '<span class="px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[11px] font-extrabold">En alza</span>' : ''}</td><td class="px-2 py-2">${chipPri(o.pri)}</td></tr>`).join('')}</tbody></table></div></div>
+        <div class="rounded-2xl bg-white border-2 border-blue-300 shadow-sm p-4 space-y-3"><div class="flex flex-wrap items-center justify-between gap-2"><h3 class="text-sm font-extrabold text-slate-900">Ficha de Abasto · ${esc(x.n || x.sku)}</h3><span class="flex flex-wrap gap-1.5">${chipPri(x.pri)}<span class="px-2 py-0.5 rounded-full border border-slate-200 text-[11px] font-bold text-slate-600">${esc(x.sku)}</span><span class="px-2 py-0.5 rounded-full border border-slate-200 text-[11px] font-bold text-slate-600">${esc(x.cat)}</span></span></div>
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">${kpi('Semanas con negados', `${x.sem} de ${SEMANAS}`, x.primera >= 0 ? 'desde la semana del ' + fechaCorta(inicioSemana(x.primera)) : '—')}${kpi('Piezas negadas / semana', fmtN(x.pzSem), 'promedio de las últimas 4 semanas')}${kpi('Demanda no atendida', x.dna === null ? '—' : x.dna.toFixed(0) + '%', x.dna === null ? 'sin ventas de Comercial para este producto' : 'negadas ÷ (vendidas + negadas)')}${kpi('Monto negado / semana', fm(x.moSem, x.hayEst), 'piezas × precio')}</div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4"><div><div class="text-xs font-extrabold text-slate-700 mb-1">Piezas negadas por semana</div>${barrasSVG(x.pz)}<div class="text-[11px] text-slate-500">${SEMANAS} semanas · la más reciente a la derecha</div></div>
+        <div><div class="text-xs font-extrabold text-slate-700 mb-1">Vistas de producto (GA4)</div>${sinGa ? '<div class="rounded-xl border border-dashed border-slate-300 p-4 text-[11px] text-slate-500">Todavía no hay export de GA4 por producto. Cuando lo cargues, aquí aparece el interés semana por semana.</div>' : lineaSVG(x.ga.vis, '#2563eb')}</div>
+        <div><div class="text-xs font-extrabold text-slate-700 mb-1">Unidades vendidas (Comercial)</div>${sinVen ? '<div class="rounded-xl border border-dashed border-slate-300 p-4 text-[11px] text-slate-500">Sin ventas de Comercial para este SKU en el periodo (o aún cargando).</div>' : lineaSVG(x.ven, '#059669') + `<div class="text-[11px] text-slate-500">${x.ven.slice(-4).reduce((a, b) => a + b, 0) < x.ven.slice(0, 4).reduce((a, b) => a + b, 0) ? 'baja contra el inicio del periodo' : 'estable o al alza'}</div>`}</div></div></div>
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-4"><div class="xl:col-span-2 rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden"><div class="px-4 pt-4 flex flex-wrap items-center justify-between gap-2"><h3 class="text-sm font-extrabold text-slate-900">Piezas por semana a cubrir, por sucursal</h3><button type="button" onclick="pedidoSucursalCSV(${S.negSel})" class="text-[11px] font-bold text-blue-700 hover:underline">Descargar este producto (CSV)</button></div>
+        <div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular mt-2"><thead class="bg-slate-50 text-[10px] uppercase text-slate-500"><tr><th class="px-3 py-2">Sucursal</th><th class="px-2 py-2 text-right">Piezas / semana</th><th class="px-2 py-2 text-right">Semanas negada (de ${SEMANAS})</th><th class="px-2 py-2 text-right">Monto / semana</th><th class="px-2 py-2">Constancia</th><th class="px-2 py-2">Recomendación</th></tr></thead><tbody>${x.sucl.map(su => { const c = su.sem >= 10 ? ['Constante', 'bg-rose-100 text-rose-700'] : su.sem >= semAb().semMin ? ['Frecuente', 'bg-amber-100 text-amber-800'] : ['Ocasional', 'bg-slate-100 text-slate-600']; return `<tr class="border-t border-slate-100"><td class="px-3 py-2 font-semibold">${esc(su.suc)}</td><td class="px-2 py-2 text-right font-bold">${fmtN(su.pzSem)}</td><td class="px-2 py-2 text-right">${su.sem}</td><td class="px-2 py-2 text-right text-rose-700 font-bold">${fm(su.moSem, x.hayEst)}</td><td class="px-2 py-2"><span class="px-2 py-0.5 rounded-full text-[11px] font-extrabold ${c[1]}">${c[0]}</span></td><td class="px-2 py-2 text-[11px]">${su.sem >= semAb().semMin ? `Cubrir <b>${fmtN(su.pzSem)} pzs/sem</b>` : 'No reforzar: ocasional'}</td></tr>`; }).join('')}
+        <tr class="border-t-2 border-slate-200 font-extrabold"><td class="px-3 py-2">Total a cubrir</td><td class="px-2 py-2 text-right">${fmtN(x.aCubrir)}</td><td></td><td class="px-2 py-2 text-right text-rose-700">${fm(x.sucl.filter(su => su.sem >= semAb().semMin).reduce((a, su) => a + su.moSem, 0), x.hayEst)}</td><td></td><td class="px-2 py-2 text-[11px] font-normal text-slate-500">solo sucursales con negados en ${semAb().semMin} o más de ${SEMANAS} semanas</td></tr></tbody></table></div></div>
+        <div class="rounded-2xl bg-white border border-slate-200 shadow-sm p-4"><h3 class="text-sm font-extrabold text-slate-900">Texto para Abasto</h3><p class="mt-2 text-xs leading-relaxed text-slate-700">${esc(textoAbasto(x))}</p><div class="mt-3 flex flex-wrap gap-2"><button type="button" onclick="copiarTexto(${S.negSel})" class="px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-[11px] font-bold text-slate-700 hover:border-blue-500 hover:text-blue-700">Copiar texto</button><button type="button" onclick="accionAbasto(${S.negSel})" class="px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-[11px] font-bold text-slate-700 hover:border-blue-500 hover:text-blue-700">Registrar acción para Abasto</button></div></div></div>`;
 }
-function negadosCSV() { const f = [['SKU', 'Producto', 'Categoria', 'Veces_negado', 'Piezas', 'Monto_negado', 'Monto_estimado', 'Veces_anterior', 'En_alza']]; (S._negSku || []).forEach(r => f.push([r.sku, r.n, r.cat, r.veces, r.piezas, Math.round(r.mt || 0), r.hayEst ? 'Si' : 'No', r.antes, r.alza ? 'Si' : 'No'])); bajarCSV(`Negados_${S.corte}.csv`, f); }
+function pedidoSucursalCSV(i) {
+    const L = S._negLista || serieNegados(), sel = i === undefined ? L : [L[i]].filter(Boolean), f = [['SKU', 'Producto', 'Categoria', 'Sucursal', 'Piezas_por_semana', 'Semanas_negado_de_12', 'Monto_por_semana', 'Monto_estimado', 'Prioridad']];
+    sel.forEach(o => o.sucl.filter(su => su.sem >= semAb().semMin).forEach(su => f.push([o.sku, o.n, o.cat, su.suc, su.pzSem, su.sem, Math.round(su.moSem), o.hayEst ? 'Si' : 'No', PRI[o.pri][0]])));
+    bajarCSV(`Pedido_por_sucursal_${S.corte}.csv`, f);
+}
+async function cargarVentasNegados() {
+    if (!NUBE.activo || S.demo || !S.corte || !S.neg.length) return;
+    try { const L = serieNegados().slice(0, 60), skus = L.map(o => o.sku); if (!skus.length) return;
+        const { data, error } = await NUBE.client.rpc('demanda_producto_semanas', { p_corte: S.corte, p_semanas: SEMANAS, p_skus: skus }); if (error) throw error;
+        const v = {}; data.forEach(r => { const a = v[r.sku] = v[r.sku] || Array(SEMANAS).fill(0); if (r.sem >= 0 && r.sem < SEMANAS) a[r.sem] = Number(r.unidades); }); S.ventasSem = v; if (S.vista === 'negados') renderTodo(); } catch (e) { console.error(e); }
+}
 
 // ---- Acciones ----
 function renderAcciones(A) {
@@ -508,6 +565,7 @@ function construirIntegridad() {
     M.conciliacion.filas.push({ medida: 'Pedidos y venta', canal: 'Todos', a: 'Comercial', b: Object.keys(S.com).length ? fechaCorta(Object.keys(S.com).map(k => k.split('|')[1]).sort().pop()) : '—', dif: '', tono: Object.keys(S.com).length ? 'ok' : 'warn', estado: Object.keys(S.com).length ? '✓ Con datos' : '! Sin datos' });
     const pis = cfg().piso;
     M.ajustes = [...CANALES.map(c => ({ k: 'piso_' + c, etiqueta: `Piso de alerta · ${c}`, desc: 'Variación mínima que dispara alerta; el canal usa el mayor entre este piso y su ruido normal', valor: pis[c], unidad: '%' })),
+        { k: 'semMin', etiqueta: 'Semanas mínimas para reforzar una sucursal', desc: 'Una sucursal se refuerza si se niega en al menos estas semanas de las últimas 12', valor: semAb().semMin, unidad: 'de 12' }, { k: 'semAlta', etiqueta: 'Semanas para considerar la demanda constante', desc: 'Con estas semanas negado o más, el producto suma puntos de prioridad alta', valor: semAb().semAlta, unidad: 'de 12' },
         { k: 'k', etiqueta: 'Sensibilidad al ruido', desc: 'Veces el ruido normal del canal que debe superar la variación para alertar (1.5 es el equilibrio)', valor: cfg().k, unidad: '×' }, { k: 'minBase', etiqueta: 'Semanas mínimas de base', desc: 'Mínimo de mismos días de la semana (de 4) para calcular el esperado', valor: cfg().minBase, unidad: 'de 4' }];
     M.notaAjustes = 'Piso por canal: WhatsApp y Llamadas suelen ser más volátiles. Si una alerta salta por puro ruido, sube el piso de ese canal; si se te escapan caídas reales, bájalo.';
     return M;
@@ -517,8 +575,8 @@ const IG_HOOKS = {
     reconocidos: () => IGC().rec,
     reconocer(id) { IGC().rec[id] = { f: hoyISO() }; persistirEstado(); igRepintar(); }, quitarReconocido(id) { delete IGC().rec[id]; persistirEstado(); igRepintar(); },
     crearAccion(p) { abrirAccion(JSON.stringify(p)); },
-    guardarAjustes(o) { CANALES.forEach(c => { if (o['piso_' + c] > 0) cfg().piso[c] = o['piso_' + c]; }); if (o.k > 0) cfg().k = o.k; if (o.minBase >= 1 && o.minBase <= 4) cfg().minBase = o.minBase; persistirEstado(); renderTodo(); toast('✅ Ajustes guardados.'); },
-    restablecer() { S.config.piso = { ...CFG_DEF.piso }; S.config.k = CFG_DEF.k; S.config.minBase = CFG_DEF.minBase; persistirEstado(); renderTodo(); },
+    guardarAjustes(o) { CANALES.forEach(c => { if (o['piso_' + c] > 0) cfg().piso[c] = o['piso_' + c]; }); if (o.k > 0) cfg().k = o.k; if (o.minBase >= 1 && o.minBase <= 4) cfg().minBase = o.minBase; if (o.semMin >= 1 && o.semMin <= 12) semAb().semMin = o.semMin; if (o.semAlta >= 1 && o.semAlta <= 12) semAb().semAlta = o.semAlta; persistirEstado(); renderTodo(); toast('✅ Ajustes guardados.'); },
+    restablecer() { S.config.piso = { ...CFG_DEF.piso }; S.config.k = CFG_DEF.k; S.config.minBase = CFG_DEF.minBase; S.config.abasto = { semMin: 6, semAlta: 8 }; persistirEstado(); renderTodo(); },
     descargarCSV(n, f) { bajarCSV(n, f); }, recalcular() { cargarDatos(true); }
 };
 function igRepintar() { IG.modelo = construirIntegridad(); Integridad.pintarChip(document.getElementById('chip-datos'), IG.modelo, IG_HOOKS); if (S.vista === 'config') pintarConfig(); }
@@ -545,7 +603,7 @@ function corteDefault() { const ayer = addDias(hoyISO(), -1); const mx = Object.
 function cambiarVista(v) { S.vista = v; renderTodo(); if (v === 'productos' && !S.prod) cargarProductos(); }
 async function cambiarCanal(c) { S.canal = c; if (S.vista === 'productos') { S.prod = null; renderTodo(); await cargarProductos(); } else renderTodo(); }
 async function cambiarVentana(v) { S.ventana = Number(v); S.config.ventana = S.ventana; S.prod = null; S.fuentes = null; renderTodo(); await cargarDerivados(); }
-async function cambiarCorte(f) { if (!f) return; S.corte = f; S.prod = null; S.fuentes = null; renderTodo(); await cargarDerivados(); }
+async function cambiarCorte(f) { if (!f) return; S.corte = f; S.prod = null; S.fuentes = null; S.ventasSem = null; renderTodo(); await cargarDerivados(); }
 
 function generarDemo() {
     const hoy = addDias(hoyISO(), -1), base = { Web: 18000, App: 2400, WhatsApp: 700, Llamadas: 420 }, sem = [.92, 1.06, 1.08, 1.04, 1.0, .88, .76]; const ses = {}, plan = {}, com = {};
@@ -559,9 +617,14 @@ function entrarDemo() {
     const d = generarDemo(); S.demo = true; Object.assign(S, { ses: d.ses, plan: d.plan, com: d.com, corte: null, prod: null, fuentes: null, busq: [], neg: [] }); S.corte = corteDefault();
     const cats = ['Medicamentos', 'Dermocosmética', 'Bebé y maternidad', 'Vitaminas', 'Cuidado personal'], P = []; for (let i = 0; i < 60; i++) { const a = 20 + Math.random() * 200, b = a * (.5 + Math.random() * 1.1); P.push({ sku: 'SKU-' + (100 + i), n: 'Producto de ejemplo ' + (i + 1), cat: cats[i % 5], uAct: Math.round(a), uPrev: Math.round(b), vAct: Math.round(a * 180), vPrev: Math.round(b * 180) }); }
     S.prod = P; S.fuentes = [['google / organic', 'Web', 42000, 40500], ['google / cpc', 'Web', 21000, 26500], ['(direct) / (none)', 'Web', 18500, 18200], ['email / crm', 'Web', 6200, 7100], ['app / push', 'App', 5200, 3900]].map(([fuente, canal, act, prev]) => ({ fuente, canal, act, prev }));
+    const prods = [['HUM-001', 'Humalog KwikPen 3 ml', 'Endocrinología', 1036, [22, 25, 31, 28, 30, 34, 33, 38, 41, 40, 44, 47]], ['LAN-007', 'Lantus SoloStar', 'Endocrinología', 1000, [14, 15, 18, 19, 18, 21, 22, 22, 24, 25, 25, 26]], ['ELI-060', 'Eliquis 5 mg 60 tab', 'Cardiología', 650, [0, 0, 0, 3, 5, 6, 8, 9, 10, 11, 12, 12]], ['BEB-003', 'Pañal etapa 3 mega 80', 'Bebé y maternidad', 355, [0, 0, 0, 0, 0, 0, 0, 4, 6, 8, 9, 9]]];
+    const sucs = [['Centro', .32], ['Norte', .25], ['Sur', .18], ['Poniente', .13], ['Oriente', .08], ['Valle', .04]]; S.neg = []; S.ventasSem = {};
+    prods.forEach(([sku, n, c, pr, sem]) => { S.ventasSem[sku] = sem.map((v, i) => Math.round(210 - i * 3 + Math.random() * 8));
+        sem.forEach((tot, wi) => { for (let d = 0; d < 7; d++) { const f = addDias(S.corte, -(7 * (11 - wi)) + 1 + d); sucs.forEach(([sn, sh]) => { const pz = Math.round(tot * sh / 7 + (Math.random() - .35)); if (pz > 0 && !(sh < .1 && Math.random() < .55)) S.neg.push({ fecha: f, sucursal: sn, sku, producto: n, categoria: c, veces: Math.max(1, Math.round(pz / 2)), piezas: pz, monto: pz * pr }); }); } }); });
+    S.ga4 = { 'HUM-001': { vis: [3100, 3200, 3250, 3400, 3450, 3600, 3700, 3850, 3900, 4100, 4200, 4350] } };
     renderTodo(); toast('Modo demostración activado.');
 }
-function salirDemo() { S.demo = false; Object.assign(S, { ses: {}, plan: {}, com: {}, prod: null, fuentes: null, busq: [], neg: [], corte: null }); renderTodo(); if (NUBE.activo) cargarDatos(true); }
+function salirDemo() { S.demo = false; Object.assign(S, { ses: {}, plan: {}, com: {}, prod: null, fuentes: null, busq: [], neg: [], corte: null, ventasSem: null, ga4: null }); renderTodo(); if (NUBE.activo) cargarDatos(true); }
 
 // =====================================================================
 // 7. NUBE: acceso, estado, lectura de las fuentes
@@ -616,7 +679,7 @@ async function cargarDatos(forzar) {
         nubeEstado('☁️ Sincronizado', 'ok'); renderTodo(); await cargarDerivados();
     } catch (e) { console.error(e); nubeEstado('⚠️ Sin conexión: no se pudieron cargar los datos', 'error'); } finally { S.cargando = false; }
 }
-async function cargarDerivados() { await Promise.all([cargarProductos(), cargarFuentes()]); }
+async function cargarDerivados() { await Promise.all([cargarProductos(), cargarFuentes(), cargarVentasNegados()]); }
 async function cargarProductos() {
     if (!NUBE.activo || S.demo || !S.corte) return;
     try { const canales = S.canal === 'Todos' ? CANALES : [S.canal]; const { data, error } = await NUBE.client.rpc('demanda_productos', { p_corte: S.corte, p_dias: S.ventana, p_canales: canales }); if (error) throw error;
