@@ -782,7 +782,7 @@ function renderTodo() {
     if (S.vista === 'resumen' || S.vista === 'canales') dibujarGrafica();   // con el panel ya visible, para que el gráfico mida bien
     IG.modelo = construirIntegridad(); Integridad.pintarChip(document.getElementById('chip-datos'), IG.modelo, IG_HOOKS);
 }
-function corteDefault() { const ayer = addDias(hoyISO(), -1); const mx = Object.keys(S.ses).map(k => k.split('|')[1]).sort().pop(); return mx && mx < ayer ? mx : ayer; }
+function corteDefault() { return addDias(hoyISO(), -1); }   // la venta llega a día vencido: al abrir, el corte es ayer
 function cambiarVista(v) { S.vista = v; renderTodo(); if (v === 'productos' && !S.prod) cargarProductos(); if (v === 'gente') cargarRecurrencia(); }
 async function cambiarCanal(c) { S.canal = c; S.recKey = ''; if (S.vista === 'gente') cargarRecurrencia(); if (S.vista === 'productos') { S.prod = null; renderTodo(); await cargarProductos(); } else renderTodo(); }
 async function cambiarVentana(v) { S.ventana = Number(v); S.config.ventana = S.ventana; S.prod = null; S.fuentes = null; S.ga4Win = null; renderTodo(); await cargarDerivados(); }
