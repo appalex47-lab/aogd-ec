@@ -347,7 +347,7 @@ function calcAlza() { return listaProductos().filter(r => r.dv > 0 && (r.d === n
 async function cargarGA4() {
     if (!NUBE.activo || S.demo || !S.corte) return;
     try { const [w, c] = await Promise.all([NUBE.client.rpc('demanda_ga4_ventana', { p_corte: S.corte, p_dias: S.ventana }), NUBE.client.rpc('demanda_ga4_cobertura')]); if (w.error) throw w.error; if (c.error) throw c.error;
-        S.ga4Win = w.data.map(r => ({ sku: r.sku, n: r.producto, visAct: Number(r.vis_act), visPrev: Number(r.vis_prev), carAct: Number(r.car_act), carPrev: Number(r.car_prev), compAct: Number(r.comp_act), compPrev: Number(r.comp_prev) })); S.ga4Cob = c.data; }
+        S.ga4Win = (w.data || []).map(r => ({ sku: r.sku, n: r.producto, visAct: Number(r.vis_act), visPrev: Number(r.vis_prev), carAct: Number(r.car_act), carPrev: Number(r.car_prev), compAct: Number(r.comp_act), compPrev: Number(r.comp_prev) })); S.ga4Cob = c.data; }
     catch (e) { console.error(e); } if (S.vista === 'productos' || S.vista === 'config') renderTodo();
 }
 function ga4Local() {   // sin nube: se calcula con las filas cargadas en este navegador
