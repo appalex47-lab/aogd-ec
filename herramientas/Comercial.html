@@ -259,8 +259,8 @@
             <button id="nube-boton" type="submit" class="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold transition">Entrar</button>
         </form>
     </div>
-    <div id="nube-estado" class="fixed bottom-5 left-5 z-40 hidden px-2.5 py-1 rounded-lg bg-white/90 border border-slate-200 text-[11px] font-semibold text-slate-600 shadow-sm"></div>
-    <div id="toast" class="fixed bottom-5 right-5 z-50 hidden max-w-sm bg-slate-900 text-white text-xs sm:text-sm font-medium px-4 py-3 rounded-xl shadow-xl border border-slate-700"></div>
+    <div id="nube-estado" class="fixed bottom-2 left-2 z-40 pointer-events-none opacity-80 hidden px-2.5 py-1 rounded-lg bg-white/90 border border-slate-200 text-[11px] font-semibold text-slate-600 shadow-sm"></div>
+    <div id="toast" class="fixed bottom-4 right-4 z-50 pointer-events-none hidden max-w-sm bg-slate-900 text-white text-xs sm:text-sm font-medium px-4 py-3 rounded-xl shadow-xl border border-slate-700"></div>
 
     <script>
     // =====================================================================
@@ -684,9 +684,11 @@
         if (d === null || d === undefined) return '<span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[11px] font-bold">Sin base</span>';
         return `<span title="Contra su ritmo normal (diagnóstico)" class="inline-block whitespace-nowrap px-2 py-0.5 rounded-full text-[11px] font-bold num-tabular ${d >= 0 ? 'bg-sky-100 text-sky-800' : 'bg-slate-200 text-slate-700'}">${d >= 0 ? '▲' : '▼'} ${Math.abs(d).toFixed(1)}%</span>`;
     }
-    const estadoMeta = c => c >= 97 ? ['bg-emerald-100 text-emerald-800', 'En ritmo'] : c >= 90 ? ['bg-amber-100 text-amber-800', 'Atención'] : ['bg-rose-100 text-rose-800', 'Por debajo'];
+    const estadoMeta = c => c >= 98 ? ['bg-emerald-100 text-emerald-800', 'En ritmo'] : c >= 90 ? ['bg-amber-100 text-amber-800', 'Atención'] : ['bg-rose-100 text-rose-800', 'Por debajo'];
+    // Avance real vs esperado al corte: verde si va a ≥98% de lo esperado, ámbar 90–98%, rojo por debajo (misma escala que Revisión Diaria)
+    const colorAvance = (r, e) => (e > 0 ? r / e * 100 : 100) >= 98 ? 'bg-emerald-500' : (e > 0 ? r / e * 100 : 100) >= 90 ? 'bg-amber-500' : 'bg-rose-500';
     const chipMeta = c => c === null || c === undefined ? '<span class="text-slate-300">—</span>' : `<span class="inline-block whitespace-nowrap px-2 py-0.5 rounded-full text-[11px] font-bold num-tabular ${estadoMeta(c)[0]}">${fmtMeta(c)}</span>`;
-    const barraAvance = (av, esp) => `<span class="inline-block align-middle relative h-2 w-14 rounded-full bg-slate-200 ml-1.5"><span class="absolute left-0 top-0 bottom-0 rounded-full ${av >= esp ? 'bg-emerald-500' : 'bg-rose-500'}" style="width:${Math.min(100, av)}%"></span><span class="absolute -top-0.5 -bottom-0.5 w-0.5 bg-slate-900" style="left:${Math.min(100, esp)}%" title="Avance esperado al corte: ${esp.toFixed(1)}%"></span></span>`;
+    const barraAvance = (av, esp) => `<span class="inline-block align-middle relative h-2 w-14 rounded-full bg-slate-200 ml-1.5"><span class="absolute left-0 top-0 bottom-0 rounded-full ${colorAvance(av, esp)}" style="width:${Math.min(100, av)}%"></span><span class="absolute -top-0.5 -bottom-0.5 w-0.5 bg-slate-900" style="left:${Math.min(100, esp)}%" title="Avance esperado al corte: ${esp.toFixed(1)}%"></span></span>`;
     // Todas las tablas se ordenan de mayor a menor por su cifra principal; un clic en el encabezado de cualquier columna cambia el orden
     function ordenar(tabla, k, tipo) { const o = S.orden[tabla]; S.orden[tabla] = o && o.k === k ? { k, d: -o.d } : { k, d: tipo === 't' ? 1 : -1 }; renderTodo(); }
     function thO(tabla, k, x, cls = '', tipo = 'n') {
@@ -787,7 +789,7 @@
         </div>`;
     }
     function barraPacing(real, esp) {
-        return `<div class="relative h-3 rounded-full bg-slate-100 overflow-hidden"><div class="h-full rounded-full ${real >= esp ? 'bg-emerald-500' : 'bg-rose-500'}" style="width:${Math.min(100, real)}%"></div><div class="absolute -top-0.5 -bottom-0.5 w-0.5 bg-slate-900" style="left:${Math.min(100, esp)}%" title="Pacing esperado: ${esp.toFixed(1)}%"></div></div>`;
+        return `<div class="relative h-3 rounded-full bg-slate-100 overflow-hidden"><div class="h-full rounded-full ${colorAvance(real, esp)}" style="width:${Math.min(100, real)}%"></div><div class="absolute -top-0.5 -bottom-0.5 w-0.5 bg-slate-900" style="left:${Math.min(100, esp)}%" title="Pacing esperado: ${esp.toFixed(1)}%"></div></div>`;
     }
     function renderResumen(A) {
         const { V, T, B, k, kb } = A;
@@ -836,7 +838,7 @@
     }
 
     function barraPacing(real, esp) {
-        return `<div class="relative h-3 rounded-full bg-slate-100 overflow-hidden mt-2"><div class="h-full rounded-full ${real >= esp ? 'bg-emerald-500' : 'bg-rose-500'}" style="width:${Math.min(100, real)}%"></div><div class="absolute -top-0.5 -bottom-0.5 w-0.5 bg-slate-900" style="left:${Math.min(100, esp)}%" title="Pacing esperado: ${esp.toFixed(1)}%"></div></div>`;
+        return `<div class="relative h-3 rounded-full bg-slate-100 overflow-hidden mt-2"><div class="h-full rounded-full ${colorAvance(real, esp)}" style="width:${Math.min(100, real)}%"></div><div class="absolute -top-0.5 -bottom-0.5 w-0.5 bg-slate-900" style="left:${Math.min(100, esp)}%" title="Pacing esperado: ${esp.toFixed(1)}%"></div></div>`;
     }
     function renderCategorias(A) {
         const { V } = A; const tieneMeta = A.planVent > 0, M = A.mes, mas = S.masCols;
@@ -1759,7 +1761,7 @@
     };
         function nubeEstado(texto, tono) {
         const el = document.getElementById('nube-estado'); el.textContent = texto;
-        el.className = 'fixed bottom-5 left-5 z-40 px-2.5 py-1 rounded-lg bg-white/90 border text-[11px] font-semibold shadow-sm ' + (tono === 'error' ? 'border-rose-300 text-rose-700' : tono === 'ok' ? 'border-emerald-300 text-emerald-700' : 'border-slate-200 text-slate-600');
+        el.className = 'fixed bottom-2 left-2 z-40 pointer-events-none opacity-80 px-2.5 py-1 rounded-lg bg-white/90 border text-[11px] font-semibold shadow-sm ' + (tono === 'error' ? 'border-rose-300 text-rose-700' : tono === 'ok' ? 'border-emerald-300 text-emerald-700' : 'border-slate-200 text-slate-600');
     }
     function guardarCacheLocal() { if (S.demo) return; try { localStorage.setItem(CACHE_KEY, JSON.stringify({ a: S.acciones, c: S.config, m: S.metas, mc: S.metasCfg, s: S.snap })); } catch (e) {} }
     function cargarCacheLocal() {
