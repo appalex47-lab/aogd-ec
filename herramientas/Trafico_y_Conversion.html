@@ -686,6 +686,76 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
         return `${n}: ${fechaCorta(V.ini)} – ${fechaCorta(V.fin)} · Benchmark propio: ${fechaCorta(V.bIni)} – ${fechaCorta(V.bFin)}`;
     }
 
+
+    // =====================================================================
+    // VALOR DEL TRÁFICO: cruza las sesiones (GA4) con la venta y los clientes de Comercial
+    // =====================================================================
+    const VALOR = { k: null, datos: null, error: null, A: null };
+    const canalesComercial = () => S.canal === 'Total' ? ['Web', 'App'] : [S.canal];
+    async function cargarValor(V) {
+        const k = `${V.bIni}|${V.fin}|${S.demo ? 'demo' : 'nube'}`;
+        if (VALOR.k === k) return; VALOR.k = k; VALOR.datos = null; VALOR.error = null;
+        try {
+            if (S.demo) {
+                const por = {}, nr = []; const rnd = (() => { let x = 7; return () => (x = (x * 16807) % 2147483647) / 2147483647; })();
+                S.registros.forEach(r => { const c = aApp(r.c), key = `${c}|${r.f}`; por[key] = (por[key] || 0) + r.ped; });
+                const dias = Object.entries(por).map(([key, ped]) => { const [c, f] = key.split('|'); const venta = Math.round(ped * 316 * (0.96 + rnd() * 0.08)); return { fecha: f, canal: c, pedidos: ped, venta }; });
+                dias.forEach(d => { const rec = 0.55 + rnd() * 0.06, pr = Math.round(d.pedidos * rec); nr.push({ fecha: d.fecha, canal: d.canal, ped_nuevos: d.pedidos - pr, ped_rec: pr, venta_nueva: Math.round(d.venta * (1 - rec) * 0.92), venta_rec: Math.round(d.venta * rec * 1.06) }); });
+                VALOR.datos = { dias, nr, hist: null };
+            } else if (NUBE.activo) {
+                const a = await NUBE.client.from('comercial_dia').select('fecha,canal,pedidos,venta').in('canal', ['Web', 'App']).gte('fecha', V.bIni).lte('fecha', V.fin).limit(5000);
+                if (a.error) throw a.error;
+                const b = await NUBE.client.rpc('comercial_nuevos_recurrentes', { p_ini: V.bIni, p_fin: V.fin });
+                if (b.error) throw b.error;
+                VALOR.datos = { dias: a.data.map(x => ({ fecha: x.fecha, canal: x.canal, pedidos: Number(x.pedidos), venta: Number(x.venta) })), nr: b.data.map(x => ({ fecha: x.fecha, canal: x.canal, ped_nuevos: Number(x.ped_nuevos), ped_rec: Number(x.ped_rec), venta_nueva: Number(x.venta_nueva), venta_rec: Number(x.venta_rec) })), hist: b.data[0] ? b.data[0].hist_desde : null };
+            }
+        } catch (e) { console.error(e); VALOR.error = 'No se pudo cruzar con Comercial.'; }
+        if (VALOR.k === k && VALOR.A) pintarValor(VALOR.A);
+    }
+    function pintarValor(A) {
+        const el = document.getElementById('valor-trafico'); if (!el) return;
+        VALOR.A = A; const V = A.V;
+        if (!NUBE.activo && !S.demo) { el.innerHTML = ''; return; }
+        if (VALOR.k !== `${V.bIni}|${V.fin}|${S.demo ? 'demo' : 'nube'}`) { cargarValor(V); el.innerHTML = '<div class="rounded-2xl bg-white border border-slate-200 p-4 text-xs text-slate-500">Cruzando con Comercial…</div>'; return; }
+        if (VALOR.error) { el.innerHTML = `<div class="rounded-2xl bg-white border border-slate-200 p-4 text-xs text-rose-700">${VALOR.error}</div>`; return; }
+        const D = VALOR.datos; if (!D) { el.innerHTML = ''; return; }
+        const cs = canalesComercial(), en = (f, a, b) => f >= a && f <= b;
+        const suma = (a, b) => { const o = { ped: 0, venta: 0, pn: 0, pr: 0, vn: 0, vr: 0, dias: 0 };
+            D.dias.filter(x => cs.includes(x.canal) && en(x.fecha, a, b)).forEach(x => { o.ped += x.pedidos; o.venta += x.venta; });
+            D.nr.filter(x => cs.includes(x.canal) && en(x.fecha, a, b)).forEach(x => { o.pn += x.ped_nuevos; o.pr += x.ped_rec; o.vn += x.venta_nueva; o.vr += x.venta_rec; });
+            return o; };
+        const act = suma(V.ini, V.fin), bas = suma(V.bIni, V.bFin);
+        const sesA = V.rows.reduce((t, r) => t + r.ses, 0), sesB = V.bRows.reduce((t, r) => t + r.ses, 0);
+        if (!act.venta || !sesA) { el.innerHTML = '<div class="rounded-2xl bg-white border border-slate-200 p-4 text-xs text-slate-500"><strong class="text-slate-700">Valor del tráfico.</strong> Aún no hay venta de Comercial para esta ventana: carga las ventas de Comercial para ver ingreso por sesión y clientes recurrentes.</div>'; return; }
+        const m = (o, ses) => ({ rps: ses ? o.venta / ses : null, ticket: o.ped ? o.venta / o.ped : null, pps: ses ? o.ped / ses : null, rec: (o.pn + o.pr) ? o.pr / (o.pn + o.pr) * 100 : null, vrec: (o.vn + o.vr) ? o.vr / (o.vn + o.vr) * 100 : null });
+        const a = m(act, sesA), b = sesB && bas.venta ? m(bas, sesB) : { rps: null, ticket: null, pps: null, rec: null, vrec: null };
+        const d = (x, y) => (x === null || y === null || !y) ? null : (x - y) / y * 100;
+        const dRps = d(a.rps, b.rps), dTk = d(a.ticket, b.ticket), dPps = d(a.pps, b.pps);
+        const $m = v => v === null ? '—' : '$' + (v >= 100 ? fmtN(v) : v.toFixed(2));
+        const pp = (x, y) => (x === null || y === null) ? null : x - y;
+        const dRec = pp(a.rec, b.rec);
+        const chipPp = v => v === null ? '' : `<span class="inline-block px-2 py-0.5 rounded-full border text-xs font-bold num-tabular bg-slate-100 text-slate-700 border-slate-200">${v >= 0 ? '▲' : '▼'} ${Math.abs(v).toFixed(1)} pp</span>`;
+        let lectura = '';
+        if (dRps !== null && dPps !== null && dTk !== null) {
+            const sube = dRps >= 0;
+            lectura = `Cada sesión ${sube ? 'dejó' : 'deja'} ${$m(a.rps)} (${sube ? '+' : ''}${dRps.toFixed(1)}% vs lo normal, ${$m(b.rps)}). `
+                + `${Math.abs(dPps) >= Math.abs(dTk) ? `El movimiento viene sobre todo de cuántas sesiones terminan en pedido (${dPps >= 0 ? '+' : ''}${dPps.toFixed(1)}%)` : `El movimiento viene sobre todo del ticket (${dTk >= 0 ? '+' : ''}${dTk.toFixed(1)}%)`}; `
+                + `${Math.abs(dPps) >= Math.abs(dTk) ? `el ticket cambió ${dTk >= 0 ? '+' : ''}${dTk.toFixed(1)}%.` : `los pedidos por sesión cambiaron ${dPps >= 0 ? '+' : ''}${dPps.toFixed(1)}%.`}`;
+        }
+        const nota = D.hist ? `Recurrente = cliente con una compra anterior (historial de Comercial desde ${fechaCorta(D.hist)}). Un cliente que no compraba desde antes de esa fecha cuenta como nuevo.` : 'Recurrente = cliente con una compra anterior en Comercial.';
+        el.innerHTML = `<div class="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-sm space-y-3">
+            <div><h3 class="text-sm font-extrabold text-slate-900">Valor del tráfico <span class="text-slate-500 font-semibold">· cruce con Comercial</span></h3>
+            <p class="text-xs text-slate-500">Sesiones de Tráfico contra venta y clientes de Comercial (Web${S.canal === 'Web' ? '' : ' y App'}). Un CR alto con ticket bajo puede engañar: aquí se ve cuánto dinero deja cada sesión.</p></div>
+            <div class="grid grid-cols-2 xl:grid-cols-4 gap-3 items-start">
+                ${tarjeta('Ingreso por sesión', $m(a.rps), `${fmtN(act.venta)} de venta ÷ ${fmtN(sesA)} sesiones. Lo normal: ${$m(b.rps)}.`, dRps)}
+                ${tarjeta('Ticket promedio', $m(a.ticket), `Pedidos por sesión: ${a.pps === null ? '—' : (a.pps * 100).toFixed(2) + '%'} (normal ${b.pps === null ? '—' : (b.pps * 100).toFixed(2) + '%'}).`, dTk)}
+                ${tarjeta('Pedidos de clientes recurrentes', fmtP(a.rec, 1), `${fmtN(act.pr)} de ${fmtN(act.pr + act.pn)} pedidos; lo normal: ${fmtP(b.rec, 1)}. ${chipPp(dRec)}`)}
+                ${tarjeta('Venta de clientes recurrentes', fmtP(a.vrec, 1), `Nuevos: ${$m(act.vn)} · Recurrentes: ${$m(act.vr)}. Lo normal: ${fmtP(b.vrec, 1)}.`)}
+            </div>
+            ${lectura ? `<p class="text-xs text-slate-700 leading-relaxed">${lectura}</p>` : ''}
+            <p class="text-xs text-slate-500">${nota}</p></div>`;
+    }
+
     function renderResumen(A) {
         const { V, total, alertas, fuga } = A;
         const deltaSes = deltaRel(total.sesDia, total.sesDiaB);
@@ -702,6 +772,7 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
         document.getElementById('panel-resumen').innerHTML = `
             <p class="text-xs text-slate-500">${textoVentana(V)} · Canal: <strong>${ETIQ_CANAL[S.canal]}</strong></p>
             <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 items-start">${cards}</div>
+            <div id="valor-trafico"></div>
             <div class="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-sm">
                 <h3 class="text-sm font-extrabold text-slate-900">Comportamiento diario del mes</h3>
                 <p class="text-xs text-slate-500 mb-3">Sesiones (barras) y CR sesión → pedido (línea) hasta el corte</p>
@@ -711,6 +782,7 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
             ${panelOportunidades([...A.oportunidadesPorDim.Fuente, ...A.oportunidadesPorDim['Campaña'], ...A.oportunidadesPorDim.Dispositivo].sort((a, b) => b.extra - a.extra))}
             ${textoBenchmark(V)}`;
         dibujarGraficoDiario();
+        pintarValor(A);
     }
 
     function dibujarGraficoDiario() {
