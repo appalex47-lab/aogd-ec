@@ -692,7 +692,8 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
     }
     function textoVentana(V) {
         const n = S.ventana === 'mtd' ? 'Mes a la fecha' : S.ventana === 1 || S.ventana === '1' ? 'Día de corte' : `Últimos ${S.ventana} días`;
-        return `${n}: ${fechaCorta(V.ini)} – ${fechaCorta(V.fin)} · Benchmark propio: ${fechaCorta(V.bIni)} – ${fechaCorta(V.bFin)}`;
+        const full = `${n}: ${fechaCorta(V.ini)} – ${fechaCorta(V.fin)} · Benchmark propio: ${fechaCorta(V.bIni)} – ${fechaCorta(V.bFin)}`;
+        return `<span class="max-sm:hidden">${full}</span><span class="sm:hidden" title="${full}">${n} · vs ${fechaCorta(V.bIni)}–${fechaCorta(V.bFin)}</span>`;
     }
 
 
@@ -785,7 +786,7 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
             <div class="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-sm">
                 <h3 class="text-sm font-extrabold text-slate-900">Comportamiento diario del mes</h3>
                 <p class="text-xs text-slate-500 mb-3">Sesiones (barras) y CR sesión → pedido (línea) hasta el corte</p>
-                <div class="relative h-64"><canvas id="chart-diario"></canvas></div>
+                <div class="relative h-44 sm:h-64"><canvas id="chart-diario"></canvas></div>
             </div>
             ${panelAlertas('Alertas activas · ordenadas por pedidos perdidos', alertas, 'Sin alertas: ninguna fuente, campaña, etapa o dispositivo convierte menos de lo normal.', 8)}
             ${panelOportunidades([...A.oportunidadesPorDim.Fuente, ...A.oportunidadesPorDim['Campaña'], ...A.oportunidadesPorDim.Dispositivo].sort((a, b) => b.extra - a.extra))}
@@ -1100,7 +1101,7 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
     function avisoCorte() {
         const el = document.getElementById('aviso-corte'); if (!el) return; const ult = S.registros.length ? S.registros.reduce((m, r) => r.f > m ? r.f : m, '0000') : null;
         const falta = !S.demo && S.corte && ult && S.corte > ult && S.corte <= addDias(hoyISO(), -1) && S.registros.length > 0;
-        el.classList.toggle('hidden', !falta); if (falta) el.innerHTML = `<strong>Falta el tráfico del ${fechaCorta(S.corte)}.</strong> El corte es ${fechaCorta(S.corte)} (la información llega a día vencido) y lo último cargado es del ${fechaCorta(ult)}. Carga el archivo para completar el corte.`;
+        el.classList.toggle('hidden', !falta); if (falta) el.innerHTML = `<strong>Falta el tráfico del ${fechaCorta(S.corte)}.</strong> <span class="max-sm:hidden">El corte es ${fechaCorta(S.corte)} (la información llega a día vencido) y lo último cargado es del ${fechaCorta(ult)}. Carga el archivo para completar el corte.</span><span class="sm:hidden">Lo último cargado es del ${fechaCorta(ult)}.</span>`;
     }
     function cambiarVista(v) { S.vista = v; renderTodo(); }
     function cambiarCanal(c) { S.canal = c; S.abiertos = {}; renderTodo(); }
