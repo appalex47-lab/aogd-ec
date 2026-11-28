@@ -63,7 +63,7 @@
         const gi = id => { const e = document.getElementById(id); return e ? e.value.trim() : ''; }, imp = gi('acc-impacto');
         datos.impacto = imp !== '' && !isNaN(Number(imp)) ? Number(imp) : null; datos.metrica = gi('acc-metrica');
         datos.fechaCompletada = datos.estatus === 'Completada' ? ((existente && existente.fechaCompletada) || hoyLocal()) : null;
-        if (!existente && typeof S !== 'undefined' && S.vista) datos.vista = S.vista;
+        if (!existente) { const v = (typeof S !== 'undefined' && S && S.vista) || (typeof estadoApp !== 'undefined' && estadoApp && estadoApp.vista); if (v) datos.vista = v; }
     };
     // Enlace profundo desde Acciones: #vista=<id> abre la herramienta en esa pestaña
     (function () { const m = location.hash.match(/vista=([a-z0-9_-]+)/i); if (!m) return;

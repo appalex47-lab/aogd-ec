@@ -16,6 +16,7 @@
     <script src="integridad.js"></script>
     <script src="accesibilidad.js"></script>
     <script src="glosario.js"></script>
+    <script src="seguimiento.js"></script>
     <script src="filtros-movil.js"></script>
     <style>
         body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background-color: #f8fafc; color: #0f172a; }
@@ -348,7 +349,7 @@
     function ventanas() {
         const mtd = S.ventana === 'mtd' && S.corte >= `${S.mes}-01`, ini = mtd ? `${S.mes}-01` : addDias(S.corte, -((S.ventana === 'mtd' ? 7 : S.ventana) - 1));
         const fin = S.corte, bFin = addDias(ini, -1), bIni = addDias(ini, -28);
-        const enA = r => r.f >= ini && r.f <= fin, enB = r => r.f >= bIni && r.f <= bFin;
+        const enA = r => r.f >= ini && r.f <= fin, enB = r => r.f >= bIni && r.f <= bFin && !Seguimiento.eventoEn(r.f);   // los días de eventos no entran al benchmark
         const dA = S.dias.filter(r => enA(r) && okC(r.c)), dB = S.dias.filter(r => enB(r) && okC(r.c));
         const dias = Math.max(1, new Set(dA.map(r => r.f)).size), bDias = new Set(dB.map(r => r.f)).size;
         return { ini, fin, bIni, bFin, dA, dB, rA: S.registros.filter(r => enA(r) && okC(r.c)), rB: S.registros.filter(r => enB(r) && okC(r.c)),
@@ -836,7 +837,7 @@
                     <div class="h-2.5 rounded-full bg-slate-100 relative mt-1"><div class="absolute top-0 bottom-0 w-px bg-slate-300 left-1/2"></div><div class="absolute top-0 bottom-0 rounded-full ${c.v >= 0 ? 'bg-emerald-500' : 'bg-rose-500'}" style="${c.v >= 0 ? 'left:50%' : `left:${50 - Math.abs(c.v) / mx * 50}%`};width:${Math.abs(c.v) / mx * 50}%"></div></div></div>`).join('')}</div>`;
         }
         document.getElementById('panel-resumen').innerHTML = `
-            <p class="text-xs text-slate-500">${textoVentana(V)}${A.YD ? ` · Año anterior (mismo día de la semana): ${fechaCorta(A.YD.ini)} – ${fechaCorta(A.YD.fin)}` : ''} · Canal: <strong>${ETIQ_CANAL[S.canal]}</strong></p>
+            <p class="text-xs text-slate-500">${textoVentana(V)}${A.YD ? ` · Año anterior (mismo día de la semana): ${fechaCorta(A.YD.ini)} – ${fechaCorta(A.YD.fin)}` : ''} · Canal: <strong>${ETIQ_CANAL[S.canal]}</strong></p>${Seguimiento.aviso(A.V.ini, A.V.fin, A.V.bIni, A.V.bFin)}
             ${sinBase(A)}${A.mes ? '' : bannerIntegridad(A)}
             <div class="rounded-2xl bg-slate-900 text-slate-100 p-4 sm:p-5 text-xs sm:text-sm leading-relaxed"><strong class="text-white">Resumen:</strong> ${esc(resumenNarrativo(A))}</div>
             ${bloqueMeta(A)}
@@ -1737,6 +1738,7 @@
     function pintarConfig() {
         const el = document.getElementById('panel-config'); if (!el) return;
         if (!IG.modelo) { el.innerHTML = '<div class="rounded-2xl bg-white border border-slate-200 p-6 text-sm text-slate-500">Revisando los datos…</div>'; return; }
+        IG.modelo.extras = [{ titulo: 'Eventos', html: () => Seguimiento.htmlEventos() }, { titulo: 'Descargas', html: () => Seguimiento.htmlDescargas() }];
         Integridad.montar(el, IG.modelo, IG_HOOKS);
     }
     async function refrescarIntegridad(manual) {
@@ -1876,10 +1878,12 @@
                 }
                 if (!out.length) { msg.textContent = 'No hay líneas de pedido guardadas en ese periodo. Las cargas anteriores a esta función no las guardaron: vuelve a cargar ese archivo para respaldarlo.'; return 0; }
                 EXPORT_CFG.nota = ` Líneas guardadas del ${out[0][0]} al ${out[out.length - 1][0]}; antes de esa fecha solo existen totales (usa el Resumen para el historial completo).`;
+                if (!Seguimiento.confirmarClientes()) { msg.textContent = 'Descarga cancelada.'; return 0; }
                 const filas = [['Fecha', 'Canal', 'Pedido_ID', 'Cliente_ID', 'SKU', 'Producto', 'Categoria', 'Unidades', 'Venta'], ...out], base = `Respaldo_Comercial_Machote_${out[0][0]}_a_${out[out.length - 1][0]}`;
                 if (formato === 'm-csv') bajarArchivo(base + '.csv', new Blob([csvDe(filas)], { type: 'text/csv;charset=utf-8' }));
                 else if (out.length > 1000000) { msg.textContent = 'Son más de 1,000,000 de filas: acota el periodo o usa CSV.'; return 0; }
                 else { const wb = XLSX.utils.book_new(); hojaXlsx(wb, 'Lineas de pedido', filas); XLSX.writeFile(wb, base + '.xlsx'); }
+                Seguimiento.registrarDescarga(`Machote completo (pedido y cliente) ${out[0][0]} a ${out[out.length - 1][0]}`, out.length);
                 return out.length;
             }
             if (NUBE.activo && !S.demo) {
@@ -2067,6 +2071,7 @@
         const ins = await NUBE.client.from('comercial_estado').insert({ id: 'principal', acciones: S.acciones, config: { ...S.config, metas: S.metas, metasCfg: S.metasCfg }, snapshots: S.snap, version: 1 });
         if (ins.error && ins.error.code !== '23505') throw ins.error; NUBE.version = 1;
     }
+    Seguimiento.init({ cfg: () => S.config, guardar: () => { persistirEstado(); renderTodo(); } });
     function persistirEstado() { guardarCacheLocal(); if (!NUBE.activo || S.demo) return; clearTimeout(NUBE.timer); NUBE.timer = setTimeout(guardarEstadoNube, 800); }
     async function guardarEstadoNube() {
         NUBE.timer = null; if (NUBE.guardando) { NUBE.timer = setTimeout(guardarEstadoNube, 1500); return; }
