@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Comercial - Revisión Semanal y Mensual</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="tailwind.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -15,6 +15,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="integridad.js"></script>
     <script src="accesibilidad.js"></script>
+    <script src="glosario.js"></script>
     <style>
         body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background-color: #f8fafc; color: #0f172a; }
         .num-tabular { font-variant-numeric: tabular-nums; }
@@ -38,7 +39,7 @@
     </style>
 
     <!-- ENCABEZADO: una barra compacta anclada (marca, mes y corte, filtros, acciones) y las pestañas debajo -->
-    <header class="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80">
+    <header class="sm:sticky sm:top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80">
         <div class="w-full px-3 sm:px-5">
             <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 py-2">
                 <div class="flex flex-wrap items-center gap-2 min-w-0">

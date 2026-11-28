@@ -2,6 +2,7 @@
 (function () {
     const st = document.createElement('style');
     st.textContent = '[role="button"]:focus-visible,button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid #2563eb;outline-offset:2px;border-radius:6px}' +
+        '@media (max-width:639px){.overflow-x-auto table th:first-child{position:sticky;left:0;z-index:2;background:#f8fafc}.overflow-x-auto table td:first-child{position:sticky;left:0;z-index:1;background:#fff;box-shadow:1px 0 0 #e2e8f0}}' +
         '@media (prefers-reduced-motion: reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}';
     document.head.appendChild(st);
 

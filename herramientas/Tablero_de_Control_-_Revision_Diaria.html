@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Revisión Diaria</title>
     <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="tailwind.css">
     <!-- Fuente Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -23,6 +23,7 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="integridad.js"></script>
     <script src="accesibilidad.js"></script>
+    <script src="glosario.js"></script>
     <style>
         body.vista-config #capture-gap-alert, body.vista-config #mtd-diagnostic-banner, body.vista-config #ventana-panel, body.vista-config #kpi-cards-container, body.vista-config #pacing-operational-card, body.vista-config #consolidated-channels-matrix { display: none !important; }
         body {
@@ -73,7 +74,7 @@
     <!-- ===================================================================== -->
     <!-- ENCABEZADO EJECUTIVO COMPACTO (MES + FECHA DE CORTE + DATOS + QA)     -->
     <!-- ===================================================================== -->
-    <header class="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-2xs">
+    <header class="sm:sticky sm:top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-2xs">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <!-- Fila 1: Marca, Selector de Mes, Fecha de Corte Explícita y Acciones -->
             <div class="flex flex-wrap lg:flex-nowrap items-center justify-between gap-x-3 gap-y-1.5 py-2">
