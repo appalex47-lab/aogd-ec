@@ -977,7 +977,7 @@
     // =====================================================================
     const MZ_CANALES = ['Web', 'App', 'Llamadas', 'WhatsApp'], MZ_SEM = 8;
     let MZ_CACHE = null;
-    const mezDet = { k: null, datos: null };   // pedidos distintos, clientes y nuevos por categoría y canal (solo con nube)
+    const mezDet = { k: null, datos: null, ses: null };   // pedidos distintos, clientes y nuevos por categoría y canal (solo con nube)
     function mezclaCanales(nivel = 'cat') {
         const k = [nivel, S.corte, S.registros.length, S.config.mezPiso, S.config.mezPisoManual, S.config.mezMinPed, S.config.mezDemanda].join('|');
         MZ_CACHE = MZ_CACHE || {};
@@ -1041,6 +1041,9 @@
         const k = `${S.corte}|${S.registros.length}|${S.demo ? 'demo' : 'nube'}`;
         if (mezDet.k === k) return; mezDet.k = k; mezDet.datos = null;
         if (S.demo || !NUBE.activo) return;
+        try { const t = await NUBE.client.rpc('demanda_fuentes', { p_corte: S.corte, p_dias: 28 });   // sesiones de Tráfico por canal: últimas 4 semanas contra las 4 previas
+            if (!t.error && t.data) { const o = {}; t.data.forEach(x => { const k = x.canal; o[k] = o[k] || { a: 0, p: 0 }; o[k].a += Number(x.ses_act); o[k].p += Number(x.ses_prev); }); mezDet.ses = o; }
+        } catch (e) { console.error(e); }
         try { const r = await NUBE.client.rpc('comercial_mezcla_detalle', { p_fin: S.corte, p_dias: 28 }); if (r.error) throw r.error;
             mezDet.datos = new Map(r.data.map(x => [x.categoria + '|' + x.canal, { ped: Number(x.pedidos), cli: Number(x.clientes), nue: Number(x.ped_nuevos), rec: Number(x.ped_recurrentes) }]));
         } catch (e) { console.error(e); mezDet.datos = null; }
@@ -1055,6 +1058,8 @@
         else lineas.push(otros ? `${otros.charAt(0).toUpperCase() + otros.slice(1)}. El total ${uni} ${txtDelta(a.tot.g) ? 'cambió ' + txtDelta(a.tot.g) : 'se mantuvo'}: ${a.nivel === 'prod' ? 'el producto' : 'la categoría'} crece y además se está moviendo hacia ${nom}.` : `El total ${uni} cambió ${txtDelta(a.tot.g)}; el peso se movió sin una causa clara en otro canal.`);
         lineas.push(`Movió ≈ ${fmtM(a.mueve)} de venta hacia ${nom} en las últimas 4 semanas.`);
         if (a.erratica) lineas.push(`Semanas erráticas: su peso en ${nom} varía ±${a.sd8.toFixed(1)} pp de una semana a otra (pocos pedidos grandes pueden moverlo). Tómalo como una señal a confirmar, no como un hecho.`);
+        const ss = mezDet.ses && mezDet.ses[a.c];
+        if (ss && ss.p > 0) { const g = (ss.a - ss.p) / ss.p * 100; lineas.push(`Contexto de Tráfico: las sesiones de ${a.c} ${Math.abs(g) < 1 ? 'se mantuvieron' : (g > 0 ? 'crecieron ' : 'bajaron ') + Math.abs(g).toFixed(0) + '%'} contra las 4 semanas previas${g >= 5 ? '; parte del cambio puede venir de más visitas, no solo de más interés en la categoría' : ''}.`); }
         if (det) lineas.push(`${fmtN(det.ped)} pedidos de ${fmtN(det.cli)} clientes distintos; ${det.ped ? Math.round(det.nue / det.ped * 100) : 0}% de los pedidos son de clientes nuevos.`);
         else lineas.push(`${fmtN(a.pedA)} pedidos ${a.nivel === 'prod' ? 'del producto' : 'con productos de la categoría'} en las últimas 4 semanas.`);
         return lineas;

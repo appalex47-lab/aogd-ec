@@ -50,7 +50,11 @@
         document.getElementById('glo-x').onclick = cerrar;
         const q = document.getElementById('glo-q'); q.oninput = () => pintarLista(q.value); q.focus();
     }
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrar(); });
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') cerrar();
+        if (e.key === 'Tab') { const m = document.getElementById('glo-modal'); if (!m) return; const q = [...m.querySelectorAll('input,button')]; if (!q.length) return;
+            const a = q[0], z = q[q.length - 1]; if (e.shiftKey && document.activeElement === a) { e.preventDefault(); z.focus(); } else if (!e.shiftKey && document.activeElement === z) { e.preventDefault(); a.focus(); } }
+    });
     function boton() {
         if (document.getElementById('glo-btn')) return;
         const b = document.createElement('button'); b.id = 'glo-btn'; b.type = 'button'; b.textContent = '?'; b.setAttribute('aria-label', 'Abrir glosario de términos'); b.title = 'Glosario';

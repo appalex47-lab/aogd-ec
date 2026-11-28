@@ -250,7 +250,7 @@
         <!-- Ventana de análisis (7 / 14 días / día de corte): meta y avance de esos días -->
         <section id="ventana-panel" class="hidden rounded-2xl border border-blue-200 bg-blue-50/40 p-4 shadow-2xs"></section>
 
-        <section id="kpi-cards-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <section id="kpi-cards-container" class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         </section>
 
         <!-- Módulo de Pacing Operativo + Pronóstico en 4 Componentes vs Simulador What-If -->
@@ -2311,17 +2311,17 @@
                 const sparkSVG = sinDatos ? '' : generarSparklineSVG(k.sparkline, cumple);
 
                 return `
-                    <div class="bg-white rounded-2xl border ${borderAccent} p-4 sm:p-5 shadow-2xs flex flex-col justify-between">
+                    <div class="bg-white rounded-2xl border ${borderAccent} p-4 sm:p-5 shadow-2xs flex flex-col justify-between max-sm:p-3 min-w-0">
                         <div>
                             <div class="flex items-center justify-between gap-2 mb-2.5">
                                 <span class="text-xs font-bold uppercase tracking-wider text-slate-500">${k.titulo}</span>
-                                ${sparkSVG || `<div class="w-7 h-7 rounded-lg bg-slate-50 border border-slate-200/70 flex items-center justify-center text-slate-600"><i data-lucide="${k.icono}" class="w-3.5 h-3.5"></i></div>`}
+                                ${sparkSVG ? `<span class="max-sm:hidden">${sparkSVG}</span>` : `<div class="max-sm:hidden w-7 h-7 rounded-lg bg-slate-50 border border-slate-200/70 flex items-center justify-center text-slate-600"><i data-lucide="${k.icono}" class="w-3.5 h-3.5"></i></div>`}
                             </div>
-                            <div class="flex items-baseline justify-between gap-2 mb-1">
-                                <span class="text-2xl font-extrabold text-slate-900 tracking-tight num-tabular">${sinDatos ? '—' : k.real}</span>
+                            <div class="flex items-baseline justify-between max-sm:flex-col max-sm:items-start gap-2 max-sm:gap-1 mb-1">
+                                <span class="text-2xl max-sm:text-lg font-extrabold text-slate-900 tracking-tight num-tabular">${sinDatos ? '—' : k.real}</span>
                                 ${obtenerSemaforoHTML(k.pct, sinDatos)}
                             </div>
-                            <div class="flex items-center justify-between text-xs text-slate-500 mb-3 num-tabular">
+                            <div class="flex items-center justify-between max-sm:flex-col max-sm:items-start text-xs text-slate-500 mb-3 num-tabular">
                                 <span>${k.planEtiqueta || 'Plan Corte'}: <strong class="text-slate-700">${k.plan}</strong></span>
                                 <span class="${sinDatos ? 'text-slate-500' : (k.diff >= 0 ? 'text-emerald-700 font-semibold' : 'text-rose-700 font-semibold')}">
                                     ${sinDatos ? '' : k.diffFmt}
@@ -2332,7 +2332,7 @@
                             <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
                                 <div class="h-full ${barColor} rounded-full transition-all duration-500" style="width: ${barWidth}%"></div>
                             </div>
-                            ${k.notaParcial ? `<div class="mt-2 text-xs font-semibold text-amber-800 num-tabular leading-snug" title="${k.notaParcial}">${k.notaParcial}</div>` : ''}${k.subFooter ? `<div class="mt-2 pt-2 border-t border-slate-100 text-xs text-slate-500 num-tabular leading-snug" title="${k.subFooter.replace(/<[^>]*>/g, '')}">${k.subFooter}</div>` : ''}
+                            ${k.notaParcial ? `<div class="mt-2 text-xs font-semibold text-amber-800 num-tabular leading-snug max-sm:line-clamp-2" title="${k.notaParcial}">${k.notaParcial}</div>` : ''}${k.subFooter ? `<div class="mt-2 pt-2 border-t border-slate-100 text-xs text-slate-500 num-tabular leading-snug max-sm:line-clamp-2" title="${k.subFooter.replace(/<[^>]*>/g, '')}">${k.subFooter}</div>` : ''}
                         </div>
                     </div>
                 `;
@@ -2398,7 +2398,7 @@
                     </div>
 
                     <!-- Descomposición Explícita en 4 Componentes del Pronóstico Base (P1) -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 py-3.5 border-b border-slate-100 num-tabular">
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 py-3.5 border-b border-slate-100 num-tabular">
                         <div class="bg-slate-50 p-3 rounded-xl border border-slate-200/70">
                             <div class="text-xs font-bold uppercase text-slate-500">1. Venta Real Observada</div>
                             <div class="text-sm font-extrabold text-slate-900 mt-0.5">${mtd.diasCapturadosCount > 0 ? fmtMoneda(mtd.ventaRealObservada) : '—'}</div>
