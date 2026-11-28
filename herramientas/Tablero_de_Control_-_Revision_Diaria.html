@@ -24,6 +24,7 @@
     <script src="integridad.js"></script>
     <script src="accesibilidad.js"></script>
     <script src="glosario.js"></script>
+    <script src="filtros-movil.js"></script>
     <style>
         body.vista-config #capture-gap-alert, body.vista-config #mtd-diagnostic-banner, body.vista-config #ventana-panel, body.vista-config #kpi-cards-container, body.vista-config #pacing-operational-card, body.vista-config #consolidated-channels-matrix { display: none !important; }
         body {
@@ -95,7 +96,7 @@
                     </div>
                 </div>
 
-                <div class="sm:hidden w-full flex items-center justify-between gap-2"><span id="hdr-resumen" class="text-xs text-slate-500 min-w-0"></span><button type="button" id="btn-filtros" onclick="alternarFiltros()" aria-expanded="false" aria-controls="hdr-filtros" class="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-xs font-bold text-slate-700">⚙ Filtros <span id="btn-filtros-flecha" aria-hidden="true">▾</span></button></div>
+                <div class="sm:hidden w-full flex items-center justify-between gap-2"><span id="hdr-resumen" class="flex flex-wrap gap-1.5 min-w-0"></span><button type="button" id="btn-filtros" onclick="alternarFiltros()" aria-expanded="false" aria-controls="hdr-filtros" class="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-xs font-bold text-slate-700">⚙ Filtros <span id="btn-filtros-flecha" aria-hidden="true">▾</span></button></div>
 
                 <!-- Filtros, acciones y datos -->
                 <div class="flex flex-wrap items-center justify-end max-sm:justify-start gap-2 max-sm:w-full">
@@ -1855,20 +1856,7 @@
         }
 
 
-        // Encabezado móvil: los filtros (corte, ventana, canal) se pliegan detrás de "Filtros" y se resumen en una línea
-        function alternarFiltros() {
-            const p = document.getElementById('hdr-filtros'), b = document.getElementById('btn-filtros'); if (!p || !b) return;
-            const abierto = p.classList.toggle('max-sm:hidden') === false; b.setAttribute('aria-expanded', String(abierto));
-            const f = document.getElementById('btn-filtros-flecha'); if (f) f.textContent = abierto ? '▴' : '▾';
-        }
-        function resumenFiltros() {
-            const el = document.getElementById('hdr-resumen'); if (!el) return;
-            const c = document.getElementById('selector-fecha-corte'), corte = c && c.value ? c.value.split('-').reverse().slice(0, 2).join('/') : '—';
-            const t = id => { const x = document.getElementById(id); return x && x.selectedOptions && x.selectedOptions[0] ? x.selectedOptions[0].textContent.trim() : ''; };
-            el.textContent = ['Corte ' + corte, t('selector-canal-barra'), t('selector-ventana-barra')].filter(Boolean).join(' · ');
-        }
-        document.addEventListener('change', e => { if (e.target && /^selector-(fecha-corte|canal-barra|ventana-barra)$/.test(e.target.id)) setTimeout(resumenFiltros, 0); });
-
+        
         function cambiarVista(nuevaVista) {
             estadoApp.vista = nuevaVista;
             document.body.classList.toggle('vista-config', nuevaVista === 'config');

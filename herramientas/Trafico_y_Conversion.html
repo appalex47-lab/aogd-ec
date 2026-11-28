@@ -16,6 +16,7 @@
     <script src="integridad.js"></script>
     <script src="accesibilidad.js"></script>
     <script src="glosario.js"></script>
+    <script src="filtros-movil.js"></script>
     <style>
         body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background-color: #f8fafc; color: #0f172a; }
         .num-tabular { font-variant-numeric: tabular-nums; }
@@ -44,7 +45,7 @@
                         <select id="sel-mes" onchange="cambiarMes(this.value)" class="bg-transparent text-xs font-bold text-blue-800 focus:outline-none cursor-pointer" title="Mes"></select>
                     </div>
                 </div>
-                <div class="sm:hidden w-full flex items-center justify-between gap-2" data-pdf-ocultar="true"><span id="hdr-resumen" class="text-xs text-slate-500 min-w-0"></span><button type="button" id="btn-filtros" onclick="alternarFiltros()" aria-expanded="false" aria-controls="hdr-filtros" class="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-xs font-bold text-slate-700">⚙ Filtros <span id="btn-filtros-flecha" aria-hidden="true">▾</span></button></div>
+                <div class="sm:hidden w-full flex items-center justify-between gap-2" data-pdf-ocultar="true"><span id="hdr-resumen" class="flex flex-wrap gap-1.5 min-w-0"></span><button type="button" id="btn-filtros" onclick="alternarFiltros()" aria-expanded="false" aria-controls="hdr-filtros" class="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-xs font-bold text-slate-700">⚙ Filtros <span id="btn-filtros-flecha" aria-hidden="true">▾</span></button></div>
                 <div class="flex flex-wrap items-center gap-2 max-sm:w-full" data-pdf-ocultar="true">
                     <div id="hdr-filtros" class="flex flex-wrap items-center gap-2 max-sm:hidden max-sm:w-full">
                     <div class="inline-flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-lg px-2 py-0.5" title="Fecha de corte del análisis">
@@ -1048,21 +1049,7 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
     }
 
 
-    // Encabezado móvil: los filtros (corte, canal, ventana, alertas) se pliegan detrás de "Filtros" y se resumen en una línea
-    function alternarFiltros() {
-        const p = document.getElementById('hdr-filtros'), b = document.getElementById('btn-filtros'); if (!p || !b) return;
-        const abierto = p.classList.toggle('max-sm:hidden') === false; b.setAttribute('aria-expanded', String(abierto));
-        const f = document.getElementById('btn-filtros-flecha'); if (f) f.textContent = abierto ? '▴' : '▾';
-    }
-    function resumenFiltros() {
-        const el = document.getElementById('hdr-resumen'); if (!el) return;
-        const q = id => { const x = document.getElementById(id); return x ? x : null; };
-        const corte = q('sel-corte') && q('sel-corte').value ? q('sel-corte').value.split('-').reverse().slice(0, 2).join('/') : '—';
-        const t = id => { const x = q(id); return x && x.selectedOptions && x.selectedOptions[0] ? x.selectedOptions[0].textContent.trim() : ''; };
-        el.textContent = ['Corte ' + corte, t('sel-canal'), t('sel-ventana')].filter(Boolean).join(' · ');
-    }
-    document.addEventListener('change', e => { if (e.target && /^sel-(corte|canal|ventana)$/.test(e.target.id)) setTimeout(resumenFiltros, 0); });
-        function renderTabsYFiltros() {
+            function renderTabsYFiltros() {
         setTimeout(resumenFiltros, 0);
         document.getElementById('sel-canal').innerHTML = CANALES.map(c => `<option value="${c}" ${S.canal === c ? 'selected' : ''}>${ETIQ_CANAL[c]}</option>`).join('');
         const pend = S.acciones.filter(a => a.estatus !== 'Completada').length;
