@@ -714,6 +714,10 @@
                     <label class="block text-xs font-bold text-slate-700 mb-1">Resultado Observado (Opcional / Al cierre)</label>
                     <input type="text" id="accion-resultado" placeholder="Ej. CR recuperado a 3.45% en los 2 días siguientes" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs">
                 </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-xs font-bold text-slate-700 mb-1">Impacto estimado ($)</label><input type="number" id="acc-impacto" min="0" step="1" inputmode="numeric" placeholder="Opcional" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs"></div>
+                    <div><label class="block text-xs font-bold text-slate-700 mb-1">Métrica esperada</label><input type="text" id="acc-metrica" maxlength="120" placeholder="Ej. Venta de Ecommerce" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs"></div>
+                </div>
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
                     <button type="button" onclick="cerrarModalAccion()" class="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50 cursor-pointer">Cancelar</button>
                     <button type="submit" class="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold cursor-pointer">Guardar Acción</button>
@@ -3373,6 +3377,7 @@
             document.getElementById('accion-fecha-compromiso').value = fechaRef || estadoApp.fechaCorte;
             document.getElementById('accion-estatus').value = 'Pendiente';
             document.getElementById('accion-resultado').value = '';
+            document.getElementById('acc-impacto').value = ''; document.getElementById('acc-metrica').value = '';
 
             modal.classList.remove('hidden');
             modal.classList.add('flex');
@@ -3391,6 +3396,7 @@
             document.getElementById('accion-fecha-compromiso').value = acc.fechaCompromiso;
             document.getElementById('accion-estatus').value = acc.estatus;
             document.getElementById('accion-resultado').value = acc.resultado || '';
+            document.getElementById('acc-impacto').value = acc.impacto ?? ''; document.getElementById('acc-metrica').value = acc.metrica || '';
 
             modal.classList.remove('hidden');
             modal.classList.add('flex');
@@ -3418,9 +3424,11 @@
                 resultado: document.getElementById('accion-resultado').value.trim()
             };
 
+            const previa = idEdit ? estadoApp.acciones.find(a => a.id === idEdit) : null;
+            accExtra(payload, previa);   // impacto estimado, métrica, fecha de cierre y pestaña de origen
             if (idEdit) {
                 const idx = estadoApp.acciones.findIndex(a => a.id === idEdit);
-                if (idx >= 0) estadoApp.acciones[idx] = payload;
+                if (idx >= 0) estadoApp.acciones[idx] = { ...estadoApp.acciones[idx], ...payload };
             } else {
                 estadoApp.acciones.unshift(payload);
             }

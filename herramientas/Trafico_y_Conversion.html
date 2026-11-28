@@ -16,6 +16,7 @@
     <script src="integridad.js"></script>
     <script src="accesibilidad.js"></script>
     <script src="glosario.js"></script>
+    <script src="seguimiento.js"></script>
     <script src="filtros-movil.js"></script>
     <style>
         body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background-color: #f8fafc; color: #0f172a; }
@@ -300,7 +301,7 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
         const bFin = addDias(ini, -1), bIni = addDias(ini, -28);
         const okCanal = r => canalCoincide(r.c);
         const rows = S.registros.filter(r => r.f >= ini && r.f <= fin && okCanal(r));
-        const bRows = S.registros.filter(r => r.f >= bIni && r.f <= bFin && okCanal(r));
+        const bRows = S.registros.filter(r => r.f >= bIni && r.f <= bFin && okCanal(r) && !Seguimiento.eventoEn(r.f));   // los días de eventos no entran al benchmark
         return { ini, fin, bIni, bFin, rows, bRows, dias: Math.max(1, diasConDatos(rows)), bDias: Math.max(1, diasConDatos(bRows)) };
     }
 
@@ -784,7 +785,7 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
                 fuga ? `<div class="mt-2 pt-2 border-t border-slate-100 text-xs text-slate-600 space-y-0.5">${['Dispositivo', 'Fuente', 'Campaña'].map(d => `<div class="break-words"><span class="text-slate-500">${d}:</span> ${fuga.seg[d] ? `<strong>${esc(fuga.seg[d].nombre)}</strong> (${fmtP(fuga.seg[d].delta, 1)})` : '—'}</div>`).join('')}</div>` : '')
         ].join('');
         document.getElementById('panel-resumen').innerHTML = `
-            <p class="text-xs text-slate-500">${textoVentana(V)} · Canal: <strong>${ETIQ_CANAL[S.canal]}</strong></p>
+            <p class="text-xs text-slate-500">${textoVentana(V)} · Canal: <strong>${ETIQ_CANAL[S.canal]}</strong></p>${Seguimiento.aviso(V.ini, V.fin, V.bIni, V.bFin)}
             <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 items-start max-md:items-stretch max-md:[&>*:last-child:nth-child(odd)]:col-span-2">${cards}</div>
             <div id="valor-trafico"></div>
             <div class="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-sm">
@@ -1403,6 +1404,7 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
     function pintarConfig() {
         const el = document.getElementById('panel-config'); if (!el) return;
         if (!IG.modelo) { el.innerHTML = '<div class="rounded-2xl bg-white border border-slate-200 p-6 text-sm text-slate-500">Revisando los datos…</div>'; return; }
+        IG.modelo.extras = [{ titulo: 'Eventos', html: () => Seguimiento.htmlEventos() }];
         Integridad.montar(el, IG.modelo, IG_HOOKS);
     }
     async function refrescarIntegridad(manual) {
@@ -1585,6 +1587,7 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
         if (ins.error && ins.error.code !== '23505') throw ins.error;
         NUBE.version = 1;
     }
+    Seguimiento.init({ cfg: () => S.config, guardar: () => { persistirEstado(); renderTodo(); } });
     function persistirEstado() {
         guardarCacheLocal(); if (!NUBE.activo || S.demo) return;
         clearTimeout(NUBE.timer); NUBE.timer = setTimeout(guardarEstadoNube, 800);
