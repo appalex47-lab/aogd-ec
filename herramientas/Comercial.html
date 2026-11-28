@@ -766,7 +766,8 @@
     }
     function textoVentana(V) {
         const n = S.ventana === 'mtd' ? 'Mes a la fecha' : S.ventana === 1 ? 'Día de corte' : `Últimos ${S.ventana} días`;
-        return `${n}: ${fechaCorta(V.ini)} – ${fechaCorta(V.fin)} · Benchmark propio: ${fechaCorta(V.bIni)} – ${fechaCorta(V.bFin)}`;
+        const full = `${n}: ${fechaCorta(V.ini)} – ${fechaCorta(V.fin)} · Benchmark propio: ${fechaCorta(V.bIni)} – ${fechaCorta(V.bFin)}`;
+        return `<span class="max-sm:hidden">${full}</span><span class="sm:hidden" title="${full}">${n} · vs ${fechaCorta(V.bIni)}–${fechaCorta(V.bFin)}</span>`;
     }
     function bannerIntegridad(A, gExt) {
         const g = gExt !== undefined ? gExt : A.integridad; if (!g) return '';
@@ -840,7 +841,7 @@
             <div class="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-sm">
                 <h3 class="text-sm font-extrabold text-slate-900">Venta diaria del mes</h3>
                 <p class="text-xs text-slate-500 mb-3">Venta real (barras) hasta el corte contra el plan de la Revisión Diaria (línea) de todo el mes</p>
-                <div class="relative h-64"><canvas id="chart-diario"></canvas></div>
+                <div class="relative h-44 sm:h-64"><canvas id="chart-diario"></canvas></div>
             </div>
             ${panelAlertas('Alertas activas · de mayor a menor impacto', A.alertas, 'Sin alertas: ninguna categoría, producto o componente del ticket cae más de lo normal.', 6)}
             ${A.oportunidades.length ? `<div class="rounded-2xl bg-white border border-emerald-200 p-4 sm:p-5 shadow-sm"><h3 class="text-sm font-extrabold text-slate-900 mb-3">Oportunidades <span class="text-slate-500 font-semibold">(${A.oportunidades.length})</span></h3><ul class="space-y-2">${A.oportunidades.map(itemAlerta).join('')}</ul></div>` : ''}`;
@@ -977,12 +978,14 @@
     const MZ_CANALES = ['Web', 'App', 'Llamadas', 'WhatsApp'], MZ_SEM = 8;
     let MZ_CACHE = null;
     const mezDet = { k: null, datos: null };   // pedidos distintos, clientes y nuevos por categoría y canal (solo con nube)
-    function mezclaCanales() {
-        const k = [S.corte, S.registros.length, S.config.mezPiso, S.config.mezPisoManual, S.config.mezMinPed, S.config.mezDemanda].join('|');
-        if (MZ_CACHE && MZ_CACHE.k === k) return MZ_CACHE.r;
-        const r = calcularMezcla(); MZ_CACHE = { k, r }; return r;
+    function mezclaCanales(nivel = 'cat') {
+        const k = [nivel, S.corte, S.registros.length, S.config.mezPiso, S.config.mezPisoManual, S.config.mezMinPed, S.config.mezDemanda].join('|');
+        MZ_CACHE = MZ_CACHE || {};
+        if (MZ_CACHE[nivel] && MZ_CACHE[nivel].k === k) return MZ_CACHE[nivel].r;
+        const r = calcularMezcla(nivel); MZ_CACHE[nivel] = { k, r }; return r;
     }
-    function calcularMezcla() {
+    const MZ_TOP_PROD = 25;   // a nivel producto se analizan los 25 que más venden en las últimas 4 semanas
+    function calcularMezcla(nivel = 'cat') {
         const sin = motivo => ({ ok: false, motivo, celdas: [], cats: [], alertas: [] });
         if (!S.corte || !S.registros.length) return sin('Sin datos.');
         const ini = addDias(S.corte, -(MZ_SEM * 7 - 1));
@@ -990,11 +993,14 @@
         if (dias < 49) return sin(`Se necesitan 8 semanas de ventas hasta el corte (hay ${dias} días con datos en ese rango).`);
         const semDe = f => Math.floor((Date.parse(S.corte + 'T00:00:00Z') - Date.parse(f + 'T00:00:00Z')) / 86400000 / 7);
         const mk = () => new Array(MZ_SEM).fill(0);
-        const tc = new Map(), tcc = new Map(), pc = new Map();   // total por canal / categoría-canal / pedidos categoría-canal
+        const tc = new Map(), tcc = new Map(), pc = new Map();   // total por canal / unidad-canal / pedidos unidad-canal (unidad = categoría o producto)
+        const prod = nivel === 'prod', nombres = new Map(), totU = new Map();
         S.registros.forEach(r => { if (r.f < ini || r.f > S.corte || !MZ_CANALES.includes(r.c)) return; const w = semDe(r.f); if (w < 0 || w >= MZ_SEM) return;
             (tc.get(r.c) || tc.set(r.c, mk()).get(r.c))[w] += r.v;
-            const kk = r.cat + '|' + r.c; (tcc.get(kk) || tcc.set(kk, mk()).get(kk))[w] += r.v; (pc.get(kk) || pc.set(kk, mk()).get(kk))[w] += (r.p || 0); });
-        const cats = [...new Set([...tcc.keys()].map(x => x.split('|')[0]))];
+            const u = prod ? r.sku : r.cat; if (prod) { nombres.set(u, r.n || u); if (w < 4) totU.set(u, (totU.get(u) || 0) + r.v); }
+            const kk = u + '|' + r.c; (tcc.get(kk) || tcc.set(kk, mk()).get(kk))[w] += r.v; (pc.get(kk) || pc.set(kk, mk()).get(kk))[w] += (r.p || 0); });
+        let cats = [...new Set([...tcc.keys()].map(x => x.split('|')[0]))];
+        if (prod) cats = cats.sort((a, b) => (totU.get(b) || 0) - (totU.get(a) || 0)).slice(0, MZ_TOP_PROD);
         const sumA = a => a.slice(0, 4).reduce((x, y) => x + y, 0), sumB = a => a.slice(4).reduce((x, y) => x + y, 0);
         const celdas = [], porCat = new Map();
         cats.forEach(cat => MZ_CANALES.forEach(c => {
@@ -1012,13 +1018,13 @@
             // Semanas erráticas: el peso semanal varía mucho de una semana a otra (coeficiente de variación de las 8 semanas ≥ 20%)
             const todas = peso.filter(x => x !== null), mt = todas.reduce((x, y) => x + y, 0) / (todas.length || 1);
             const sd8 = Math.sqrt(todas.reduce((x, y) => x + (y - mt) ** 2, 0) / Math.max(1, todas.length - 1)), erratica = mt > 0 && sd8 / mt >= 0.2;
-            const minPed = manual ? S.config.mezMinPed / 2 : S.config.mezMinPed, pedA = sumA(ped);
-            const cel = { cat, c, pA, pB, d, umbral, sd, tendencia, erratica, sd8, mediana3, pedA, minPed, poco: pedA < minPed, peso: peso.slice().reverse(), vA: sumA(v), vB: sumB(v), tA: sumA(t),
+            const minPed = (manual ? S.config.mezMinPed / 2 : S.config.mezMinPed) / (prod ? 2 : 1), pedA = sumA(ped);
+            const cel = { cat, nombre: prod ? (nombres.get(cat) || cat) : cat, nivel, c, pA, pB, d, umbral, sd, tendencia, erratica, sd8, mediana3, pedA, minPed, poco: pedA < minPed, peso: peso.slice().reverse(), vA: sumA(v), vB: sumB(v), tA: sumA(t),
                 rel: Math.abs(d) >= umbral && tendencia, mueve: (pA - pB) / 100 * sumA(t) };
             celdas.push(cel); (porCat.get(cat) || porCat.set(cat, []).get(cat)).push(cel);
         }));
         // Total de la categoría (todos los canales) y clasificación: migración o demanda nueva
-        const catsRes = [...porCat.entries()].map(([cat, cs]) => { const vA = cs.reduce((x, y) => x + y.vA, 0), vB = cs.reduce((x, y) => x + y.vB, 0); return { cat, vA, vB, g: vB > 0 ? (vA - vB) / vB * 100 : null }; });
+        const catsRes = [...porCat.entries()].map(([cat, cs]) => { const vA = cs.reduce((x, y) => x + y.vA, 0), vB = cs.reduce((x, y) => x + y.vB, 0); return { cat, nombre: cs[0].nombre, vA, vB, g: vB > 0 ? (vA - vB) / vB * 100 : null }; });
         const gCat = new Map(catsRes.map(x => [x.cat, x]));
         const alertas = [];
         celdas.filter(x => x.rel && x.d > 0 && !x.poco).forEach(x => {
@@ -1041,30 +1047,30 @@
         if (S.vista === 'canales' || S.vista === 'resumen' || S.vista === 'acciones') renderTodo();
     }
     function textoAlertaMezcla(a) {
-        const nom = a.c, otros = a.pierde.map(o => `${o.c} bajó ${Math.abs(o.d).toFixed(1)} pp`).join(' y ');
-        const det = mezDet.datos && mezDet.datos.get(a.cat + '|' + a.c);
+        const uni = a.nivel === 'prod' ? 'del producto' : 'de la categoría', nom = a.c, otros = a.pierde.map(o => `${o.c} bajó ${Math.abs(o.d).toFixed(1)} pp`).join(' y ');
+        const det = a.nivel === 'cat' && mezDet.datos && mezDet.datos.get(a.cat + '|' + a.c);
         const lineas = [`Pasó de ${fmtP(a.pB)} a ${fmtP(a.pA)} de la venta de ${nom} (${a.d >= 0 ? '+' : ''}${a.d.toFixed(1)} pp), y la mediana de las últimas 3 semanas sigue arriba de su normal.`];
-        if (a.tipoMz === 'migracion') lineas.push(`${otros ? otros.charAt(0).toUpperCase() + otros.slice(1) + '. ' : ''}El total de la categoría ${Math.abs(a.tot.g || 0) < 1 ? 'casi no cambió' : 'cambió'} (${txtDelta(a.tot.g)}): parece migración entre canales, no demanda nueva.`);
-        else if (a.tipoMz === 'demanda') lineas.push(`El total de la categoría subió ${txtDelta(a.tot.g)} y los demás canales no perdieron peso: el crecimiento es incremental.`);
-        else lineas.push(otros ? `${otros.charAt(0).toUpperCase() + otros.slice(1)}. El total de la categoría ${txtDelta(a.tot.g) ? 'cambió ' + txtDelta(a.tot.g) : 'se mantuvo'}: la categoría crece y además se está moviendo hacia ${nom}.` : `El total de la categoría cambió ${txtDelta(a.tot.g)}; el peso se movió sin una causa clara en otro canal.`);
+        if (a.tipoMz === 'migracion') lineas.push(`${otros ? otros.charAt(0).toUpperCase() + otros.slice(1) + '. ' : ''}El total ${uni} ${Math.abs(a.tot.g || 0) < 1 ? 'casi no cambió' : 'cambió'} (${txtDelta(a.tot.g)}): parece migración entre canales, no demanda nueva.`);
+        else if (a.tipoMz === 'demanda') lineas.push(`El total ${uni} subió ${txtDelta(a.tot.g)} y los demás canales no perdieron peso: el crecimiento es incremental.`);
+        else lineas.push(otros ? `${otros.charAt(0).toUpperCase() + otros.slice(1)}. El total ${uni} ${txtDelta(a.tot.g) ? 'cambió ' + txtDelta(a.tot.g) : 'se mantuvo'}: ${a.nivel === 'prod' ? 'el producto' : 'la categoría'} crece y además se está moviendo hacia ${nom}.` : `El total ${uni} cambió ${txtDelta(a.tot.g)}; el peso se movió sin una causa clara en otro canal.`);
         lineas.push(`Movió ≈ ${fmtM(a.mueve)} de venta hacia ${nom} en las últimas 4 semanas.`);
         if (a.erratica) lineas.push(`Semanas erráticas: su peso en ${nom} varía ±${a.sd8.toFixed(1)} pp de una semana a otra (pocos pedidos grandes pueden moverlo). Tómalo como una señal a confirmar, no como un hecho.`);
         if (det) lineas.push(`${fmtN(det.ped)} pedidos de ${fmtN(det.cli)} clientes distintos; ${det.ped ? Math.round(det.nue / det.ped * 100) : 0}% de los pedidos son de clientes nuevos.`);
-        else lineas.push(`${fmtN(a.pedA)} pedidos con productos de la categoría en las últimas 4 semanas.`);
+        else lineas.push(`${fmtN(a.pedA)} pedidos ${a.nivel === 'prod' ? 'del producto' : 'con productos de la categoría'} en las últimas 4 semanas.`);
         return lineas;
     }
-    function alertasMezcla() {
-        const m = mezclaCanales(); if (!m.ok) return [];
+    function alertasMezcla(nivel = 'cat') {
+        const m = mezclaCanales(nivel); if (!m.ok) return [];
         const total = m.celdas.reduce((s, x) => x.cat === m.celdas[0].cat ? s + x.tA : s, 0) || 1;
         return m.alertas.map(a => { const imp = a.mueve / total * 100, ttl = { migracion: 'Migración', demanda: 'Demanda nueva', mezcla: 'Cambio de mezcla' }[a.tipoMz];
-            return { nivel: nivelPorImpacto(imp), imp, tipo: 'Mezcla por canal', titulo: `${a.cat} · ${a.c}`, etiquetaMz: ttl, erratica: a.erratica,
-                titular: a.tipoMz === 'demanda' ? `${a.cat} crece sobre todo en ${a.c}.` : `${a.cat} empieza a moverse más en ${a.c}.`,
+            return { nivel: nivelPorImpacto(imp), imp, tipo: 'Mezcla por canal', titulo: `${a.nombre} · ${a.c}`, key: a.cat, canal: a.c, nivelMz: a.nivel, etiquetaMz: ttl, erratica: a.erratica,
+                titular: a.tipoMz === 'demanda' ? `${a.nombre} crece sobre todo en ${a.c}.` : `${a.nombre} empieza a moverse más en ${a.c}.`,
                 lineas: textoAlertaMezcla(a),
                 revisar: a.tipoMz === 'demanda' ? 'Si viene de una campaña o de búsqueda, asegurar existencia y la ficha de producto de los más vendidos.'
                     : (a.c === 'App' ? 'Ubicación en el home de la app, notificaciones push, promociones exclusivas y existencia. Si fue intencional, conviene reforzarlo; si no, entender qué lo provocó.'
                     : a.c === 'Web' ? 'Campañas y fuentes de tráfico que llevan a esa categoría, ficha de producto y existencia. Si fue intencional, conviene reforzarlo.'
                     : 'Qué está ofreciendo el equipo en ese canal (promociones o recomendaciones) y si hay existencia suficiente.'),
-                detalle: `${a.cat} gana ${a.d.toFixed(1)} pp en ${a.c} (${a.tipoMz}).` }; });
+                detalle: `${a.nombre} gana ${a.d.toFixed(1)} pp en ${a.c} (${a.tipoMz}).` }; });
     }
     function spark(serie, color, w = 90, h = 22) {
         const v = serie.filter(x => x !== null); if (v.length < 2) return ''; const mn = Math.min(...v), mx = Math.max(...v), r = (mx - mn) || 1, n = serie.length;
@@ -1085,40 +1091,42 @@
             <div class="flex flex-wrap gap-3 text-xs text-slate-500">${por.map(c => `<span><i class="inline-block w-3 h-3 rounded align-middle mr-1" style="background:${col[c.c]}"></i>${c.c}</span>`).join('')}<span>Zona gris = variación normal de la categoría en ${esc(canal)} (±${sel.umbral.toFixed(1)} pp)</span></div>`;
     }
     function renderMezcla() {
-        const m = mezclaCanales(); cargarMezclaDet();
-        const cab = `<div><h3 class="text-sm font-extrabold text-slate-900">¿Dónde empieza a moverse más cada categoría?</h3>
-            <p class="text-xs text-slate-500 mt-0.5">Cada celda muestra qué parte de la venta <strong>del canal</strong> representa la categoría y cuánto cambió contra su normal (puntos porcentuales). Se mide el peso dentro del canal para no confundir “la categoría creció” con “el canal creció”. Últimas 4 semanas contra las 4 anteriores, con todos los canales sin importar el filtro de canal.</p></div>`;
+        const nivel = S.mezNivel || 'cat', prod = nivel === 'prod', unidad = prod ? 'producto' : 'categoría'; const m = mezclaCanales(nivel); cargarMezclaDet();
+        const cab = `<div><h3 class="text-sm font-extrabold text-slate-900">¿Dónde empieza a moverse más cada ${unidad}?</h3>
+            <p class="text-xs text-slate-500 mt-0.5">Cada celda muestra qué parte de la venta <strong>del canal</strong> representa ${prod ? 'el producto' : 'la categoría'} y cuánto cambió contra su normal (puntos porcentuales). Se mide el peso dentro del canal para no confundir “la categoría creció” con “el canal creció”. Últimas 4 semanas contra las 4 anteriores, con todos los canales sin importar el filtro de canal.</p></div>`;
         if (!m.ok) return `<div class="rounded-2xl bg-white border border-slate-200 shadow-sm p-4 sm:p-5 space-y-2">${cab}<p class="text-xs text-slate-600 rounded-xl bg-slate-50 border border-slate-200 px-3 py-2">${esc(m.motivo)}</p></div>`;
-        const alertas = alertasMezcla();
-        const selAuto = S.mezSel || (alertas.length ? alertas[0].titulo.replace(' · ', '|') : null);
+        const alertas = alertasMezcla(nivel);
+        const selAuto = S.mezSel || (alertas.length ? alertas[0].key + '|' + alertas[0].canal : null);
         const relev = !S.mezTodo, sel = selAuto && selAuto.split('|'), catSel = sel ? sel[0] : null, canSel = sel ? sel[1] : null;
         const bg = d => d >= 1.5 ? '#a7f3d0' : d <= -1.5 ? '#fecaca' : '#f1f5f9';
-        const cats = m.cats.map(x => x.cat);
-        const filas = cats.map(cat => `<tr><td class="pr-2 py-1 text-xs font-bold text-slate-900 whitespace-nowrap">${esc(cat)}</td>${MZ_CANALES.map(c => {
+        const cats = m.cats.map(x => x.cat), nomDe = new Map(m.cats.map(x => [x.cat, x.nombre]));
+        const filas = cats.map(cat => `<tr><td class="pr-2 py-1 text-xs font-bold text-slate-900 ${prod ? 'max-w-[11rem] truncate' : 'whitespace-nowrap'}" title="${esc(nomDe.get(cat) || cat)}">${esc(nomDe.get(cat) || cat)}</td>${MZ_CANALES.map(c => {
             const x = m.celdas.find(z => z.cat === cat && z.c === c); if (!x) return '<td></td>';
             const sig = x.rel || (Math.abs(x.d) >= x.umbral && !x.poco), op = relev && !(Math.abs(x.d) >= x.umbral) ? 'opacity-40' : '', act = catSel === cat && canSel === c;
-            return `<td class="p-0.5"><button type="button" onclick="seleccionarMezcla('${esc(cat).replace(/'/g, '&#39;')}','${c}')" aria-pressed="${act}" class="w-full min-w-[104px] rounded-lg px-1.5 py-1.5 text-center border-2 ${act ? 'border-slate-900' : 'border-transparent hover:border-blue-500'} ${op}" style="background:${Math.abs(x.d) >= x.umbral ? bg(x.d) : '#f1f5f9'};${x.poco ? 'border-style:dashed;border-color:#94a3b8' : ''}">
+            return `<td class="p-0.5"><button type="button" onclick="seleccionarMezcla(${esc(JSON.stringify(cat))},'${c}')" aria-pressed="${act}" class="w-full min-w-[104px] rounded-lg px-1.5 py-1.5 text-center border-2 ${act ? 'border-slate-900' : 'border-transparent hover:border-blue-500'} ${op}" style="background:${Math.abs(x.d) >= x.umbral ? bg(x.d) : '#f1f5f9'};${x.poco ? 'border-style:dashed;border-color:#94a3b8' : ''}">
                 <span class="block text-sm font-extrabold text-slate-900">${x.pA.toFixed(1)}%</span><span class="block text-xs ${x.d > 0 ? 'text-emerald-700' : x.d < 0 ? 'text-rose-700' : 'text-slate-500'}">${x.d > 0 ? '+' : x.d < 0 ? '−' : ''}${Math.abs(x.d).toFixed(1)} pp${x.poco ? ' · poco vol.' : ''}</span>${x.erratica ? '<span class="block text-xs font-bold text-amber-700" title="Su peso semanal varía mucho: tomar como señal a confirmar">~ erráticas</span>' : ''}
                 ${spark(x.peso, sig && !x.poco ? (x.d > 0 ? '#047857' : '#b91c1c') : '#64748b')}</button></td>`; }).join('')}</tr>`).join('');
         const poco = m.celdas.filter(x => x.rel && x.d > 0 && x.poco).sort((a, b) => b.d - a.d).slice(0, 3);
         const itemMz = a => `<li class="flex flex-col sm:flex-row sm:items-start justify-between gap-3 p-3 rounded-xl border ${a.etiquetaMz === 'Demanda nueva' ? 'border-emerald-200 bg-emerald-50/60' : 'border-amber-200 bg-amber-50/60'}">
-            <div class="min-w-0 flex-1"><div class="text-xs"><span class="inline-block mr-1.5 px-1.5 py-0.5 rounded-md text-xs font-extrabold uppercase ${a.etiquetaMz === 'Demanda nueva' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">${a.etiquetaMz}</span><span class="text-xs uppercase text-slate-500 mr-1.5">CATEGORÍA</span><strong class="text-slate-900">${esc(a.titular)}</strong>${a.erratica ? ' <span class="inline-block ml-1 px-1.5 py-0.5 rounded-md text-xs font-bold bg-slate-200 text-slate-700" title="Su peso semanal varía mucho">Semanas erráticas</span>' : ''}</div>
+            <div class="min-w-0 flex-1"><div class="text-xs"><span class="inline-block mr-1.5 px-1.5 py-0.5 rounded-md text-xs font-extrabold uppercase ${a.etiquetaMz === 'Demanda nueva' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">${a.etiquetaMz}</span><span class="text-xs uppercase text-slate-500 mr-1.5">${prod ? 'PRODUCTO' : 'CATEGORÍA'}</span><strong class="text-slate-900">${esc(a.titular)}</strong>${a.erratica ? ' <span class="inline-block ml-1 px-1.5 py-0.5 rounded-md text-xs font-bold bg-slate-200 text-slate-700" title="Su peso semanal varía mucho">Semanas erráticas</span>' : ''}</div>
                 <ul class="mt-1 text-xs text-slate-600 space-y-0.5 list-disc pl-4">${a.lineas.map(l => `<li>${esc(l)}</li>`).join('')}</ul><div class="mt-1.5 text-xs text-slate-500"><strong class="text-slate-700">Qué revisar:</strong> ${esc(a.revisar)}</div></div>
             <div class="shrink-0">${botonAccion(a.tipo, a.titulo, a.detalle)}</div></li>`;
-        const lowItems = poco.map(x => `<li class="p-3 rounded-xl border border-slate-200 bg-slate-50 text-xs"><span class="inline-block mr-1.5 px-1.5 py-0.5 rounded-md text-xs font-extrabold uppercase bg-slate-200 text-slate-700">Poco volumen</span><strong class="text-slate-900">${esc(x.cat)} sube ${x.d.toFixed(1)} pp en ${x.c}.</strong> Solo ${fmtN(x.pedA)} pedidos en 4 semanas (mínimo ${fmtN(x.minPed)}): puede ser casualidad; se deja visible sin generar alerta.</li>`).join('');
+        const lowItems = poco.map(x => `<li class="p-3 rounded-xl border border-slate-200 bg-slate-50 text-xs"><span class="inline-block mr-1.5 px-1.5 py-0.5 rounded-md text-xs font-extrabold uppercase bg-slate-200 text-slate-700">Poco volumen</span><strong class="text-slate-900">${esc(x.nombre)} sube ${x.d.toFixed(1)} pp en ${x.c}.</strong> Solo ${fmtN(x.pedA)} pedidos en 4 semanas (mínimo ${fmtN(x.minPed)}): puede ser casualidad; se deja visible sin generar alerta.</li>`).join('');
         let det = '';
-        if (catSel) { const x = m.celdas.find(z => z.cat === catSel && z.c === canSel), tot = m.cats.find(z => z.cat === catSel), d2 = mezDet.datos && mezDet.datos.get(catSel + '|' + canSel);
-            if (x) det = `<div class="rounded-2xl bg-white border border-slate-200 shadow-sm p-4 sm:p-5 space-y-3"><h3 class="text-sm font-extrabold text-slate-900">Detalle: ${esc(catSel)} en ${esc(canSel)}</h3>
+        if (catSel) { const x = m.celdas.find(z => z.cat === catSel && z.c === canSel), tot = m.cats.find(z => z.cat === catSel), d2 = !prod && mezDet.datos && mezDet.datos.get(catSel + '|' + canSel);
+            if (x) det = `<div class="rounded-2xl bg-white border border-slate-200 shadow-sm p-4 sm:p-5 space-y-3"><h3 class="text-sm font-extrabold text-slate-900">Detalle: ${esc(nomDe.get(catSel) || catSel)} en ${esc(canSel)}</h3>
                 <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 ${[['Peso en ' + canSel, fmtP(x.pA), `antes ${fmtP(x.pB)} · ${x.d >= 0 ? '+' : '−'}${Math.abs(x.d).toFixed(1)} pp`], ['Venta en ' + canSel, fmtM(x.vA), `antes ${fmtM(x.vB)}${x.vB > 0 ? ' · ' + txtDelta(deltaRel(x.vA, x.vB)) : ''}`],
                   ['Pedidos' + (d2 ? ' · clientes' : ''), d2 ? `${fmtN(d2.ped)} · ${fmtN(d2.cli)}` : fmtN(x.pedA), d2 ? `${d2.ped ? Math.round(d2.nue / d2.ped * 100) : 0}% de clientes nuevos · mínimo ${fmtN(x.minPed)} pedidos` : `mínimo ${fmtN(x.minPed)} pedidos (aprox.)`],
-                  ['Total de la categoría', fmtM(tot.vA), `${txtDelta(tot.g)} vs 4 semanas previas`]].map(([l, v, sb]) => `<div class="rounded-xl border border-slate-200 p-3"><div class="text-xs font-bold uppercase text-slate-500">${l}</div><div class="text-lg font-extrabold text-slate-900 num-tabular">${v}</div><div class="text-xs text-slate-500">${sb}</div></div>`).join('')}</div>
-                ${graficoMezcla(m, catSel, canSel)}</div>`; }
+                  [prod ? 'Total del producto' : 'Total de la categoría', fmtM(tot.vA), `${txtDelta(tot.g)} vs 4 semanas previas`]].map(([l, v, sb]) => `<div class="rounded-xl border border-slate-200 p-3"><div class="text-xs font-bold uppercase text-slate-500">${l}</div><div class="text-lg font-extrabold text-slate-900 num-tabular">${v}</div><div class="text-xs text-slate-500">${sb}</div></div>`).join('')}</div>
+                ${graficoMezcla(m, catSel, canSel)}${prod ? '<p class="text-xs text-slate-500">A nivel producto los pedidos son los del propio producto y el mínimo de volumen es la mitad que en categoría; el contexto de clientes nuevos solo está a nivel categoría.</p>' : ''}</div>`; }
         return `<div class="rounded-2xl bg-white border border-slate-200 shadow-sm p-4 sm:p-5 space-y-3">${cab}
             <div class="flex flex-wrap items-center gap-2 text-xs"><span class="text-slate-500">Mostrar:</span>
                 <button type="button" onclick="S.mezTodo=false;renderTodo()" aria-pressed="${relev}" class="px-2.5 py-1 rounded-full border font-bold ${relev ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-300'}">Solo cambios relevantes</button>
                 <button type="button" onclick="S.mezTodo=true;renderTodo()" aria-pressed="${!relev}" class="px-2.5 py-1 rounded-full border font-bold ${!relev ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-300'}">Todo</button>
-                <span class="ml-auto text-slate-500">Nivel: Categoría (producto, más adelante)</span></div>
+                <span class="ml-auto text-slate-500">Nivel:</span>
+                <button type="button" onclick="S.mezNivel='cat';S.mezSel=null;renderTodo()" aria-pressed="${!prod}" class="px-2.5 py-1 rounded-full border font-bold ${!prod ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-300'}">Categoría</button>
+                <button type="button" onclick="S.mezNivel='prod';S.mezSel=null;renderTodo()" aria-pressed="${prod}" class="px-2.5 py-1 rounded-full border font-bold ${prod ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-300'}">Producto (top ${MZ_TOP_PROD})</button></div>
             <div class="overflow-x-auto"><table class="border-separate" style="border-spacing:2px"><thead><tr><th></th>${MZ_CANALES.map(c => `<th class="px-2 py-1 text-xs uppercase text-slate-500 text-center">${c}</th>`).join('')}</tr></thead><tbody>${filas}</tbody></table></div>
             <p class="text-xs text-slate-500"><span class="inline-block w-3 h-3 rounded align-middle" style="background:#a7f3d0"></span> gana peso en el canal · <span class="inline-block w-3 h-3 rounded align-middle" style="background:#fecaca"></span> pierde peso · borde punteado = poco volumen · mini-gráfica = peso semanal de 8 semanas.</p>
             <div><h3 class="text-sm font-extrabold text-slate-900">Alertas de cambio de mezcla <span class="font-semibold text-slate-500">(${alertas.length})</span></h3>
@@ -1219,7 +1227,7 @@
     function avisoCorte() {
         const el = document.getElementById('aviso-corte'); if (!el) return; const ult = S.dias.length ? S.dias.reduce((m, r) => r.f > m ? r.f : m, '0000') : null;
         const falta = !S.demo && S.corte && ult && S.corte > ult && S.corte <= addDias(hoyISO(), -1) && S.dias.length > 0;
-        el.classList.toggle('hidden', !falta); if (falta) el.innerHTML = `<strong>Falta la venta del ${fechaCorta(S.corte)}.</strong> El corte es ${fechaCorta(S.corte)} (la venta llega a día vencido) y lo último cargado es del ${fechaCorta(ult)}. Carga el archivo para completar el corte.`;
+        el.classList.toggle('hidden', !falta); if (falta) el.innerHTML = `<strong>Falta la venta del ${fechaCorta(S.corte)}.</strong> <span class="max-sm:hidden">El corte es ${fechaCorta(S.corte)} (la información llega a día vencido) y lo último cargado es del ${fechaCorta(ult)}. Carga el archivo para completar el corte.</span><span class="sm:hidden">Lo último cargado es del ${fechaCorta(ult)}.</span>`;
     }
     function cambiarVista(v) { S.vista = v; renderTodo(); }
     async function cambiarCanal(c) { S.canal = c; renderTodo(); await cargarDerivados(); }
