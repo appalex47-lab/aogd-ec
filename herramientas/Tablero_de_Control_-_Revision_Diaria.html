@@ -773,7 +773,7 @@
     </div>
 
     <!-- Toast de Notificación -->
-    <div id="toast-notification" class="fixed bottom-5 right-5 z-50 hidden max-w-sm bg-slate-900 text-white text-xs sm:text-sm font-medium px-4 py-3 rounded-xl shadow-xl border border-slate-700"></div>
+    <div id="toast-notification" class="fixed bottom-4 right-4 z-50 pointer-events-none hidden max-w-sm bg-slate-900 text-white text-xs sm:text-sm font-medium px-4 py-3 rounded-xl shadow-xl border border-slate-700"></div>
 
     <script>
         // =====================================================================
@@ -1382,7 +1382,10 @@
             // E. Pacing Mensual
             const pacingRealMesPct = presupuestoTotalMes > 0 ? (ventaRealObservada / presupuestoTotalMes) * 100 : 0;
             const pacingEsperadoMesPct = presupuestoTotalMes > 0 ? (planVentaMTD / presupuestoTotalMes) * 100 : 0;
-            const diffPacingPp = pacingRealMesPct - pacingEsperadoMesPct;
+            // Con captura incompleta el ritmo se compara contra el plan de lo capturado, no contra el de días/canales sin dato
+            const pacingParcial = planEquivalenteObservado > 0 && (planVentaMTD - planEquivalenteObservado) > 0.5;
+            const pacingEsperadoEqPct = presupuestoTotalMes > 0 ? (planEquivalenteObservado / presupuestoTotalMes) * 100 : 0;
+            const diffPacingPp = pacingRealMesPct - (pacingParcial ? pacingEsperadoEqPct : pacingEsperadoMesPct);
 
             // F. Recuperación Requerida (para cerrar al 100% del presupuesto del mes en los días restantes calendario)
             const diasRestantesCalendario = diasFuturos.length;
@@ -1429,6 +1432,8 @@
                 pacingRealMesPct,
                 pacingEsperadoMesPct,
                 diffPacingPp,
+                pacingParcial,
+                pacingEsperadoEqPct,
                 brechaParaMetaTotalMes,
                 cuotaDiariaRequerida,
                 cuotaDiariaPlanFuturo,
@@ -1698,11 +1703,20 @@
             if (esPendiente || cumplimientoPct === null || isNaN(cumplimientoPct)) {
                 return `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-500">${etiquetaCustom || 'Pendiente'}</span>`;
             }
-            const cumple = cumplimientoPct >= 100;
+            const cumple = cumplimientoPct >= 98;
+            const ambar = !cumple && cumplimientoPct >= 90;
+            if (ambar) {
+                return `
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                        <span class="text-[9px] leading-none">▼</span>
+                        ${cumplimientoPct.toFixed(1)}%
+                    </span>
+                `;
+            }
             if (cumple) {
                 return `
                     <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                        <span class="text-[9px] leading-none">▲</span>
+                        <span class="text-[9px] leading-none">${cumplimientoPct >= 100 ? '▲' : '▼'}</span>
                         ${cumplimientoPct.toFixed(1)}%
                     </span>
                 `;
@@ -2273,10 +2287,11 @@
             const kpiContainer = document.getElementById('kpi-cards-container');
             kpiContainer.innerHTML = kpis.map(k => {
                 const sinDatos = mtd.diasCapturadosCount === 0 || k.pct === null;
-                const cumple = !sinDatos && k.pct >= 100;
+                const cumple = !sinDatos && k.pct >= 98;
+                const ambarK = !sinDatos && !cumple && k.pct >= 90;
                 const barWidth = sinDatos ? 0 : Math.min(k.pct, 100);
-                const barColor = sinDatos ? 'bg-slate-300' : (cumple ? 'bg-emerald-500' : 'bg-rose-500');
-                const borderAccent = sinDatos ? 'border-slate-200/90' : (cumple ? 'border-emerald-200/90' : 'border-rose-200/90');
+                const barColor = sinDatos ? 'bg-slate-300' : (cumple ? 'bg-emerald-500' : (ambarK ? 'bg-amber-500' : 'bg-rose-500'));
+                const borderAccent = sinDatos ? 'border-slate-200/90' : (cumple ? 'border-emerald-200/90' : (ambarK ? 'border-amber-200/90' : 'border-rose-200/90'));
                 const sparkSVG = sinDatos ? '' : generarSparklineSVG(k.sparkline, cumple);
 
                 return `
@@ -2301,7 +2316,7 @@
                             <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
                                 <div class="h-full ${barColor} rounded-full transition-all duration-500" style="width: ${barWidth}%"></div>
                             </div>
-                            ${k.notaParcial ? `<div class="mt-2 text-[11px] font-semibold text-amber-800 num-tabular truncate" title="${k.notaParcial}">${k.notaParcial}</div>` : ''}${k.subFooter ? `<div class="mt-2 pt-2 border-t border-slate-100 text-[11px] text-slate-500 num-tabular truncate" title="${k.subFooter.replace(/<[^>]*>/g, '')}">${k.subFooter}</div>` : ''}
+                            ${k.notaParcial ? `<div class="mt-2 text-[11px] font-semibold text-amber-800 num-tabular leading-snug" title="${k.notaParcial}">${k.notaParcial}</div>` : ''}${k.subFooter ? `<div class="mt-2 pt-2 border-t border-slate-100 text-[11px] text-slate-500 num-tabular leading-snug" title="${k.subFooter.replace(/<[^>]*>/g, '')}">${k.subFooter}</div>` : ''}
                         </div>
                     </div>
                 `;
@@ -2315,7 +2330,7 @@
                     ? `<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-500">Sin capturas al corte</span>`
                     : `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border ${pacingEnVerde ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}">
                         <span>${pacingEnVerde ? '▲' : '▼'}</span>
-                        <span>${mtd.diffPacingPp >= 0 ? '+' : ''}${mtd.diffPacingPp.toFixed(1)} pp vs Pacing Esperado</span>
+                        <span>${mtd.diffPacingPp >= 0 ? '+' : ''}${mtd.diffPacingPp.toFixed(1)} pp vs Pacing Esperado${mtd.pacingParcial ? ' (de lo capturado)' : ''}</span>
                        </span>`;
 
                 const badgeProvisional = (esConsolidado && mtd.esConsolidadoParcial && mtd.diasCapturadosCount > 0)
@@ -2397,7 +2412,7 @@
                             <span class="font-semibold text-slate-500">Plan acumulado al corte (${estadoApp.fechaCorte}): <strong class="text-slate-800">${mtd.pacingEsperadoMesPct.toFixed(1)}%</strong> (${fmtMoneda(mtd.planVentaMTD)})</span>
                         </div>
                         <div class="relative w-full h-3 bg-slate-100 rounded-full overflow-visible">
-                            <div class="h-full rounded-full transition-all duration-500 ${pacingEnVerde ? 'bg-emerald-500' : 'bg-rose-500'}" style="width: ${Math.min(100, mtd.pacingRealMesPct)}%"></div>
+                            <div class="h-full rounded-full transition-all duration-500 ${pacingEnVerde ? 'bg-emerald-500' : (mtd.diffPacingPp > -3 ? 'bg-amber-500' : 'bg-rose-500')}" style="width: ${Math.min(100, mtd.pacingRealMesPct)}%"></div>
                             <div class="absolute -top-1 -bottom-1 w-0.5 bg-slate-900 z-10" style="left: ${Math.min(100, mtd.pacingEsperadoMesPct)}%" title="Pacing esperado al corte: ${mtd.pacingEsperadoMesPct.toFixed(1)}%"></div>
                         </div>
                     </div>
@@ -2502,6 +2517,11 @@
                     const mCanal = calcularMetricasCalendarioMTD(estadoApp.datos[cKey] || [], estadoApp.fechaCorte);
                     const mix = mtd.ventaRealObservada > 0 ? (mCanal.ventaRealObservada / mtd.ventaRealObservada) * 100 : 0;
                     const rachaC = analizarRachaYVelocidad(mCanal.capturadosAlCorte);
+                    // Si al canal le faltan días de captura, se compara contra el plan de los días capturados (no contra el mes corrido completo)
+                    const parcC = mCanal.diasCapturadosCount > 0 && mCanal.pacingParcial;
+                    const cumpC = parcC ? (mCanal.ventaRealObservada / mCanal.planEquivalenteObservado) * 100 : mCanal.cumplimientoVentaMTD;
+                    const planMostrarC = parcC ? mCanal.planEquivalenteObservado : mCanal.planVentaMTD;
+                    const marcaEspC = parcC ? mCanal.pacingEsperadoEqPct : mCanal.pacingEsperadoMesPct;
                     const crCanalReal = calcularCR(mCanal.realPedidosMTD, mCanal.realSesionesMTD);
                     const crCanalPlan = calcularCR(mCanal.planPedidosMTD, mCanal.planSesionesMTD);
 
@@ -2515,9 +2535,9 @@
                     }, cfg.etiquetaTrafico, false);
 
                     const rachaBadgeC = rachaC.rachaTipo === 'DOWN'
-                        ? `<div class="text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md truncate">${rachaC.textoRacha}</div>`
+                        ? `<div class="text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md leading-snug">${rachaC.textoRacha}</div>`
                         : (rachaC.rachaTipo === 'UP'
-                            ? `<div class="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md truncate">${rachaC.textoRacha}</div>`
+                            ? `<div class="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md leading-snug">${rachaC.textoRacha}</div>`
                             : '');
 
                     return `
@@ -2533,11 +2553,11 @@
                                             <div class="text-[10px] text-slate-400 num-tabular">${mix.toFixed(1)}% mix • ${mCanal.diasCapturadosCount}/${mCanal.diasTranscurridosCalendario}d cap.</div>
                                         </div>
                                     </div>
-                                    ${obtenerSemaforoHTML(mCanal.cumplimientoVentaMTD, mCanal.diasCapturadosCount === 0)}
+                                    ${obtenerSemaforoHTML(cumpC, mCanal.diasCapturadosCount === 0)}
                                 </div>
                                 <div class="flex items-baseline justify-between mb-1 num-tabular">
                                     <span class="text-base font-extrabold text-slate-900">${mCanal.diasCapturadosCount > 0 ? fmtMoneda(mCanal.ventaRealObservada) : '—'}</span>
-                                    <span class="text-[11px] text-slate-400">Plan ${fmtMoneda(mCanal.planVentaMTD)}</span>
+                                    <span class="text-[11px] text-slate-500" ${parcC ? 'title="Plan de los días capturados; faltan días por capturar"' : ''}>Plan ${parcC ? 'capt. ' : ''}${fmtMoneda(planMostrarC)}</span>
                                 </div>
                                 <div class="text-[11px] text-slate-600 mb-2 num-tabular">
                                     CR (${cfg.etiquetaTrafico}): <strong>${mCanal.diasCapturadosCount > 0 ? fmtCR(crCanalReal) : '—'}</strong> <span class="text-slate-400">(Plan ${fmtCR(crCanalPlan)})</span>
@@ -2545,14 +2565,14 @@
 
                                 <!-- Mini Barra de Pacing del Canal con Marca Esperada al Corte -->
                                 <div class="relative w-full h-1.5 bg-slate-100 rounded-full mb-2.5">
-                                    <div class="h-full rounded-full ${mCanal.cumplimientoVentaMTD >= 100 ? 'bg-emerald-500' : 'bg-rose-500'}" style="width: ${Math.min(100, mCanal.pacingRealMesPct)}%"></div>
-                                    <div class="absolute -top-0.5 -bottom-0.5 w-0.5 bg-slate-800" style="left: ${Math.min(100, mCanal.pacingEsperadoMesPct)}%"></div>
+                                    <div class="h-full rounded-full ${cumpC >= 98 ? 'bg-emerald-500' : (cumpC >= 90 ? 'bg-amber-500' : 'bg-rose-500')}" style="width: ${Math.min(100, mCanal.pacingRealMesPct)}%"></div>
+                                    <div class="absolute -top-0.5 -bottom-0.5 w-0.5 bg-slate-800" style="left: ${Math.min(100, marcaEspC)}%"></div>
                                 </div>
                             </div>
 
                             <div class="space-y-1.5">
                                 ${rachaBadgeC}
-                                <div class="text-[11px] font-medium px-2 py-1 rounded-lg border truncate ${diagC.badgeClass}" title="${diagC.explicacionCuantitativa}">
+                                <div class="text-[11px] font-medium px-2 py-1 rounded-lg border leading-snug ${diagC.badgeClass}" title="${diagC.explicacionCuantitativa}">
                                     ${diagC.tituloCorto}
                                 </div>
                                 <div class="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-100 num-tabular">
@@ -4949,7 +4969,7 @@
             <button id="nube-boton" type="submit" class="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold transition">Entrar</button>
         </form>
     </div>
-    <div id="nube-estado" class="fixed bottom-5 left-5 z-40 hidden px-2.5 py-1 rounded-lg bg-white/90 border border-slate-200 text-[11px] font-semibold text-slate-600 shadow-sm"></div>
+    <div id="nube-estado" class="fixed bottom-2 left-2 z-40 pointer-events-none opacity-80 hidden px-2.5 py-1 rounded-lg bg-white/90 border border-slate-200 text-[11px] font-semibold text-slate-600 shadow-sm"></div>
 
     <script>
         const NUBE = {
@@ -4976,7 +4996,7 @@
             const el = document.getElementById('nube-estado');
             if (!el) return;
             el.textContent = texto;
-            el.className = 'fixed bottom-5 left-5 z-40 px-2.5 py-1 rounded-lg bg-white/90 border text-[11px] font-semibold shadow-sm '
+            el.className = 'fixed bottom-2 left-2 z-40 pointer-events-none opacity-80 px-2.5 py-1 rounded-lg bg-white/90 border text-[11px] font-semibold shadow-sm '
                 + (tono === 'error' ? 'border-rose-300 text-rose-700' : tono === 'ok' ? 'border-emerald-300 text-emerald-700' : 'border-slate-200 text-slate-600');
         }
 
