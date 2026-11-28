@@ -4,6 +4,7 @@
     st.textContent = '[role="button"]:focus-visible,button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid #2563eb;outline-offset:2px;border-radius:6px}' +
         '@media (max-width:639px){.overflow-x-auto table th:first-child{position:sticky;left:0;z-index:2;background:#f8fafc}.overflow-x-auto table td:first-child{position:sticky;left:0;z-index:1;background:#fff;box-shadow:1px 0 0 #e2e8f0}}' +
         '@media (max-width:639px){nav.overflow-x-auto.fm-fade-der{-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 34px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 34px),transparent)}nav.overflow-x-auto.fm-fade-izq{-webkit-mask-image:linear-gradient(to left,#000 calc(100% - 34px),transparent);mask-image:linear-gradient(to left,#000 calc(100% - 34px),transparent)}nav.overflow-x-auto.fm-fade-der.fm-fade-izq{-webkit-mask-image:linear-gradient(to right,transparent,#000 30px,#000 calc(100% - 34px),transparent);mask-image:linear-gradient(to right,transparent,#000 30px,#000 calc(100% - 34px),transparent)}}' +
+        '@media (max-width:639px){.overflow-x-auto.fm-tabla-der{-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 32px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 32px),transparent)}}' +
         '@media (prefers-reduced-motion: reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}';
     document.head.appendChild(st);
 
@@ -46,9 +47,17 @@
             actualizarFade(nav);
         });
     }
-    window.addEventListener('resize', ajustarTabs);
+    // Tablas con scroll horizontal: degradado a la derecha mientras haya más columnas por ver (solo móvil)
+    function ajustarTablas() {
+        document.querySelectorAll('.overflow-x-auto').forEach(c => {
+            if (c.tagName === 'NAV' || !c.querySelector('table')) return;
+            if (!c._fadeT) { c._fadeT = true; c.addEventListener('scroll', () => c.classList.toggle('fm-tabla-der', c.scrollWidth - c.clientWidth > 4 && c.scrollLeft < c.scrollWidth - c.clientWidth - 4), { passive: true }); }
+            c.classList.toggle('fm-tabla-der', c.scrollWidth - c.clientWidth > 4 && c.scrollLeft < c.scrollWidth - c.clientWidth - 4);
+        });
+    }
+    window.addEventListener('resize', () => { ajustarTabs(); ajustarTablas(); });
     let pend = false;
-    function programar() { if (pend) return; pend = true; setTimeout(() => { pend = false; marcar(document.body); ajustarTabs(); }, 120); }
-    function iniciar() { marcar(document.body); ajustarTabs(); new MutationObserver(programar).observe(document.body, { childList: true, subtree: true }); }
+    function programar() { if (pend) return; pend = true; setTimeout(() => { pend = false; marcar(document.body); ajustarTabs(); ajustarTablas(); }, 120); }
+    function iniciar() { marcar(document.body); ajustarTabs(); ajustarTablas(); new MutationObserver(programar).observe(document.body, { childList: true, subtree: true }); }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar); else iniciar();
 })();
