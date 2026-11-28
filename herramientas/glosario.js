@@ -21,7 +21,7 @@
         ['Impacto alto, medio, bajo', 'Se mide como pedidos perdidos (o venta perdida) ÷ el total del periodo a su ritmo normal. Los umbrales se ajustan en Configuración.'],
         ['Tráfico de baja intención', 'Fuentes que traen sesiones pero convierten menos de la mitad que el promedio.'],
         ['Ingreso por sesión', 'Venta de Comercial ÷ sesiones de Tráfico. Combina conversión y ticket: cuánto dinero deja cada visita.'],
-        ['Cambio de mezcla por canal', 'Peso de una categoría dentro de la venta de un canal (venta de la categoría en el canal ÷ venta del canal). Si sube 3 semanas seguidas y se sale de su variación normal, la categoría empieza a moverse más en ese canal. Migración: el total de la categoría casi no cambia y otro canal pierde peso. Demanda nueva: el total crece sin que otro canal pierda.'],
+        ['Cambio de mezcla por canal', 'Peso de una categoría dentro de la venta de un canal (venta de la categoría en el canal ÷ venta del canal). Si la mediana de las últimas 3 semanas queda arriba de su peso normal y el cambio se sale de su variación normal, la categoría empieza a moverse más en ese canal. Migración: el total de la categoría casi no cambia y otro canal pierde peso. Demanda nueva: el total crece sin que otro canal pierda.'],
         ['Cliente nuevo y recurrente', 'Recurrente: el cliente tiene una compra anterior en el historial de Comercial. Nuevo: es su primera compra registrada.'],
         ['Estrella y ancla', 'Productos que más aportan a la venta (estrellas) y productos que atraen tráfico o sostienen el ticket (anclas).'],
         ['Cross-selling', 'Productos que se compran juntos más de lo esperado; la adjunción es el % de pedidos que llevan el segundo producto.'],
