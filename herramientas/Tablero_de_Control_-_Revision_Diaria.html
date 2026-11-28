@@ -91,34 +91,37 @@
                                 <select id="selector-mes-activo" onchange="cambiarMesActivo(this.value)" class="bg-transparent text-xs font-bold text-blue-800 focus:outline-none cursor-pointer" title="Seleccionar periodo mensual">
                                 </select>
                             </div>
-                            <!-- Selector Explícito de Fecha de Corte Calendario -->
-                            <div class="inline-flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-lg px-2 py-0.5" title="Fecha calendario de corte para el cálculo MTD">
-                                <span class="text-xs font-bold uppercase text-slate-500">Corte:</span>
-                                <input type="date" id="selector-fecha-corte" onchange="cambiarFechaCorte(this.value)" class="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer num-tabular">
-                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Canal, acciones y datos -->
-                <div class="flex flex-wrap items-center justify-end gap-2">
-                    <!-- Canal y acciones de las tres herramientas -->
+                <div class="sm:hidden w-full flex items-center justify-between gap-2"><span id="hdr-resumen" class="text-xs text-slate-500 min-w-0"></span><button type="button" id="btn-filtros" onclick="alternarFiltros()" aria-expanded="false" aria-controls="hdr-filtros" class="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-xs font-bold text-slate-700">⚙ Filtros <span id="btn-filtros-flecha" aria-hidden="true">▾</span></button></div>
+
+                <!-- Filtros, acciones y datos -->
+                <div class="flex flex-wrap items-center justify-end max-sm:justify-start gap-2 max-sm:w-full">
+                    <div id="hdr-filtros" class="flex flex-wrap items-center gap-2 max-sm:hidden max-sm:w-full">
+                    <!-- Selector Explícito de Fecha de Corte Calendario -->
+                            <div class="inline-flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-lg px-2 py-0.5" title="Fecha calendario de corte para el cálculo MTD">
+                                <span class="text-xs font-bold uppercase text-slate-500">Corte:</span>
+                                <input type="date" id="selector-fecha-corte" onchange="cambiarFechaCorte(this.value)" class="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer num-tabular">
+                            </div>
                     <select id="selector-ventana-barra" aria-label="Ventana" title="Ventana de análisis: la meta y el avance de esos días" onchange="cambiarVentana(this.value)" class="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-semibold text-slate-800 cursor-pointer"></select>
                     <select id="selector-canal-barra" aria-label="Canal" title="Canal" onchange="cambiarCanal(this.value)" class="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-semibold text-slate-800 cursor-pointer"></select>
+                    </div>
                     <button type="button" id="chip-datos" onclick="cambiarVista('config')" title="Estado de los datos: abre Configuración e integridad" class="hidden inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold whitespace-nowrap transition"></button>
                     <a id="chip-acciones" href="Acciones.html" target="_blank" rel="noopener" title="Acciones abiertas y vencidas de las herramientas. Abre el registro unificado" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 whitespace-nowrap transition hover:bg-slate-50"><span aria-hidden="true">✅</span><span id="chip-acciones-txt">Acciones</span></a>
 
                     <!-- Acción Primaria: Captura Rápida Manual -->
                     <button type="button" onclick="abrirModalCaptura()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white text-xs sm:text-sm font-semibold shadow-sm shadow-blue-600/25 transition cursor-pointer">
                         <i data-lucide="plus" class="w-4 h-4 stroke-[2.5]"></i>
-                        <span>Captura Rápida</span>
+                        <span class="max-sm:hidden">Captura Rápida</span><span class="sm:hidden">Captura</span>
                     </button>
 
                     <!-- Menú Desplegable Consolidado de Datos / CSV / Backup -->
                     <div class="relative" id="data-menu-wrapper">
                         <button type="button" onclick="toggleDataMenu(event)" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs sm:text-sm font-semibold transition cursor-pointer">
                             <i data-lucide="database" class="w-4 h-4 text-slate-600"></i>
-                            <span>Datos / CSV</span>
+                            <span class="max-sm:sr-only">Datos / CSV</span>
                             <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-500"></i>
                         </button>
 
@@ -1850,6 +1853,21 @@
             estadoApp.filtroDiagnostico = 'ALL';
             renderizarTodo();
         }
+
+
+        // Encabezado móvil: los filtros (corte, ventana, canal) se pliegan detrás de "Filtros" y se resumen en una línea
+        function alternarFiltros() {
+            const p = document.getElementById('hdr-filtros'), b = document.getElementById('btn-filtros'); if (!p || !b) return;
+            const abierto = p.classList.toggle('max-sm:hidden') === false; b.setAttribute('aria-expanded', String(abierto));
+            const f = document.getElementById('btn-filtros-flecha'); if (f) f.textContent = abierto ? '▴' : '▾';
+        }
+        function resumenFiltros() {
+            const el = document.getElementById('hdr-resumen'); if (!el) return;
+            const c = document.getElementById('selector-fecha-corte'), corte = c && c.value ? c.value.split('-').reverse().slice(0, 2).join('/') : '—';
+            const t = id => { const x = document.getElementById(id); return x && x.selectedOptions && x.selectedOptions[0] ? x.selectedOptions[0].textContent.trim() : ''; };
+            el.textContent = ['Corte ' + corte, t('selector-canal-barra'), t('selector-ventana-barra')].filter(Boolean).join(' · ');
+        }
+        document.addEventListener('change', e => { if (e.target && /^selector-(fecha-corte|canal-barra|ventana-barra)$/.test(e.target.id)) setTimeout(resumenFiltros, 0); });
 
         function cambiarVista(nuevaVista) {
             estadoApp.vista = nuevaVista;
@@ -4937,6 +4955,7 @@
         }
 
         function renderizarTodo() {
+            setTimeout(resumenFiltros, 0);
             renderizarSelectorMeses();
             renderizarSelectorCanales();
             renderizarSelectorVentana();
