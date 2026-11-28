@@ -79,9 +79,9 @@
                         </div>
                     </details>
                     </div>
-                    <div class="flex flex-wrap items-center gap-2" id="hdr-acciones">
-                    <button type="button" id="chip-datos" onclick="cambiarVista('config')" title="Estado de los datos: abre Configuración e integridad" class="hidden inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold whitespace-nowrap transition"></button>
-                    <a id="chip-acciones" href="Acciones.html" target="_blank" rel="noopener" title="Acciones abiertas y vencidas de las herramientas. Abre el registro unificado" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 whitespace-nowrap transition hover:bg-slate-50"><span aria-hidden="true">✅</span><span id="chip-acciones-txt">Acciones</span></a>
+                    <div class="flex flex-wrap items-center gap-2 max-sm:w-full" id="hdr-acciones">
+                    <button type="button" id="chip-datos" onclick="cambiarVista('config')" title="Estado de los datos: abre Configuración e integridad" class="hidden inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold whitespace-nowrap transition max-sm:flex-1 max-sm:justify-center"></button>
+                    <a id="chip-acciones" href="Acciones.html" target="_blank" rel="noopener" title="Acciones abiertas y vencidas de las herramientas. Abre el registro unificado" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 whitespace-nowrap max-sm:flex-1 max-sm:justify-center transition hover:bg-slate-50"><span aria-hidden="true">✅</span><span id="chip-acciones-txt">Acciones</span></a>
                     <label for="file-upload" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition cursor-pointer">
                         <span aria-hidden="true">⬆️</span><span class="max-sm:sr-only">Cargar CSV</span>
                         <input id="file-upload" type="file" accept=".csv,.xlsx,.xls" class="hidden" onchange="procesarArchivo(event)">
@@ -643,10 +643,11 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
     }
     function tarjeta(titulo, valor, sub, delta, extra = '') {
         const largo = String(valor).replace(/<[^>]*>/g, '').length > 14;
-        return `<div class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm min-w-0">
-            <div class="text-xs font-bold uppercase tracking-wide text-slate-500">${titulo}</div>
-            <div class="mt-1 flex flex-wrap items-start justify-between gap-x-2 gap-y-1"><div class="max-w-full break-words ${largo ? 'text-base leading-snug' : 'text-xl sm:text-2xl'} font-extrabold text-slate-900 num-tabular">${valor}</div>${delta !== undefined ? `<div class="shrink-0">${chipDelta(delta)}</div>` : ''}</div>
-            <div class="mt-1 text-xs text-slate-500 break-words">${sub}</div>${extra}</div>`;
+        // En móvil la tarjeta es compacta: la frase explicativa se recorta a 2 líneas y se despliega al tocar la tarjeta
+        return `<div class="rounded-2xl bg-white border border-slate-200 p-4 max-md:p-3 shadow-sm min-w-0 max-md:[&:last-child:nth-child(odd)_.kpi-t]:min-h-0" onclick="this.querySelector('.kpi-sub').classList.toggle('max-md:line-clamp-2')">
+            <div class="text-xs font-bold uppercase tracking-wide text-slate-500 kpi-t max-md:min-h-[2rem]">${titulo}</div>
+            <div class="mt-1 flex flex-wrap max-md:flex-nowrap items-start justify-between gap-x-2 gap-y-1"><div class="max-w-full break-words ${largo ? 'text-base leading-snug' : 'text-xl sm:text-2xl'} font-extrabold text-slate-900 num-tabular">${valor}</div>${delta !== undefined ? `<div class="shrink-0">${chipDelta(delta)}</div>` : ''}</div>
+            <div class="kpi-sub mt-1 text-xs text-slate-500 break-words max-md:line-clamp-2">${sub}</div>${extra}</div>`;
     }
     function botonAccion(tipo, titulo, detalle) {
         return `<button type="button" data-pdf-ocultar="true" onclick="abrirAccion(${esc(JSON.stringify(JSON.stringify({ titulo: `Revisar ${tipo.toLowerCase()}: ${titulo}`, detalle })))})" class="px-2.5 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700">+ Acción</button>`;
@@ -753,7 +754,7 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
         el.innerHTML = `<div class="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-sm space-y-3">
             <div><h3 class="text-sm font-extrabold text-slate-900">Valor del tráfico <span class="text-slate-500 font-semibold">· cruce con Comercial</span></h3>
             <p class="text-xs text-slate-500">Sesiones de Tráfico contra venta y clientes de Comercial (Web${S.canal === 'Web' ? '' : ' y App'}). Un CR alto con ticket bajo puede engañar: aquí se ve cuánto dinero deja cada sesión.</p></div>
-            <div class="grid grid-cols-2 xl:grid-cols-4 gap-3 items-start">
+            <div class="grid grid-cols-2 xl:grid-cols-4 gap-3 items-start max-md:items-stretch">
                 ${tarjeta('Ingreso por sesión', $m(a.rps), `${fmtN(act.venta)} de venta ÷ ${fmtN(sesA)} sesiones. Lo normal: ${$m(b.rps)}.`, dRps)}
                 ${tarjeta('Ticket promedio', $m(a.ticket), `Pedidos por sesión: ${a.pps === null ? '—' : (a.pps * 100).toFixed(2) + '%'} (normal ${b.pps === null ? '—' : (b.pps * 100).toFixed(2) + '%'}).`, dTk)}
                 ${tarjeta('Pedidos de clientes recurrentes', fmtP(a.rec, 1), `${fmtN(act.pr)} de ${fmtN(act.pr + act.pn)} pedidos; lo normal: ${fmtP(b.rec, 1)}. ${chipPp(dRec)}`)}
@@ -778,7 +779,7 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
         ].join('');
         document.getElementById('panel-resumen').innerHTML = `
             <p class="text-xs text-slate-500">${textoVentana(V)} · Canal: <strong>${ETIQ_CANAL[S.canal]}</strong></p>
-            <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 items-start max-md:[&>*:last-child:nth-child(odd)]:col-span-2">${cards}</div>
+            <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 items-start max-md:items-stretch max-md:[&>*:last-child:nth-child(odd)]:col-span-2">${cards}</div>
             <div id="valor-trafico"></div>
             <div class="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-sm">
                 <h3 class="text-sm font-extrabold text-slate-900">Comportamiento diario del mes</h3>
@@ -1624,7 +1625,7 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
             let ab = 0, ve = 0; const hoy = hoyISO();
             res.forEach(r => (r.data && Array.isArray(r.data.acciones) ? r.data.acciones : []).forEach(a => { if (a.estatus === 'Completada') return; ab++; if (a.fechaCompromiso && a.fechaCompromiso < hoy) ve++; }));
             tx.textContent = ab ? `${ab} abierta${ab === 1 ? '' : 's'}${ve ? ` · ${ve} vencida${ve === 1 ? '' : 's'}` : ''}` : 'Sin acciones abiertas';
-            el.className = `inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold whitespace-nowrap transition ${ve ? 'bg-rose-50 border-rose-300 text-rose-700 hover:bg-rose-100' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'}`;
+            el.className = `inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold whitespace-nowrap transition max-sm:flex-1 max-sm:justify-center ${ve ? 'bg-rose-50 border-rose-300 text-rose-700 hover:bg-rose-100' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'}`;
         } catch (e) { console.error(e); }
     }
     document.addEventListener('click', e => document.querySelectorAll('header details[open]').forEach(d => { if (!d.contains(e.target)) d.removeAttribute('open'); }));
