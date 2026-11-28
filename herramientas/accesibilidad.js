@@ -18,6 +18,15 @@
         raiz.querySelectorAll('button:not([aria-label]),a:not([aria-label])').forEach(el => {
             if (!el.textContent.trim() && el.title) el.setAttribute('aria-label', el.title);
         });
+        // Campos sin nombre accesible: se usa la etiqueta o el texto vecino (p. ej. "Corte:" o el <label> anterior sin "for")
+        raiz.querySelectorAll('input:not([type=hidden]):not([type=file]),select,textarea').forEach(el => {
+            if (el.hasAttribute('aria-label') || el.hasAttribute('aria-labelledby') || (el.id && document.querySelector('label[for="' + el.id + '"]')) || el.closest('label')) return;
+            const p = el.parentElement; let t = '';
+            const ant = el.previousElementSibling; if (ant && /^(LABEL|SPAN|DIV|P)$/.test(ant.tagName) && ant.textContent.trim().length < 90) t = ant.textContent.trim();
+            if (!t && p) { const l = p.querySelector('label,span'); if (l && l !== el && l.textContent.trim().length < 90) t = l.textContent.trim(); }
+            if (!t && p && p.parentElement) { const l = p.parentElement.querySelector('label'); if (l) t = l.textContent.trim(); }
+            if (!t) t = el.title || el.placeholder || ''; if (t) el.setAttribute('aria-label', t.replace(/[:\s]+$/, ''));
+        });
         raiz.querySelectorAll('#toast,#toast-notification,#nube-estado').forEach(el => {
             if (!el.hasAttribute('role')) { el.setAttribute('role', 'status'); el.setAttribute('aria-live', 'polite'); }
         });

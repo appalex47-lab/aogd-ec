@@ -41,7 +41,10 @@
         const abrir = typeof forzar === 'boolean' ? forzar : !abierto();
         p.classList.toggle('max-sm:hidden', !abrir); p.classList.toggle('fm-abierto', abrir); if (fondo) fondo.classList.toggle('fm-abierto', abrir);
         b.setAttribute('aria-expanded', String(abrir)); const f = g('btn-filtros-flecha'); if (f) f.textContent = abrir ? '▴' : '▾';
-        if (abrir) previo = document.activeElement; else { resumenFiltros(); if (previo && previo.focus && window.innerWidth < 640) previo.focus(); }
+        if (abrir) { previo = document.activeElement; p.setAttribute('role', 'dialog'); p.setAttribute('aria-modal', 'true'); p.setAttribute('aria-label', 'Filtros');
+            if (typeof forzar !== 'string') setTimeout(() => { const f = p.querySelector('select,input,button:not(.fm-cab button),summary'); if (f && !p.contains(document.activeElement)) f.focus(); }, 60); }
+        else { p.removeAttribute('role'); p.removeAttribute('aria-modal'); p.removeAttribute('aria-label'); }
+        if (abrir) {} else { resumenFiltros(); if (previo && previo.focus && window.innerWidth < 640) previo.focus(); }
     };
     window.abrirFiltros = function (foco) {
         alternarFiltros(true);
@@ -55,7 +58,12 @@
         [[ID.vent, 'Ventana'], [ID.canal, 'Canal']].forEach(([id, t]) => { const s = g(id); if (s && !s.closest('label')) { const sp = document.createElement('span'); sp.className = 'fm-et sm:hidden'; sp.textContent = t; s.parentNode.insertBefore(sp, s); s.style.width = '100%'; } });
         fondo = document.createElement('div'); fondo.id = 'fm-fondo'; fondo.setAttribute('data-pdf-ocultar', 'true'); fondo.onclick = () => alternarFiltros(false); document.body.appendChild(fondo);
         const b = g('btn-filtros'); if (b && !g('fm-punto')) { const d = document.createElement('span'); d.id = 'fm-punto'; d.className = 'hidden inline-block w-2 h-2 rounded-full bg-blue-600'; d.setAttribute('aria-hidden', 'true'); b.insertBefore(d, b.firstChild); }
-        document.addEventListener('keydown', e => { if (e.key === 'Escape' && abierto()) alternarFiltros(false); });
+        document.addEventListener('keydown', e => {
+            if (!abierto()) return;
+            if (e.key === 'Escape') { alternarFiltros(false); return; }
+            if (e.key === 'Tab') { const q = [...p.querySelectorAll('select,input,button,summary,a[href]')].filter(x => x.offsetParent !== null); if (!q.length) return;
+                const ini = q[0], fin = q[q.length - 1]; if (e.shiftKey && document.activeElement === ini) { e.preventDefault(); fin.focus(); } else if (!e.shiftKey && document.activeElement === fin) { e.preventDefault(); ini.focus(); } }
+        });
         document.addEventListener('change', e => { if (e.target && [ID.corte, ID.canal, ID.vent].includes(e.target.id)) setTimeout(resumenFiltros, 0); });
         window.addEventListener('resize', () => { if (window.innerWidth >= 640 && abierto()) alternarFiltros(false); });
         resumenFiltros();
