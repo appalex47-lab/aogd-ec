@@ -14,6 +14,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="integridad.js"></script>
+    <script src="accesibilidad.js"></script>
     <style>
         body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background-color: #f8fafc; color: #0f172a; }
         .num-tabular { font-variant-numeric: tabular-nums; }
@@ -44,33 +45,33 @@
                     <div class="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center shrink-0 text-sm" aria-hidden="true">🛒</div>
                     <h1 class="text-sm sm:text-base font-extrabold tracking-tight text-slate-900" title="Categorías, productos estrella y ancla, ticket (AOV, UPT, AUR), cross-selling y bundling, contra benchmark propio (28 días previos) y metas por categoría">Comercial</h1>
                     <div class="inline-flex items-center gap-1 bg-blue-50 border border-blue-200/80 rounded-lg px-2 py-0.5">
-                        <select id="sel-mes" onchange="cambiarMes(this.value)" class="bg-transparent text-[11px] font-bold text-blue-800 focus:outline-none cursor-pointer" title="Mes"></select>
+                        <select id="sel-mes" onchange="cambiarMes(this.value)" class="bg-transparent text-xs font-bold text-blue-800 focus:outline-none cursor-pointer" title="Mes"></select>
                     </div>
                     <div class="inline-flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-lg px-2 py-0.5" title="Fecha de corte del análisis">
-                        <span class="text-[10px] font-bold uppercase text-slate-500">Corte:</span>
-                        <input type="date" id="sel-corte" onchange="cambiarCorte(this.value)" class="bg-transparent text-[11px] font-bold text-slate-800 focus:outline-none cursor-pointer num-tabular">
+                        <span class="text-xs font-bold uppercase text-slate-500">Corte:</span>
+                        <input type="date" id="sel-corte" onchange="cambiarCorte(this.value)" class="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer num-tabular">
                     </div>
                 </div>
                 <div class="flex flex-wrap items-center gap-2" data-pdf-ocultar="true">
-                    <label class="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase text-slate-500">Canal <select id="sel-canal" onchange="cambiarCanal(this.value)" class="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold normal-case text-slate-800 cursor-pointer"></select></label>
-                    <label class="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase text-slate-500">Ventana <select id="sel-ventana" onchange="cambiarVentana(this.value)" class="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold normal-case text-slate-800 cursor-pointer">
+                    <label class="inline-flex items-center gap-1.5 text-xs font-bold uppercase text-slate-500">Canal <select id="sel-canal" onchange="cambiarCanal(this.value)" class="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold normal-case text-slate-800 cursor-pointer"></select></label>
+                    <label class="inline-flex items-center gap-1.5 text-xs font-bold uppercase text-slate-500">Ventana <select id="sel-ventana" onchange="cambiarVentana(this.value)" class="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold normal-case text-slate-800 cursor-pointer">
                         <option value="1">Día de corte</option><option value="7" selected>Últimos 7 días</option><option value="14">Últimos 14 días</option><option value="mtd">Mes a la fecha</option></select></label>
                     <details class="relative">
                         <summary class="list-none cursor-pointer px-2.5 py-1.5 rounded-xl border border-slate-300 bg-white text-xs font-semibold text-slate-700">⚙️ Alertas</summary>
                         <div class="absolute right-0 mt-2 w-72 rounded-2xl bg-white border border-slate-200 shadow-xl p-4 z-40 space-y-3">
-                            <div><label class="text-[11px] font-bold text-slate-600">Caída que dispara alerta (%)</label>
+                            <div><label class="text-xs font-bold text-slate-600">Caída que dispara alerta (%)</label>
                                 <input id="cfg-umbral" type="number" min="1" max="90" step="1" value="5" onchange="guardarConfig()" class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1 text-sm">
-                                <p class="text-[10px] text-slate-400 mt-1">Cuando una categoría o un producto estrella/ancla cae este % o más contra su benchmark.</p></div>
-                            <div><label class="text-[11px] font-bold text-slate-600">Impacto Alto desde (pp de la venta)</label>
+                                <p class="text-xs text-slate-500 mt-1">Cuando una categoría o un producto estrella/ancla cae este % o más contra su benchmark.</p></div>
+                            <div><label class="text-xs font-bold text-slate-600">Impacto Alto desde (pp de la venta)</label>
                                 <input id="cfg-ialto" type="number" min="0.1" step="0.1" value="1" onchange="guardarConfig()" class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1 text-sm"></div>
-                            <div><label class="text-[11px] font-bold text-slate-600">Impacto Medio desde (pp de la venta)</label>
+                            <div><label class="text-xs font-bold text-slate-600">Impacto Medio desde (pp de la venta)</label>
                                 <input id="cfg-imedio" type="number" min="0.05" step="0.05" value="0.3" onchange="guardarConfig()" class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1 text-sm">
-                                <p class="text-[10px] text-slate-400 mt-1">Lo que la alerta resta a la venta ÷ venta a su ritmo normal. Debajo del Medio es impacto Bajo.</p></div>
-                            <div><label class="text-[11px] font-bold text-slate-600">Productos que sostienen la venta (% acumulado)</label>
+                                <p class="text-xs text-slate-500 mt-1">Lo que la alerta resta a la venta ÷ venta a su ritmo normal. Debajo del Medio es impacto Bajo.</p></div>
+                            <div><label class="text-xs font-bold text-slate-600">Productos que sostienen la venta (% acumulado)</label>
                                 <input id="cfg-cabeza" type="number" min="10" max="90" step="5" value="50" onchange="guardarConfig()" class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1 text-sm"></div>
-                            <div><label class="text-[11px] font-bold text-slate-600">Crecimiento mínimo para “estrella” (%)</label>
+                            <div><label class="text-xs font-bold text-slate-600">Crecimiento mínimo para “estrella” (%)</label>
                                 <input id="cfg-crec" type="number" min="1" max="50" step="1" value="5" onchange="guardarConfig()" class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1 text-sm"></div>
-                            <div><label class="text-[11px] font-bold text-slate-600">Días sin venta para “sin movimiento”</label>
+                            <div><label class="text-xs font-bold text-slate-600">Días sin venta para “sin movimiento”</label>
                                 <input id="cfg-sinmov" type="number" min="30" max="365" step="10" value="90" onchange="guardarConfig()" class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1 text-sm"></div>
                         </div>
                     </details>
@@ -129,16 +130,16 @@
         <div class="w-full max-w-3xl bg-white rounded-3xl shadow-2xl overflow-hidden m-auto flex flex-col max-h-[calc(100vh-1.5rem)] sm:max-h-[calc(100vh-2rem)]">
             <div class="bg-slate-900 text-white px-6 py-4 shrink-0">
                 <h3 class="text-base font-extrabold">Validación y vista previa de importación</h3>
-                <p id="imp-sub" class="text-xs text-slate-300 mt-1"></p>
+                <p id="imp-sub" class="text-xs text-slate-400 mt-1"></p>
             </div>
             <div class="overflow-y-auto min-h-0 flex-1 p-6 space-y-4">
                 <div class="grid grid-cols-3 gap-3 text-center">
-                    <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-3"><div class="text-[10px] font-bold uppercase text-emerald-700">Registros día-canal-SKU</div><div id="imp-validos" class="text-2xl font-extrabold text-emerald-900 num-tabular">0</div></div>
-                    <div class="rounded-2xl border border-amber-200 bg-amber-50 p-3"><div class="text-[10px] font-bold uppercase text-amber-700">Advertencias</div><div id="imp-adv" class="text-2xl font-extrabold text-amber-900 num-tabular">0</div></div>
-                    <div class="rounded-2xl border border-rose-200 bg-rose-50 p-3"><div class="text-[10px] font-bold uppercase text-rose-700">Líneas omitidas</div><div id="imp-omit" class="text-2xl font-extrabold text-rose-900 num-tabular">0</div></div>
+                    <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-3"><div class="text-xs font-bold uppercase text-emerald-700">Registros día-canal-SKU</div><div id="imp-validos" class="text-2xl font-extrabold text-emerald-900 num-tabular">0</div></div>
+                    <div class="rounded-2xl border border-amber-200 bg-amber-50 p-3"><div class="text-xs font-bold uppercase text-amber-700">Advertencias</div><div id="imp-adv" class="text-2xl font-extrabold text-amber-900 num-tabular">0</div></div>
+                    <div class="rounded-2xl border border-rose-200 bg-rose-50 p-3"><div class="text-xs font-bold uppercase text-rose-700">Líneas omitidas</div><div id="imp-omit" class="text-2xl font-extrabold text-rose-900 num-tabular">0</div></div>
                 </div>
                 <div>
-                    <div class="text-[11px] font-bold text-slate-700 mb-1.5">Columnas detectadas <span class="font-normal text-slate-500">(corrige las que no coincidan; * = obligatoria)</span></div>
+                    <div class="text-xs font-bold text-slate-700 mb-1.5">Columnas detectadas <span class="font-normal text-slate-500">(corrige las que no coincidan; * = obligatoria)</span></div>
                     <div id="imp-mapa" class="grid grid-cols-2 sm:grid-cols-3 gap-2"></div>
                     <div id="imp-cats" class="mt-2 text-xs text-slate-700 break-words"></div>
                 </div>
@@ -146,11 +147,11 @@
                 <div id="imp-warn" class="hidden rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 max-h-40 overflow-y-auto space-y-1"></div>
                 <div class="border border-slate-200 rounded-xl overflow-hidden max-h-56 overflow-y-auto">
                     <table class="w-full text-left text-xs num-tabular">
-                        <thead class="bg-slate-50 text-[10px] uppercase text-slate-500"><tr><th class="px-3 py-2">Fecha</th><th class="px-3 py-2">Canal</th><th class="px-3 py-2">SKU</th><th class="px-3 py-2">Producto</th><th class="px-3 py-2">Categoría</th><th class="px-3 py-2 text-right">Unidades</th><th class="px-3 py-2 text-right">Venta</th></tr></thead>
+                        <thead class="bg-slate-50 text-xs uppercase text-slate-500"><tr><th class="px-3 py-2">Fecha</th><th class="px-3 py-2">Canal</th><th class="px-3 py-2">SKU</th><th class="px-3 py-2">Producto</th><th class="px-3 py-2">Categoría</th><th class="px-3 py-2 text-right">Unidades</th><th class="px-3 py-2 text-right">Venta</th></tr></thead>
                         <tbody id="imp-tbody" class="divide-y divide-slate-100"></tbody>
                     </table>
                 </div>
-                <p class="text-[11px] text-slate-500">Las líneas se procesan en tu navegador: a la nube se guardan los totales por día, canal y producto y también las líneas de pedido (con pedido_id y cliente_id) para poder exportar el respaldo completo. Si una fecha y canal ya existen, se reemplazan por completo con este archivo.</p>
+                <p class="text-xs text-slate-500">Las líneas se procesan en tu navegador: a la nube se guardan los totales por día, canal y producto y también las líneas de pedido (con pedido_id y cliente_id) para poder exportar el respaldo completo. Si una fecha y canal ya existen, se reemplazan por completo con este archivo.</p>
             </div>
             <div class="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2.5 shrink-0">
                 <button type="button" onclick="cerrarImport()" class="px-4 py-2 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-700">Cancelar</button>
@@ -162,7 +163,7 @@
     <!-- MODAL: CATÁLOGO DE CATEGORÍAS -->
     <div id="modal-catalogo" class="fixed inset-0 z-50 hidden bg-slate-900/60 p-3 sm:p-4 overflow-y-auto">
         <div class="w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden m-auto">
-            <div class="bg-slate-900 text-white px-6 py-4"><h3 class="text-base font-extrabold">Catálogo de categorías</h3><p id="cat-sub" class="text-xs text-slate-300 mt-1"></p></div>
+            <div class="bg-slate-900 text-white px-6 py-4"><h3 class="text-base font-extrabold">Catálogo de categorías</h3><p id="cat-sub" class="text-xs text-slate-400 mt-1"></p></div>
             <div class="p-6 space-y-3 text-xs text-slate-700">
                 <p>Este archivo trae solo SKU y categoría, así que se usa para completar las categorías que faltan en los datos ya cargados.</p>
                 <div id="cat-detalle"></div>
@@ -184,8 +185,8 @@
                 <label class="flex items-start gap-2"><input type="radio" name="bor-modo" id="bor-todo" checked onchange="alternarBorrado()" class="mt-1"><span><strong>Todo</strong> <span class="text-xs text-slate-500">(ventas, pedidos y los análisis de cross-selling y recompra)</span></span></label>
                 <label class="flex items-start gap-2"><input type="radio" name="bor-modo" id="bor-rango-r" onchange="alternarBorrado()" class="mt-1"><span><strong>Solo un rango de fechas</strong></span></label>
                 <div id="bor-rango" class="grid grid-cols-2 gap-2 pl-6"><input type="date" id="bor-desde" class="rounded-lg border border-slate-300 px-2 py-1 text-xs"><input type="date" id="bor-hasta" class="rounded-lg border border-slate-300 px-2 py-1 text-xs"></div>
-                <p class="text-[11px] text-slate-500">Se conservan las acciones registradas y los ajustes de metas por categoría.</p>
-                <div><label class="text-[11px] font-bold text-slate-600">Escribe BORRAR para confirmar</label><input id="bor-confirma" autocomplete="off" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></div>
+                <p class="text-xs text-slate-500">Se conservan las acciones registradas y los ajustes de metas por categoría.</p>
+                <div><label class="text-xs font-bold text-slate-600">Escribe BORRAR para confirmar</label><input id="bor-confirma" autocomplete="off" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></div>
                 <p id="bor-error" class="text-xs font-semibold text-rose-600"></p>
             </div>
             <div class="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2.5">
@@ -200,14 +201,14 @@
         <div class="w-full max-w-5xl bg-white rounded-3xl shadow-2xl overflow-hidden m-auto flex flex-col max-h-[calc(100vh-1.5rem)] sm:max-h-[calc(100vh-2rem)]">
             <div class="bg-slate-900 text-white px-6 py-4 shrink-0">
                 <h3 class="text-base font-extrabold">Metas por categoría</h3>
-                <p id="metas-sub" class="text-xs text-slate-300 mt-1"></p>
+                <p id="metas-sub" class="text-xs text-slate-400 mt-1"></p>
             </div>
             <div class="overflow-y-auto min-h-0 flex-1 p-6 space-y-4">
                 <p class="text-xs text-slate-600">La meta de cada categoría es el plan del mes de la Revisión Diaria repartido según su participación en la venta. Elige la base del reparto (el tablero deja preseleccionada la que mejor habría acertado) y mueve puntos entre categorías con el ajuste: el resto se reajusta solo y las metas siempre suman el plan total.</p>
                 <div id="metas-base"></div>
                 <div class="border border-slate-200 rounded-xl overflow-hidden max-h-96 overflow-auto">
                     <table class="w-full text-left text-xs num-tabular whitespace-nowrap">
-                        <thead class="bg-slate-50 text-[10px] uppercase text-slate-500 sticky top-0"><tr><th class="px-3 py-2">Categoría</th><th class="px-3 py-2 text-right">Últimos 3 meses</th><th class="px-3 py-2 text-right">Mismo mes año ant.</th><th class="px-3 py-2 text-right">Base elegida</th><th class="px-3 py-2 text-right">Ajuste (pp)</th><th class="px-3 py-2 text-right">Participación final</th><th class="px-3 py-2 text-right">Meta del mes</th><th class="px-3 py-2 text-right">vs. 3 meses</th><th class="px-3 py-2 text-right">% meta al cierre</th></tr></thead>
+                        <thead class="bg-slate-50 text-xs uppercase text-slate-500 sticky top-0"><tr><th class="px-3 py-2">Categoría</th><th class="px-3 py-2 text-right">Últimos 3 meses</th><th class="px-3 py-2 text-right">Mismo mes año ant.</th><th class="px-3 py-2 text-right">Base elegida</th><th class="px-3 py-2 text-right">Ajuste (pp)</th><th class="px-3 py-2 text-right">Participación final</th><th class="px-3 py-2 text-right">Meta del mes</th><th class="px-3 py-2 text-right">vs. 3 meses</th><th class="px-3 py-2 text-right">% meta al cierre</th></tr></thead>
                         <tbody id="metas-tbody" class="divide-y divide-slate-100"></tbody>
                     </table>
                 </div>
@@ -224,20 +225,20 @@
         <form id="form-accion" class="w-full max-w-lg bg-white rounded-3xl shadow-2xl p-6 space-y-4 m-auto" onsubmit="guardarAccion(event)">
             <h3 id="acc-modal-titulo" class="text-base font-extrabold text-slate-900">Registrar acción</h3>
             <input type="hidden" id="acc-id">
-            <div><label class="text-[11px] font-bold text-slate-600">Acción</label>
+            <div><label class="text-xs font-bold text-slate-600">Acción</label>
                 <input id="acc-titulo" required maxlength="140" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></div>
-            <div><label class="text-[11px] font-bold text-slate-600">Origen / detalle</label>
+            <div><label class="text-xs font-bold text-slate-600">Origen / detalle</label>
                 <textarea id="acc-detalle" rows="3" maxlength="600" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></textarea></div>
             <div class="grid grid-cols-2 gap-3">
-                <div><label class="text-[11px] font-bold text-slate-600">Responsable</label>
+                <div><label class="text-xs font-bold text-slate-600">Responsable</label>
                     <input id="acc-resp" maxlength="80" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></div>
-                <div><label class="text-[11px] font-bold text-slate-600">Estatus</label>
+                <div><label class="text-xs font-bold text-slate-600">Estatus</label>
                     <select id="acc-estatus" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"><option>Pendiente</option><option>En proceso</option><option>Completada</option></select></div>
             </div>
             <div class="grid grid-cols-2 gap-3">
-                <div><label class="text-[11px] font-bold text-slate-600">Fecha compromiso</label>
+                <div><label class="text-xs font-bold text-slate-600">Fecha compromiso</label>
                     <input id="acc-fecha" type="date" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></div>
-                <div class="col-span-2"><label class="text-[11px] font-bold text-slate-600">Resultado observado (cuando se complete)</label>
+                <div class="col-span-2"><label class="text-xs font-bold text-slate-600">Resultado observado (cuando se complete)</label>
                     <textarea id="acc-resultado" rows="2" maxlength="400" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></textarea></div>
             </div>
             <div class="flex justify-end gap-2.5 pt-1">
@@ -259,7 +260,7 @@
             <button id="nube-boton" type="submit" class="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold transition">Entrar</button>
         </form>
     </div>
-    <div id="nube-estado" class="fixed bottom-2 left-2 z-40 pointer-events-none opacity-80 hidden px-2.5 py-1 rounded-lg bg-white/90 border border-slate-200 text-[11px] font-semibold text-slate-600 shadow-sm"></div>
+    <div id="nube-estado" class="fixed bottom-2 left-2 z-40 pointer-events-none opacity-80 hidden px-2.5 py-1 rounded-lg bg-white/90 border border-slate-200 text-xs font-semibold text-slate-600 shadow-sm"></div>
     <div id="toast" class="fixed bottom-4 right-4 z-50 pointer-events-none hidden max-w-sm bg-slate-900 text-white text-xs sm:text-sm font-medium px-4 py-3 rounded-xl shadow-xl border border-slate-700"></div>
 
     <script>
@@ -675,25 +676,25 @@
     // 3. RENDER
     // =====================================================================
     function chipDelta(d) {
-        if (d === null || d === undefined) return '<span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[11px] font-bold">Sin base</span>';
+        if (d === null || d === undefined) return '<span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-xs font-bold">Sin base</span>';
         const cls = d <= -S.config.umbral ? 'bg-rose-100 text-rose-800 border-rose-200' : d < 0 ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-emerald-100 text-emerald-800 border-emerald-200';
-        return `<span class="inline-block whitespace-nowrap px-2 py-0.5 rounded-full border text-[11px] font-bold num-tabular ${cls}">${d >= 0 ? '▲' : '▼'} ${Math.abs(d).toFixed(1)}%</span>`;
+        return `<span class="inline-block whitespace-nowrap px-2 py-0.5 rounded-full border text-xs font-bold num-tabular ${cls}">${d >= 0 ? '▲' : '▼'} ${Math.abs(d).toFixed(1)}%</span>`;
     }
     // Ritmo normal (benchmark y año anterior) = diagnóstico en azul/gris; presupuesto = verde/ámbar/rojo
     function chipRitmo(d) {
-        if (d === null || d === undefined) return '<span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[11px] font-bold">Sin base</span>';
-        return `<span title="Contra su ritmo normal (diagnóstico)" class="inline-block whitespace-nowrap px-2 py-0.5 rounded-full text-[11px] font-bold num-tabular ${d >= 0 ? 'bg-sky-100 text-sky-800' : 'bg-slate-200 text-slate-700'}">${d >= 0 ? '▲' : '▼'} ${Math.abs(d).toFixed(1)}%</span>`;
+        if (d === null || d === undefined) return '<span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-xs font-bold">Sin base</span>';
+        return `<span title="Contra su ritmo normal (diagnóstico)" class="inline-block whitespace-nowrap px-2 py-0.5 rounded-full text-xs font-bold num-tabular ${d >= 0 ? 'bg-sky-100 text-sky-800' : 'bg-slate-200 text-slate-700'}">${d >= 0 ? '▲' : '▼'} ${Math.abs(d).toFixed(1)}%</span>`;
     }
     const estadoMeta = c => c >= 98 ? ['bg-emerald-100 text-emerald-800', 'En ritmo'] : c >= 90 ? ['bg-amber-100 text-amber-800', 'Atención'] : ['bg-rose-100 text-rose-800', 'Por debajo'];
     // Avance real vs esperado al corte: verde si va a ≥98% de lo esperado, ámbar 90–98%, rojo por debajo (misma escala que Revisión Diaria)
     const colorAvance = (r, e) => (e > 0 ? r / e * 100 : 100) >= 98 ? 'bg-emerald-500' : (e > 0 ? r / e * 100 : 100) >= 90 ? 'bg-amber-500' : 'bg-rose-500';
-    const chipMeta = c => c === null || c === undefined ? '<span class="text-slate-300">—</span>' : `<span class="inline-block whitespace-nowrap px-2 py-0.5 rounded-full text-[11px] font-bold num-tabular ${estadoMeta(c)[0]}">${fmtMeta(c)}</span>`;
+    const chipMeta = c => c === null || c === undefined ? '<span class="text-slate-400">—</span>' : `<span class="inline-block whitespace-nowrap px-2 py-0.5 rounded-full text-xs font-bold num-tabular ${estadoMeta(c)[0]}">${fmtMeta(c)}</span>`;
     const barraAvance = (av, esp) => `<span class="inline-block align-middle relative h-2 w-14 rounded-full bg-slate-200 ml-1.5"><span class="absolute left-0 top-0 bottom-0 rounded-full ${colorAvance(av, esp)}" style="width:${Math.min(100, av)}%"></span><span class="absolute -top-0.5 -bottom-0.5 w-0.5 bg-slate-900" style="left:${Math.min(100, esp)}%" title="Avance esperado al corte: ${esp.toFixed(1)}%"></span></span>`;
     // Todas las tablas se ordenan de mayor a menor por su cifra principal; un clic en el encabezado de cualquier columna cambia el orden
     function ordenar(tabla, k, tipo) { const o = S.orden[tabla]; S.orden[tabla] = o && o.k === k ? { k, d: -o.d } : { k, d: tipo === 't' ? 1 : -1 }; renderTodo(); }
     function thO(tabla, k, x, cls = '', tipo = 'n') {
         const o = S.orden[tabla], act = o && o.k === k;
-        return `<th class="px-2 py-2 ${tipo === 't' ? 'text-left' : 'text-right'} cursor-pointer select-none hover:text-slate-900 ${act ? 'text-slate-900' : ''} ${cls}" onclick="ordenar('${tabla}','${k}','${tipo}')" title="Clic para ordenar">${x}<span class="text-[9px]">${act ? (o.d < 0 ? ' ▼' : ' ▲') : ''}</span></th>`;
+        return `<th class="px-2 py-2 ${tipo === 't' ? 'text-left' : 'text-right'} cursor-pointer select-none hover:text-slate-900 ${act ? 'text-slate-900' : ''} ${cls}" onclick="ordenar('${tabla}','${k}','${tipo}')" title="Clic para ordenar">${x}<span class="text-xs">${act ? (o.d < 0 ? ' ▼' : ' ▲') : ''}</span></th>`;
     }
     function ordenarLista(tabla, filas, defK, acc) {
         const o = S.orden[tabla] || { k: defK, d: -1 }, f = acc[o.k] || acc[defK], vacio = v => v === null || v === undefined || (typeof v === 'number' && isNaN(v));
@@ -712,36 +713,38 @@
             ${li(`Contra ese plan al corte lleva <b>${cumplMes !== null ? fmtMeta(cumplMes) : '—'}</b> (${fmtM(p.real)} ÷ ${fmtM(p.planMTD)}). Este es su ritmo de <b>todo el mes</b>, no solo el de la ventana: puede ir por encima en el mes y por debajo en la ventana (o al revés).`)}
             ${li(`<b>% meta al cierre ${p.pron !== null && p.meta > 0 ? fmtMeta(p.pron / p.meta * 100) : '—'}</b>: ${A.mes.pronInfo.modo === 'reciente' ? 'el resto del mes se reparte según la participación que tuvo en los últimos 14 días' : A.mes.pronInfo.modo === 'mixto' ? 'el resto del mes se reparte mitad según su participación en el mes y mitad según los últimos 14 días' : 'si mantiene su participación del mes hasta el último día'}, cerraría en ${p.pron !== null ? fmtM(p.pron) : '—'}. <b>Brecha de cierre</b> = pronóstico − meta del mes = ${p.pron !== null ? (p.pron - p.meta >= 0 ? '+' : '−') + fmtM(Math.abs(p.pron - p.meta)).replace('−', '') : '—'}.`)}</ol></div>`;
     }
-    const colorPP = v => v === null ? 'text-slate-400' : v >= 0 ? 'text-emerald-700' : 'text-rose-700';
-    function chipYoY(y) { return y === undefined ? '' : y === null ? '<div class="mt-1.5 text-[10px] text-slate-400">Año anterior: sin datos</div>' : `<div class="mt-1.5 flex items-center gap-1.5 text-[11px] text-slate-500"><span>Vs. año anterior</span>${chipRitmo(y)}</div>`; }
+    const colorPP = v => v === null ? 'text-slate-500' : v >= 0 ? 'text-emerald-700' : 'text-rose-700';
+    function chipYoY(y) { return y === undefined ? '' : y === null ? '<div class="mt-1.5 text-xs text-slate-500">Año anterior: sin datos</div>' : `<div class="mt-1.5 flex items-center gap-1.5 text-xs text-slate-500"><span>Vs. año anterior</span>${chipRitmo(y)}</div>`; }
     function tarjeta(titulo, valor, sub, delta, yoy) {
         return `<div class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm min-w-0">
-            <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">${titulo}</div>
+            <div class="text-xs font-bold uppercase tracking-wide text-slate-500">${titulo}</div>
             <div class="mt-1 flex flex-wrap items-start justify-between gap-x-2 gap-y-1"><div class="max-w-full break-words text-xl sm:text-2xl font-extrabold text-slate-900 num-tabular">${valor}</div>${delta !== undefined ? `<div class="shrink-0">${chipRitmo(delta)}</div>` : ''}</div>
-            <div class="mt-1 text-[11px] text-slate-500 break-words">${sub}</div>${chipYoY(yoy)}</div>`;
+            <div class="mt-1 text-xs text-slate-500 break-words">${sub}</div>${chipYoY(yoy)}</div>`;
     }
     function botonAccion(tipo, titulo, detalle) {
-        return `<button type="button" data-pdf-ocultar="true" onclick="abrirAccion(${esc(JSON.stringify(JSON.stringify({ titulo: `Revisar ${tipo.toLowerCase()}: ${titulo}`, detalle })))})" class="px-2.5 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-[11px] font-bold text-slate-700">+ Acción</button>`;
+        return `<button type="button" data-pdf-ocultar="true" onclick="abrirAccion(${esc(JSON.stringify(JSON.stringify({ titulo: `Revisar ${tipo.toLowerCase()}: ${titulo}`, detalle })))})" class="px-2.5 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700">+ Acción</button>`;
     }
     function itemAlerta(a) {
         const sv = SEVERIDAD[a.nivel];
         return `<li class="flex flex-col sm:flex-row sm:items-start justify-between gap-3 p-3 rounded-xl border ${sv.clase}">
             <div class="min-w-0 flex-1">
-                <div class="text-xs"><span class="inline-block mr-1.5 px-1.5 py-0.5 rounded-md text-[10px] font-extrabold uppercase ${sv.etiquetaClase}">${sv.etiqueta}</span><span class="text-[10px] uppercase text-slate-500 mr-1.5">${esc(a.tipo)}</span><strong class="text-slate-900 break-words">${esc(a.titulo)}</strong></div>
+                <div class="text-xs"><span class="inline-block mr-1.5 px-1.5 py-0.5 rounded-md text-xs font-extrabold uppercase ${sv.etiquetaClase}">${sv.etiqueta}</span><span class="text-xs uppercase text-slate-500 mr-1.5">${esc(a.tipo)}</span><strong class="text-slate-900 break-words">${esc(a.titulo)}</strong></div>
                 <div class="mt-1 text-xs font-extrabold text-slate-900">${esc(a.titular)}</div>
                 <ul class="mt-1 text-xs text-slate-600 space-y-0.5 list-disc pl-4">${a.lineas.map(l => `<li>${esc(l)}</li>`).join('')}</ul>
-                ${a.revisar ? `<div class="mt-1.5 text-[11px] text-slate-500"><strong class="text-slate-700">Qué revisar:</strong> ${esc(a.revisar)}</div>` : ''}
+                ${a.revisar ? `<div class="mt-1.5 text-xs text-slate-500"><strong class="text-slate-700">Qué revisar:</strong> ${esc(a.revisar)}</div>` : ''}
             </div>
             <div class="shrink-0">${botonAccion(a.tipo, a.titulo, a.detalle || a.titular)}</div></li>`;
     }
+    const TOP_ALERTAS = 3;   // se muestran las 3 de mayor impacto; el resto queda plegado para evitar fatiga de alertas
     function panelAlertas(titulo, todas, vacio, max) {
         const arr = todas.filter(a => a.nivel !== 'baja'), bajas = todas.filter(a => a.nivel === 'baja');
         const lista = max ? arr.slice(0, max) : arr;
         return `<div class="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-sm">
-            <h3 class="text-sm font-extrabold text-slate-900 mb-3">${titulo} <span class="text-slate-400 font-semibold">(${arr.length})</span></h3>
-            <ul class="space-y-2">${lista.length ? lista.map(itemAlerta).join('') : `<li class="p-4 text-xs text-slate-500 rounded-xl bg-emerald-50 border border-emerald-200">${vacio}</li>`}</ul>
-            ${max && arr.length > max ? `<p class="text-[11px] text-slate-400 mt-2">Se muestran las ${max} de mayor impacto. Todas están en la pestaña Alertas y acciones.</p>` : ''}
-            ${bajas.length ? `<details class="mt-3" data-pdf-ocultar="true"><summary class="cursor-pointer text-[11px] font-bold text-slate-500">Ver ${bajas.length} de impacto bajo (variaciones normales o muy pequeñas)</summary><ul class="space-y-2 mt-2">${bajas.map(itemAlerta).join('')}</ul></details>` : ''}</div>`;
+            <h3 class="text-sm font-extrabold text-slate-900 mb-3">${titulo} <span class="text-slate-500 font-semibold">(${arr.length})</span></h3>
+            <ul class="space-y-2">${lista.length ? lista.slice(0, max ? TOP_ALERTAS : lista.length).map(itemAlerta).join('') : `<li class="p-4 text-xs text-slate-500 rounded-xl bg-emerald-50 border border-emerald-200">${vacio}</li>`}</ul>
+            ${max && lista.length > TOP_ALERTAS ? `<details class="mt-2" data-pdf-ocultar="true"><summary class="cursor-pointer text-xs font-bold text-slate-600">Ver ${lista.length - TOP_ALERTAS} alerta(s) más</summary><ul class="space-y-2 mt-2">${lista.slice(TOP_ALERTAS).map(itemAlerta).join('')}</ul></details>` : ''}
+            ${max && arr.length > max ? `<p class="text-xs text-slate-500 mt-2">Se muestran las ${max} de mayor impacto. Todas están en la pestaña Alertas y acciones.</p>` : ''}
+            ${bajas.length ? `<details class="mt-3" data-pdf-ocultar="true"><summary class="cursor-pointer text-xs font-bold text-slate-500">Ver ${bajas.length} de impacto bajo (variaciones normales o muy pequeñas)</summary><ul class="space-y-2 mt-2">${bajas.map(itemAlerta).join('')}</ul></details>` : ''}</div>`;
     }
     function textoVentana(V) {
         const n = S.ventana === 'mtd' ? 'Mes a la fecha' : S.ventana === 1 ? 'Día de corte' : `Últimos ${S.ventana} días`;
@@ -753,7 +756,7 @@
         return `<details class="rounded-2xl border ${est[0]} px-4 py-2.5 text-xs"><summary class="cursor-pointer font-bold">${est[1]}: Comercial ${fmtM(g.com)} · Revisión Diaria ${fmtM(g.rev)}${g.dif !== null ? ` · diferencia ${txtDelta(g.dif)}` : ''}${g.faltan.length ? ` · faltan ${g.faltan.length} día(s) en Comercial` : ''}</summary>
             <div class="mt-2 space-y-0.5">${g.por.map(x => `<div>${x.c}: Comercial ${fmtM(x.com)} · Revisión Diaria ${fmtM(x.rev)} (${txtDelta(x.dif)})</div>`).join('')}
             ${g.faltan.length ? `<div class="font-bold">Días con venta en la Revisión Diaria y sin datos en Comercial: ${g.faltan.map(fechaCorta).join(', ')}</div>` : ''}
-            <div class="text-[11px] opacity-80 pt-1">Se comparan solo los días con venta real capturada en la Revisión Diaria. Hasta 1% cuadra; hasta 3% es moderada; más de 3% o días faltantes, conviene revisar la carga.</div></div></details>`;
+            <div class="text-xs opacity-80 pt-1">Se comparan solo los días con venta real capturada en la Revisión Diaria. Hasta 1% cuadra; hasta 3% es moderada; más de 3% o días faltantes, conviene revisar la carga.</div></div></details>`;
     }
     const sinBase = A => A.hay ? '' : '<div class="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-xs text-amber-900">Faltan datos de los 28 días previos (se necesitan al menos 7 con venta): por ahora no se pueden calcular comparativos ni alertas contra el benchmark.</div>';
 
@@ -763,10 +766,10 @@
         const M = A.mes;
         if (!M) return '<div class="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-xs text-amber-900">Meta del mes: no hay plan de venta de la Revisión Diaria para este mes. Cárgalo allá (presupuesto diario por canal) y aparecerá aquí.</div>';
         const t = M.total, V = A.V, mtd = esMTD(), mesIniciado = M.diasTrans > 0;
-        const mini = (titulo, valor, sub, chip = '') => `<div class="min-w-0"><div class="text-[10px] font-bold uppercase tracking-wide text-slate-500">${titulo}</div><div class="mt-0.5 text-lg sm:text-xl font-extrabold text-slate-900 num-tabular break-words">${valor} ${chip}</div><div class="mt-0.5 text-[11px] text-slate-500 break-words">${sub}</div></div>`;
+        const mini = (titulo, valor, sub, chip = '') => `<div class="min-w-0"><div class="text-xs font-bold uppercase tracking-wide text-slate-500">${titulo}</div><div class="mt-0.5 text-lg sm:text-xl font-extrabold text-slate-900 num-tabular break-words">${valor} ${chip}</div><div class="mt-0.5 text-xs text-slate-500 break-words">${sub}</div></div>`;
         const diasCal = Math.round((Date.parse(V.fin) - Date.parse(V.ini)) / 86400000) + 1, planV = A.planVent, realV = A.T.v, cumplV = planV > 0 ? realV / planV * 100 : null;
-        const est = c => { const e = estadoMeta(c); return `<span class="align-middle px-2 py-0.5 rounded-full text-[10px] font-extrabold ${e[0]}">${e[1]}</span>`; };
-        const filaVentana = `<div class="space-y-2"><div class="flex flex-wrap items-baseline justify-between gap-2"><div class="text-xs font-extrabold text-slate-800">1 · Ventana contra presupuesto <span class="font-normal text-slate-500">· ${nombreVentana()} (${fechaCorta(V.ini)} – ${fechaCorta(V.fin)})</span></div><span class="text-[11px] text-slate-500">${t.presupuesto > 0 ? fmtP(planV / t.presupuesto * 100, 1) : '—'} de la meta del mes</span></div>
+        const est = c => { const e = estadoMeta(c); return `<span class="align-middle px-2 py-0.5 rounded-full text-xs font-extrabold ${e[0]}">${e[1]}</span>`; };
+        const filaVentana = `<div class="space-y-2"><div class="flex flex-wrap items-baseline justify-between gap-2"><div class="text-xs font-extrabold text-slate-800">1 · Ventana contra presupuesto <span class="font-normal text-slate-500">· ${nombreVentana()} (${fechaCorta(V.ini)} – ${fechaCorta(V.fin)})</span></div><span class="text-xs text-slate-500">${t.presupuesto > 0 ? fmtP(planV / t.presupuesto * 100, 1) : '—'} de la meta del mes</span></div>
             <div class="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-3">
                 ${mini('Meta de la ventana', planV > 0 ? fmtM(planV) : '—', `Plan de la Revisión Diaria de ${diasCal} día(s) · ${planV > 0 ? fmtM(planV / diasCal) : '—'} por día`)}
                 ${mini('Cumplimiento de la ventana', cumplV !== null ? fmtMeta(cumplV) : '—', planV > 0 ? `${realV - planV >= 0 ? '+' : '−'}${fmtM(Math.abs(realV - planV)).replace('−', '')} contra la meta de la ventana` : 'Sin plan en estas fechas', cumplV !== null ? est(cumplV) : '')}
@@ -780,10 +783,10 @@
                 ${mini('Para cerrar al 100%', M.diasRest > 0 ? `${fmtM(t.cuotaReq)} / día` : 'Mes concluido', M.diasRest > 0 ? `Quedan ${M.diasRest} día(s); el plan pedía ${fmtM(t.cuotaPlan)} (${t.exigencia >= 0 ? '+' : '−'}${Math.abs(t.exigencia).toFixed(0)}%)` : `Cerró en ${fmtMeta(t.pacingReal)} de la meta`)}
             </div>
             ${barraPacing(t.pacingReal, t.pacingEsp)}
-            ${t.pron !== null ? `<div class="text-[11px] text-slate-500">Pronóstico = venta real ${fmtM(t.real)} + días pasados sin datos ${fmtM(t.estimSin)} + días que faltan ${fmtM(t.proy)}, con el ritmo observado (${(t.indice * 100).toFixed(1)}% del plan). La línea negra de la barra es el avance esperado al corte.</div>` : ''}</div>`;
+            ${t.pron !== null ? `<div class="text-xs text-slate-500">Pronóstico = venta real ${fmtM(t.real)} + días pasados sin datos ${fmtM(t.estimSin)} + días que faltan ${fmtM(t.proy)}, con el ritmo observado (${(t.indice * 100).toFixed(1)}% del plan). La línea negra de la barra es el avance esperado al corte.</div>` : ''}</div>`;
         return `<div class="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-sm space-y-4">
             <div class="flex flex-wrap items-baseline justify-between gap-2"><h3 class="text-sm font-extrabold text-slate-900">Metas · ${nombreVentana()} y ${etiquetaMes(S.mes)}</h3>
-                <span class="text-[11px] text-slate-500">Plan, pacing y pronóstico de la <a class="underline" href="Tablero_de_Control_-_Revision_Diaria.html" target="_blank" rel="noopener">Revisión Diaria ↗</a> · ${S.canal === 'Total' ? 'los 4 canales' : ETIQ_CANAL[S.canal]}</span></div>
+                <span class="text-xs text-slate-500">Plan, pacing y pronóstico de la <a class="underline" href="Tablero_de_Control_-_Revision_Diaria.html" target="_blank" rel="noopener">Revisión Diaria ↗</a> · ${S.canal === 'Total' ? 'los 4 canales' : ETIQ_CANAL[S.canal]}</span></div>
             ${mesIniciado ? bannerIntegridad(A, M.integridad) : `<div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs text-slate-600">${etiquetaMes(S.mes)} aún no tiene ventas cargadas: se muestran su meta y su reparto. La ventana corresponde al corte del ${fechaCorta(S.corte)}.</div>`}
             ${mtd ? '' : filaVentana}${filaMes}
         </div>`;
@@ -805,12 +808,12 @@
         if (A.comp) {
             const mx = Math.max(...A.comp.map(c => Math.abs(c.v)), 1);
             mov = `<div class="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-sm"><h3 class="text-sm font-extrabold text-slate-900">¿Qué movió la venta?</h3>
-                <p class="text-[11px] text-slate-500 mb-3">Venta = pedidos × unidades por pedido × precio por unidad. La suma de los tres factores es exactamente el cambio contra el ritmo normal (${fmtM(T.v - B.v)}).</p>
-                ${A.comp.map(c => `<div class="mb-2"><div class="text-xs"><span class="text-slate-700">${c.n}</span> <strong class="${colorPP(c.v)} num-tabular">${c.v >= 0 ? '+' : '−'}${fmtM(Math.abs(c.v)).replace('−', '')}</strong> <span class="text-slate-400">(${fmtPP(c.v / B.v * 100).replace(' pp', '%')} de la venta normal)</span></div>
+                <p class="text-xs text-slate-500 mb-3">Venta = pedidos × unidades por pedido × precio por unidad. La suma de los tres factores es exactamente el cambio contra el ritmo normal (${fmtM(T.v - B.v)}).</p>
+                ${A.comp.map(c => `<div class="mb-2"><div class="text-xs"><span class="text-slate-700">${c.n}</span> <strong class="${colorPP(c.v)} num-tabular">${c.v >= 0 ? '+' : '−'}${fmtM(Math.abs(c.v)).replace('−', '')}</strong> <span class="text-slate-500">(${fmtPP(c.v / B.v * 100).replace(' pp', '%')} de la venta normal)</span></div>
                     <div class="h-2.5 rounded-full bg-slate-100 relative mt-1"><div class="absolute top-0 bottom-0 w-px bg-slate-300 left-1/2"></div><div class="absolute top-0 bottom-0 rounded-full ${c.v >= 0 ? 'bg-emerald-500' : 'bg-rose-500'}" style="${c.v >= 0 ? 'left:50%' : `left:${50 - Math.abs(c.v) / mx * 50}%`};width:${Math.abs(c.v) / mx * 50}%"></div></div></div>`).join('')}</div>`;
         }
         document.getElementById('panel-resumen').innerHTML = `
-            <p class="text-[11px] text-slate-500">${textoVentana(V)}${A.YD ? ` · Año anterior (mismo día de la semana): ${fechaCorta(A.YD.ini)} – ${fechaCorta(A.YD.fin)}` : ''} · Canal: <strong>${ETIQ_CANAL[S.canal]}</strong></p>
+            <p class="text-xs text-slate-500">${textoVentana(V)}${A.YD ? ` · Año anterior (mismo día de la semana): ${fechaCorta(A.YD.ini)} – ${fechaCorta(A.YD.fin)}` : ''} · Canal: <strong>${ETIQ_CANAL[S.canal]}</strong></p>
             ${sinBase(A)}${A.mes ? '' : bannerIntegridad(A)}
             <div class="rounded-2xl bg-slate-900 text-slate-100 p-4 sm:p-5 text-xs sm:text-sm leading-relaxed"><strong class="text-white">Resumen:</strong> ${esc(resumenNarrativo(A))}</div>
             ${bloqueMeta(A)}
@@ -818,11 +821,11 @@
             ${mov}
             <div class="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-sm">
                 <h3 class="text-sm font-extrabold text-slate-900">Venta diaria del mes</h3>
-                <p class="text-[11px] text-slate-500 mb-3">Venta real (barras) hasta el corte contra el plan de la Revisión Diaria (línea) de todo el mes</p>
+                <p class="text-xs text-slate-500 mb-3">Venta real (barras) hasta el corte contra el plan de la Revisión Diaria (línea) de todo el mes</p>
                 <div class="relative h-64"><canvas id="chart-diario"></canvas></div>
             </div>
             ${panelAlertas('Alertas activas · de mayor a menor impacto', A.alertas, 'Sin alertas: ninguna categoría, producto o componente del ticket cae más de lo normal.', 6)}
-            ${A.oportunidades.length ? `<div class="rounded-2xl bg-white border border-emerald-200 p-4 sm:p-5 shadow-sm"><h3 class="text-sm font-extrabold text-slate-900 mb-3">Oportunidades <span class="text-slate-400 font-semibold">(${A.oportunidades.length})</span></h3><ul class="space-y-2">${A.oportunidades.map(itemAlerta).join('')}</ul></div>` : ''}`;
+            ${A.oportunidades.length ? `<div class="rounded-2xl bg-white border border-emerald-200 p-4 sm:p-5 shadow-sm"><h3 class="text-sm font-extrabold text-slate-900 mb-3">Oportunidades <span class="text-slate-500 font-semibold">(${A.oportunidades.length})</span></h3><ul class="space-y-2">${A.oportunidades.map(itemAlerta).join('')}</ul></div>` : ''}`;
         dibujarGrafico();
     }
     function dibujarGrafico() {
@@ -845,7 +848,7 @@
         const mesPorCat = new Map((M ? M.cats : []).map(c => [c.n, c]));
         const celda = (x, cls = '') => `<td class="px-2 py-2 text-right num-tabular ${cls}">${x}</td>`;
         const th = (x, cls = '') => `<th class="px-3 py-2 text-right ${cls}">${x}</th>`;
-        const nul = '<span class="text-slate-300">—</span>';
+        const nul = '<span class="text-slate-400">—</span>';
         // Se ordena por la brecha de cierre (pronóstico menos meta del mes): arriba lo que más necesita acción
         const br = r => r.m && r.m.pron !== null ? r.m.pron - r.m.meta : null;
         const filasDatos = ordenarLista('cat', A.cats.map(c => ({ c, m: mesPorCat.get(c.n) || null })), 'v', { n: r => r.c.n, v: r => r.c.v, mv: r => r.c.meta, cv: r => r.c.cumpl, mm: r => r.m && r.m.meta, av: r => r.m && r.m.pacingReal, ci: r => r.m && r.m.cumplPron, br, g: r => r.c.g, gy: r => r.c.gY, sh: r => r.c.sh, dsh: r => r.c.shb === null ? null : r.c.sh - r.c.shb, ctr: r => r.c.ctr, aur: r => r.c.aur });
@@ -853,26 +856,26 @@
         const extras = c => mas || !M ? `${celda(fmtP(c.sh))}${analisis(c)}${celda(fmtPP(c.ctr), `font-bold ${colorPP(c.ctr)}`)}${celda(fmtM(c.aur))}` : '';
         const filas = filasDatos.map(({ c, m }) => {
             const brecha = m && m.pron !== null ? m.pron - m.meta : null;
-            const presup = M ? (m ? `${celda(c.meta !== null ? fmtM(c.meta) : '—')}<td class="px-2 py-2 text-right">${chipMeta(c.cumpl)}</td>${celda(fmtM(m.meta), 'border-l border-slate-200')}<td class="px-2 py-2 text-right num-tabular whitespace-nowrap">${fmtMeta(m.pacingReal)}${barraAvance(m.pacingReal, m.meta > 0 ? m.planMTD / m.meta * 100 : 0)}<div class="text-[10px] text-slate-400">esperado ${fmtP(m.meta > 0 ? m.planMTD / m.meta * 100 : 0, 0)}</div></td><td class="px-2 py-2 text-right" title="Si mantiene su ritmo del mes cierra en ${m.pron !== null ? fmtM(m.pron) : '—'}">${chipMeta(m.cumplPron)}</td>${celda(brecha === null ? '—' : `${brecha >= 0 ? '+' : '−'}${fmtM(Math.abs(brecha)).replace('−', '')}`, brecha === null ? '' : brecha < 0 ? 'font-bold text-rose-700' : 'font-bold text-emerald-700')}` : celda('—').repeat(6)) : '';
+            const presup = M ? (m ? `${celda(c.meta !== null ? fmtM(c.meta) : '—')}<td class="px-2 py-2 text-right">${chipMeta(c.cumpl)}</td>${celda(fmtM(m.meta), 'border-l border-slate-200')}<td class="px-2 py-2 text-right num-tabular whitespace-nowrap">${fmtMeta(m.pacingReal)}${barraAvance(m.pacingReal, m.meta > 0 ? m.planMTD / m.meta * 100 : 0)}<div class="text-xs text-slate-500">esperado ${fmtP(m.meta > 0 ? m.planMTD / m.meta * 100 : 0, 0)}</div></td><td class="px-2 py-2 text-right" title="Si mantiene su ritmo del mes cierra en ${m.pron !== null ? fmtM(m.pron) : '—'}">${chipMeta(m.cumplPron)}</td>${celda(brecha === null ? '—' : `${brecha >= 0 ? '+' : '−'}${fmtM(Math.abs(brecha)).replace('−', '')}`, brecha === null ? '' : brecha < 0 ? 'font-bold text-rose-700' : 'font-bold text-emerald-700')}` : celda('—').repeat(6)) : '';
             const k = 'c:' + c.n, abierta = !!S.detMeta[k];
             const det = M && m ? `<tr class="${abierta ? '' : 'hidden'}"><td colspan="20" class="p-0">${abierta ? explicacionMeta(A, c.n, { v: c.v, metaV: c.meta, cumplV: c.cumpl, meta: m.meta, sh: m.sh, presupuesto: M.total.presupuesto, real: m.real, planMTD: m.planMTD, pron: m.pron, esp: m.meta > 0 ? m.planMTD / m.meta * 100 : 0 }) : ''}</td></tr>` : '';
-            return `<tr class="hover:bg-slate-50 ${M && m ? 'cursor-pointer' : ''}" ${M && m ? `onclick="alternarDetalleMeta('${esc(k).replace(/'/g, '&#39;')}')" title="Clic para ver cómo se calculó"` : ''}><td class="px-2 py-2 font-bold text-slate-900 whitespace-normal min-w-[9rem]">${M && m ? `<span class="text-slate-400 mr-1">${abierta ? '▾' : '▸'}</span>` : ''}${esc(c.n)}</td>${celda(fmtM(c.v))}${presup}
+            return `<tr class="hover:bg-slate-50 ${M && m ? 'cursor-pointer' : ''}" ${M && m ? `onclick="alternarDetalleMeta('${esc(k).replace(/'/g, '&#39;')}')" title="Clic para ver cómo se calculó"` : ''}><td class="px-2 py-2 font-bold text-slate-900 whitespace-normal min-w-[9rem]">${M && m ? `<span class="text-slate-500 mr-1">${abierta ? '▾' : '▸'}</span>` : ''}${esc(c.n)}</td>${celda(fmtM(c.v))}${presup}
                 <td class="px-2 py-2 text-right ${M ? 'border-l border-slate-200' : ''}">${chipRitmo(c.g)}</td><td class="px-2 py-2 text-right">${c.gY === null ? nul : chipRitmo(c.gY)}</td>${extras(c)}</tr>${det}`; }).join('');
         const tm = M ? M.total : null, brT = tm && tm.pron !== null ? tm.pron - tm.presupuesto : null;
         const totPres = M ? `${celda(tieneMeta ? fmtM(A.planVent) : '—')}<td class="px-2 py-2 text-right">${tieneMeta ? chipMeta(A.vRows / A.planVent * 100) : nul}</td>${celda(fmtM(tm.presupuesto), 'border-l border-slate-200')}<td class="px-2 py-2 text-right whitespace-nowrap">${fmtMeta(tm.pacingReal)}${barraAvance(tm.pacingReal, tm.pacingEsp)}</td><td class="px-2 py-2 text-right">${chipMeta(tm.cumplPron)}</td>${celda(brT === null ? '—' : `${brT >= 0 ? '+' : '−'}${fmtM(Math.abs(brT)).replace('−', '')}`, brT === null ? '' : brT < 0 ? 'font-bold text-rose-700' : 'font-bold text-emerald-700')}` : '';
         const totExtras = mas || !M ? `${celda('100%')}${celda('—')}${celda(A.vbRows ? fmtPP((A.vRows - A.vbRows) / A.vbRows * 100) : '—', colorPP(A.vbRows ? (A.vRows - A.vbRows) : null))}${celda(fmtM(razon(A.vRows, A.T.u)))}` : '';
         const nExtra = mas || !M ? 4 : 0;
         document.getElementById('panel-categorias').innerHTML = `
-            <p class="text-[11px] text-slate-500">${textoVentana(V)}${A.YD ? ` · Año anterior (mismo día de la semana): ${fechaCorta(A.YD.ini)} – ${fechaCorta(A.YD.fin)}` : ''} · Canal: <strong>${ETIQ_CANAL[S.canal]}</strong></p>${sinBase(A)}
+            <p class="text-xs text-slate-500">${textoVentana(V)}${A.YD ? ` · Año anterior (mismo día de la semana): ${fechaCorta(A.YD.ini)} – ${fechaCorta(A.YD.fin)}` : ''} · Canal: <strong>${ETIQ_CANAL[S.canal]}</strong></p>${sinBase(A)}
             <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
                 <div class="p-4 sm:p-5 flex flex-wrap items-start justify-between gap-3">
                     <div class="max-w-2xl"><h3 class="text-sm font-extrabold text-slate-900">Venta y meta por categoría</h3>
-                        <p class="text-[11px] text-slate-500 mt-0.5">Ordenado de mayor a menor venta; <strong>haz clic en el encabezado de cualquier columna para ordenar</strong>${M ? ' (por ejemplo, “Brecha de cierre” para ver arriba lo que más necesita acción)' : ''}. <strong>Meta en la ventana</strong> = plan de la Revisión Diaria de esos días × la participación que “Metas por categoría” asigna a la categoría; cambia con la ventana. Verde, ámbar y rojo comparan contra el presupuesto; azul y gris, contra su ritmo normal. <strong>Haz clic en una fila para ver paso a paso cómo se calculó su meta, su avance y su cierre.</strong></p></div>
+                        <p class="text-xs text-slate-500 mt-0.5">Ordenado de mayor a menor venta; <strong>haz clic en el encabezado de cualquier columna para ordenar</strong>${M ? ' (por ejemplo, “Brecha de cierre” para ver arriba lo que más necesita acción)' : ''}. <strong>Meta en la ventana</strong> = plan de la Revisión Diaria de esos días × la participación que “Metas por categoría” asigna a la categoría; cambia con la ventana. Verde, ámbar y rojo comparan contra el presupuesto; azul y gris, contra su ritmo normal. <strong>Haz clic en una fila para ver paso a paso cómo se calculó su meta, su avance y su cierre.</strong></p></div>
                     <div class="flex flex-wrap items-center gap-2" data-pdf-ocultar="true">${M ? selectorPronostico(A) : ''}${M ? `<button type="button" onclick="S.masCols=!S.masCols;renderTodo()" class="text-xs font-bold text-blue-700 hover:underline">${mas ? '− Ocultar share, contribución y AUR' : '+ Ver más columnas (share, contribución, AUR)'}</button>` : ''}
                     <button type="button" onclick="abrirMetas()" class="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold">🎯 Metas por categoría</button></div>
                 </div>
-                <div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular whitespace-nowrap"><thead class="bg-slate-50 text-[10px] uppercase text-slate-500">
-                    ${M ? `<tr><th></th><th class="px-3 pt-2 text-left text-[10px] font-bold text-emerald-700" colspan="3">Ventana · ${nombreVentana()} · contra presupuesto</th><th class="px-3 pt-2 text-left text-[10px] font-bold text-emerald-700 border-l border-slate-200" colspan="5">${etiquetaMes(S.mes)} · contra presupuesto</th><th class="px-3 pt-2 text-left text-[10px] font-bold text-slate-400 border-l border-slate-200" colspan="${2 + nExtra}">Diagnóstico · contra su ritmo normal</th></tr>` : ''}
+                <div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular whitespace-nowrap"><thead class="bg-slate-50 text-xs uppercase text-slate-500">
+                    ${M ? `<tr><th></th><th class="px-3 pt-2 text-left text-xs font-bold text-emerald-700" colspan="3">Ventana · ${nombreVentana()} · contra presupuesto</th><th class="px-3 pt-2 text-left text-xs font-bold text-emerald-700 border-l border-slate-200" colspan="5">${etiquetaMes(S.mes)} · contra presupuesto</th><th class="px-3 pt-2 text-left text-xs font-bold text-slate-500 border-l border-slate-200" colspan="${2 + nExtra}">Diagnóstico · contra su ritmo normal</th></tr>` : ''}
                     <tr>${thO('cat', 'n', 'Categoría', '', 't')}${thO('cat', 'v', 'Venta')}${M ? thO('cat', 'mv', 'Meta en la ventana') + thO('cat', 'cv', 'Cumpl. ventana') + thO('cat', 'mm', 'Meta del mes', 'border-l border-slate-200') + thO('cat', 'av', 'Avance del mes') + thO('cat', 'ci', '% meta al cierre') + thO('cat', 'br', 'Brecha de cierre') : ''}${thO('cat', 'g', 'vs. benchmark', M ? 'border-l border-slate-200' : '')}${thO('cat', 'gy', 'vs. año ant.')}${mas || !M ? thO('cat', 'sh', 'Share') + thO('cat', 'dsh', 'Δ share') + thO('cat', 'ctr', 'Contribución') + thO('cat', 'aur', 'AUR') : ''}</tr></thead>
                     <tbody class="divide-y divide-slate-100">${filas || '<tr><td class="px-3 py-6 text-center text-slate-500" colspan="13">Sin ventas en la ventana.</td></tr>'}
                     <tr class="bg-slate-50 font-extrabold"><td class="px-2 py-2">Total</td>${celda(fmtM(A.vRows))}${totPres}<td class="px-2 py-2 text-right ${M ? 'border-l border-slate-200' : ''}">${chipRitmo(A.vbRows ? deltaRel(A.vRows, A.vbRows) : null)}</td><td class="px-2 py-2 text-right">${A.Y ? chipRitmo(deltaRel(A.vRows, A.Y.v)) : nul}</td>${totExtras}</tr>
@@ -893,26 +896,26 @@
         const prodsO = ordenarLista('prod', prods, 'v', { n: p => p.n, tipo: p => p.tipo, v: p => p.v, sh: p => p.sh, g: p => p.g, rec: p => p.rec });
         const lista = S.verTodosProd ? prodsO : prodsO.slice(0, 30);
         const conteo = t => A.productos.filter(p => p.tipo === t).length;
-        const chips = ['todos', 'Estrella', 'Ancla', 'Promesa', 'Rezagado', 'Estable'].map(t => `<button type="button" onclick="S.filtroTipo='${t}';S.verTodosProd=false;renderTodo()" class="px-2.5 py-1 rounded-lg text-[11px] font-bold border ${q === t ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}">${t === 'todos' ? 'Todos' : t} ${t === 'todos' ? '' : '(' + conteo(t) + ')'}</button>`).join('');
-        const filaMini = x => `<li class="flex items-start justify-between gap-2 py-1.5"><span class="min-w-0 text-xs"><strong class="text-slate-900 break-words">${esc(x.n)}</strong><span class="block text-[10px] text-slate-400">${esc(x.sku)} · ${esc(x.cat)}</span></span><span class="shrink-0 text-xs font-bold num-tabular ${colorPP(x.d)}">${x.d >= 0 ? '+' : ''}${fmtM(x.d)}</span></li>`;
+        const chips = ['todos', 'Estrella', 'Ancla', 'Promesa', 'Rezagado', 'Estable'].map(t => `<button type="button" onclick="S.filtroTipo='${t}';S.verTodosProd=false;renderTodo()" class="px-2.5 py-1 rounded-lg text-xs font-bold border ${q === t ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}">${t === 'todos' ? 'Todos' : t} ${t === 'todos' ? '' : '(' + conteo(t) + ')'}</button>`).join('');
+        const filaMini = x => `<li class="flex items-start justify-between gap-2 py-1.5"><span class="min-w-0 text-xs"><strong class="text-slate-900 break-words">${esc(x.n)}</strong><span class="block text-xs text-slate-500">${esc(x.sku)} · ${esc(x.cat)}</span></span><span class="shrink-0 text-xs font-bold num-tabular ${colorPP(x.d)}">${x.d >= 0 ? '+' : ''}${fmtM(x.d)}</span></li>`;
         document.getElementById('panel-productos').innerHTML = `
-            <p class="text-[11px] text-slate-500">${textoVentana(A.V)} · Canal: <strong>${ETIQ_CANAL[S.canal]}</strong></p>${sinBase(A)}
+            <p class="text-xs text-slate-500">${textoVentana(A.V)} · Canal: <strong>${ETIQ_CANAL[S.canal]}</strong></p>${sinBase(A)}
             <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
                 <div class="p-4 sm:p-5"><h3 class="text-sm font-extrabold text-slate-900">Productos estrella vs. ancla</h3>
-                    <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-600">
+                    <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-600">
                         <span><span class="px-1.5 py-0.5 rounded-md font-extrabold ${TIPOS_PROD.Estrella}">Estrella</span> sostiene la venta y crece</span>
                         <span><span class="px-1.5 py-0.5 rounded-md font-extrabold ${TIPOS_PROD.Ancla}">Ancla</span> sostiene la venta, estable o a la baja</span>
                         <span><span class="px-1.5 py-0.5 rounded-md font-extrabold ${TIPOS_PROD.Promesa}">Promesa</span> crece desde abajo</span>
                         <span><span class="px-1.5 py-0.5 rounded-md font-extrabold ${TIPOS_PROD.Rezagado}">Rezagado</span> pierde venta</span></div>
-                    <p class="text-[11px] text-slate-500 mt-1.5">“Sostiene la venta” = los productos que juntos suman el primer ${S.config.cabeza}% de la venta. Crecer = ${S.config.crec}% o más contra su ritmo normal.</p>
+                    <p class="text-xs text-slate-500 mt-1.5">“Sostiene la venta” = los productos que juntos suman el primer ${S.config.cabeza}% de la venta. Crecer = ${S.config.crec}% o más contra su ritmo normal.</p>
                     <div class="mt-2.5 flex flex-wrap gap-1.5" data-pdf-ocultar="true">${chips}</div></div>
-                <div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular"><thead class="bg-slate-50 text-[10px] uppercase text-slate-500"><tr>${thO('prod', 'n', 'Producto', '', 't')}${thO('prod', 'tipo', 'Tipo', '', 't')}${thO('prod', 'v', 'Venta')}${thO('prod', 'sh', 'Share')}${thO('prod', 'g', 'vs. benchmark')}${thO('prod', 'rec', 'Recompra')}</tr></thead>
-                    <tbody class="divide-y divide-slate-100">${lista.map(p => `<tr class="hover:bg-slate-50"><td class="px-2 py-2"><strong class="text-slate-900 break-words">${esc(p.n)}</strong><span class="block text-[10px] text-slate-400">${esc(p.sku)} · ${esc(p.cat)}</span></td><td class="px-2 py-2"><span class="inline-block px-2 py-0.5 rounded-md text-[10px] font-extrabold ${TIPOS_PROD[p.tipo]}">${p.tipo}</span></td><td class="px-2 py-2 text-right">${fmtM(p.v)}</td><td class="px-2 py-2 text-right">${fmtP(p.sh, 2)}</td><td class="px-2 py-2 text-right">${chipDelta(p.g)}</td><td class="px-2 py-2 text-right">${p.rec === null ? '<span class="text-slate-300">—</span>' : fmtP(p.rec, 0)}</td></tr>`).join('') || '<tr><td class="px-3 py-6 text-center text-slate-500" colspan="6">Sin productos en esta clasificación.</td></tr>'}</tbody></table></div>
+                <div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular"><thead class="bg-slate-50 text-xs uppercase text-slate-500"><tr>${thO('prod', 'n', 'Producto', '', 't')}${thO('prod', 'tipo', 'Tipo', '', 't')}${thO('prod', 'v', 'Venta')}${thO('prod', 'sh', 'Share')}${thO('prod', 'g', 'vs. benchmark')}${thO('prod', 'rec', 'Recompra')}</tr></thead>
+                    <tbody class="divide-y divide-slate-100">${lista.map(p => `<tr class="hover:bg-slate-50"><td class="px-2 py-2"><strong class="text-slate-900 break-words">${esc(p.n)}</strong><span class="block text-xs text-slate-500">${esc(p.sku)} · ${esc(p.cat)}</span></td><td class="px-2 py-2"><span class="inline-block px-2 py-0.5 rounded-md text-xs font-extrabold ${TIPOS_PROD[p.tipo]}">${p.tipo}</span></td><td class="px-2 py-2 text-right">${fmtM(p.v)}</td><td class="px-2 py-2 text-right">${fmtP(p.sh, 2)}</td><td class="px-2 py-2 text-right">${chipDelta(p.g)}</td><td class="px-2 py-2 text-right">${p.rec === null ? '<span class="text-slate-400">—</span>' : fmtP(p.rec, 0)}</td></tr>`).join('') || '<tr><td class="px-3 py-6 text-center text-slate-500" colspan="6">Sin productos en esta clasificación.</td></tr>'}</tbody></table></div>
                 ${prods.length > 30 ? `<div class="p-3 text-center" data-pdf-ocultar="true"><button type="button" onclick="S.verTodosProd=!S.verTodosProd;renderTodo()" class="text-xs font-bold text-blue-700 hover:underline">${S.verTodosProd ? 'Ver solo los 30 principales' : `Ver los ${prods.length} productos`}</button></div>` : ''}
-                <p class="px-4 pb-4 text-[11px] text-slate-400">La recompra (clientes que lo compraron 2 veces o más) se calcula al cargar el CSV con cliente_id y se muestra solo si el producto tiene al menos 20 clientes${S.snap.recompra ? ` (periodo ${fechaCorta(S.snap.recompra.desde)} – ${fechaCorta(S.snap.recompra.hasta)})` : ' (aún no hay datos de recompra)'}.</p>
+                <p class="px-4 pb-4 text-xs text-slate-500">La recompra (clientes que lo compraron 2 veces o más) se calcula al cargar el CSV con cliente_id y se muestra solo si el producto tiene al menos 20 clientes${S.snap.recompra ? ` (periodo ${fechaCorta(S.snap.recompra.desde)} – ${fechaCorta(S.snap.recompra.hasta)})` : ' (aún no hay datos de recompra)'}.</p>
             </div>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                <div class="rounded-2xl bg-white border border-emerald-200 p-4 sm:p-5 shadow-sm"><div class="flex items-center justify-between gap-2"><h3 class="text-sm font-extrabold text-slate-900">Top 10 · más aportan al cambio</h3><button type="button" data-pdf-ocultar="true" onclick="descargarTopBottom()" class="text-[11px] font-bold text-blue-700 hover:underline">Descargar CSV</button></div><ul class="mt-2 divide-y divide-slate-100">${A.top.map(filaMini).join('') || '<li class="text-xs text-slate-500 py-2">Sin base para comparar.</li>'}</ul></div>
+                <div class="rounded-2xl bg-white border border-emerald-200 p-4 sm:p-5 shadow-sm"><div class="flex items-center justify-between gap-2"><h3 class="text-sm font-extrabold text-slate-900">Top 10 · más aportan al cambio</h3><button type="button" data-pdf-ocultar="true" onclick="descargarTopBottom()" class="text-xs font-bold text-blue-700 hover:underline">Descargar CSV</button></div><ul class="mt-2 divide-y divide-slate-100">${A.top.map(filaMini).join('') || '<li class="text-xs text-slate-500 py-2">Sin base para comparar.</li>'}</ul></div>
                 <div class="rounded-2xl bg-white border border-rose-200 p-4 sm:p-5 shadow-sm"><h3 class="text-sm font-extrabold text-slate-900">Bottom 10 · más restan al cambio</h3><ul class="mt-2 divide-y divide-slate-100">${A.bottom.map(filaMini).join('') || '<li class="text-xs text-slate-500 py-2">Sin base para comparar.</li>'}</ul></div>
             </div>
             <div class="rounded-2xl bg-blue-50 border border-blue-200 p-4 text-xs text-blue-900">¿Productos con muchas visitas y poca conversión? Ese análisis vive en el <strong>Perfil de segmentos</strong> de <a class="underline font-bold" href="Trafico_y_Conversion.html" target="_blank" rel="noopener">Tráfico y Conversión ↗</a>.</div>`;
@@ -922,38 +925,38 @@
         const M = A.mes, mas = S.masCols, porMes = new Map((M ? M.canalesTodos : []).map(c => [c.c, c]));
         const celda = (x, cls = '') => `<td class="px-2 py-2 text-right num-tabular ${cls}">${x}</td>`;
         const th = (x, cls = '') => `<th class="px-3 py-2 text-right ${cls}">${x}</th>`;
-        const nul = '<span class="text-slate-300">—</span>';
+        const nul = '<span class="text-slate-400">—</span>';
         const brechaDe = c => { const m = porMes.get(c.c); return m && m.pron !== null ? m.pron - m.presupuesto : null; };
         const pm = c => porMes.get(c.c) || null;
         const orden = ordenarLista('can', A.canales, 'v', { n: c => c.c, v: c => c.v, mv: c => c.plan > 0 ? c.plan : null, cv: c => c.cumpl, mm: c => pm(c) && pm(c).presupuesto, av: c => pm(c) && pm(c).pacingReal, ci: c => pm(c) && pm(c).cumplPron, br: brechaDe, g: c => c.g, gy: c => c.gY, p: c => c.p, aov: c => c.aov, dif: c => c.integ ? c.integ.dif : null, sh: c => c.sh });
         const sig = v => v === null ? '—' : `${v >= 0 ? '+' : '−'}${fmtM(Math.abs(v)).replace('−', '')}`;
         const filas = orden.map(c => { const m = porMes.get(c.c), br = brechaDe(c);
-            const presup = M ? (m ? `${celda(c.plan > 0 ? fmtM(c.plan) : '—')}<td class="px-2 py-2 text-right">${chipMeta(c.cumpl)}</td>${celda(fmtM(m.presupuesto), 'border-l border-slate-200')}<td class="px-2 py-2 text-right num-tabular whitespace-nowrap">${fmtMeta(m.pacingReal)}${barraAvance(m.pacingReal, m.presupuesto > 0 ? m.planMTD / m.presupuesto * 100 : 0)}<div class="text-[10px] text-slate-400">esperado ${fmtP(m.presupuesto > 0 ? m.planMTD / m.presupuesto * 100 : 0, 0)}</div></td><td class="px-2 py-2 text-right" title="Si mantiene su ritmo del mes cierra en ${m.pron !== null ? fmtM(m.pron) : '—'}">${chipMeta(m.cumplPron)}</td>${celda(sig(br), br === null ? '' : br < 0 ? 'font-bold text-rose-700' : 'font-bold text-emerald-700')}` : celda('—').repeat(6)) : '';
+            const presup = M ? (m ? `${celda(c.plan > 0 ? fmtM(c.plan) : '—')}<td class="px-2 py-2 text-right">${chipMeta(c.cumpl)}</td>${celda(fmtM(m.presupuesto), 'border-l border-slate-200')}<td class="px-2 py-2 text-right num-tabular whitespace-nowrap">${fmtMeta(m.pacingReal)}${barraAvance(m.pacingReal, m.presupuesto > 0 ? m.planMTD / m.presupuesto * 100 : 0)}<div class="text-xs text-slate-500">esperado ${fmtP(m.presupuesto > 0 ? m.planMTD / m.presupuesto * 100 : 0, 0)}</div></td><td class="px-2 py-2 text-right" title="Si mantiene su ritmo del mes cierra en ${m.pron !== null ? fmtM(m.pron) : '—'}">${chipMeta(m.cumplPron)}</td>${celda(sig(br), br === null ? '' : br < 0 ? 'font-bold text-rose-700' : 'font-bold text-emerald-700')}` : celda('—').repeat(6)) : '';
             const k = 'k:' + c.c, abierta = !!S.detMeta[k];
             const det = M && m ? `<tr class="${abierta ? '' : 'hidden'}"><td colspan="20" class="p-0">${abierta ? explicacionMeta(A, c.c, { v: c.v, metaV: c.plan > 0 ? c.plan : null, cumplV: c.cumpl, meta: m.presupuesto, sh: null, presupuesto: m.presupuesto, real: m.real, planMTD: m.planMTD, pron: m.pron, esp: m.presupuesto > 0 ? m.planMTD / m.presupuesto * 100 : 0 }) : ''}</td></tr>` : '';
-            return `<tr class="hover:bg-slate-50 ${M && m ? 'cursor-pointer' : ''}" ${M && m ? `onclick="alternarDetalleMeta('${k}')" title="Clic para ver cómo se calculó"` : ''}><td class="px-2 py-2 font-bold text-slate-900">${M && m ? `<span class="text-slate-400 mr-1">${abierta ? '▾' : '▸'}</span>` : ''}${c.c}</td>${celda(fmtM(c.v))}${presup}<td class="px-2 py-2 text-right ${M ? 'border-l border-slate-200' : ''}">${chipRitmo(c.g)}</td><td class="px-2 py-2 text-right">${c.gY === null ? nul : chipRitmo(c.gY)}</td>
+            return `<tr class="hover:bg-slate-50 ${M && m ? 'cursor-pointer' : ''}" ${M && m ? `onclick="alternarDetalleMeta('${k}')" title="Clic para ver cómo se calculó"` : ''}><td class="px-2 py-2 font-bold text-slate-900">${M && m ? `<span class="text-slate-500 mr-1">${abierta ? '▾' : '▸'}</span>` : ''}${c.c}</td>${celda(fmtM(c.v))}${presup}<td class="px-2 py-2 text-right ${M ? 'border-l border-slate-200' : ''}">${chipRitmo(c.g)}</td><td class="px-2 py-2 text-right">${c.gY === null ? nul : chipRitmo(c.gY)}</td>
                 ${celda(fmtN(c.p))}${celda(fmtM(c.aov))}${celda(c.integ ? txtDelta(c.integ.dif) : '—', c.integ && Math.abs(c.integ.dif) > 3 ? 'font-bold text-rose-700' : c.integ && Math.abs(c.integ.dif) > 1 ? 'font-bold text-amber-700' : 'text-emerald-700')}${mas || !M ? celda(fmtP(c.sh)) : ''}</tr>${det}`; }).join('');
         const tv = A.canales.reduce((s, c) => s + c.v, 0), tp = A.canales.reduce((s, c) => s + c.p, 0), T0 = M ? M.totalTodos : null, planT = A.canales.reduce((s, c) => s + c.plan, 0), brT = T0 && T0.pron !== null ? T0.pron - T0.presupuesto : null;
         const totPres = M ? `${celda(planT > 0 ? fmtM(planT) : '—')}<td class="px-2 py-2 text-right">${planT > 0 ? chipMeta(tv / planT * 100) : nul}</td>${celda(fmtM(T0.presupuesto), 'border-l border-slate-200')}<td class="px-2 py-2 text-right whitespace-nowrap">${fmtMeta(T0.pacingReal)}${barraAvance(T0.pacingReal, T0.pacingEsp)}</td><td class="px-2 py-2 text-right">${chipMeta(T0.cumplPron)}</td>${celda(sig(brT), brT === null ? '' : brT < 0 ? 'font-bold text-rose-700' : 'font-bold text-emerald-700')}` : '';
         document.getElementById('panel-canales').innerHTML = `
-            <p class="text-[11px] text-slate-500">${textoVentana(A.V)}${A.YD ? ` · Año anterior (mismo día de la semana): ${fechaCorta(A.YD.ini)} – ${fechaCorta(A.YD.fin)}` : ''}</p>${sinBase(A)}
-            <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden"><div class="p-4 sm:p-5 flex flex-wrap items-start justify-between gap-3"><div class="max-w-2xl"><h3 class="text-sm font-extrabold text-slate-900">Venta y meta por canal</h3><p class="text-[11px] text-slate-500 mt-0.5">Siempre se muestran los cuatro canales, sin importar el filtro de canal.Ordenado de mayor a menor venta; <strong>haz clic en el encabezado de cualquier columna para ordenar</strong>. <strong>Meta en la ventana</strong> = plan de la Revisión Diaria de esos días; cambia con la ventana. Verde, ámbar y rojo comparan contra el presupuesto; azul y gris, contra su ritmo normal. <strong>Haz clic en un canal para ver cómo se calculó.</strong></p></div>
+            <p class="text-xs text-slate-500">${textoVentana(A.V)}${A.YD ? ` · Año anterior (mismo día de la semana): ${fechaCorta(A.YD.ini)} – ${fechaCorta(A.YD.fin)}` : ''}</p>${sinBase(A)}
+            <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden"><div class="p-4 sm:p-5 flex flex-wrap items-start justify-between gap-3"><div class="max-w-2xl"><h3 class="text-sm font-extrabold text-slate-900">Venta y meta por canal</h3><p class="text-xs text-slate-500 mt-0.5">Siempre se muestran los cuatro canales, sin importar el filtro de canal.Ordenado de mayor a menor venta; <strong>haz clic en el encabezado de cualquier columna para ordenar</strong>. <strong>Meta en la ventana</strong> = plan de la Revisión Diaria de esos días; cambia con la ventana. Verde, ámbar y rojo comparan contra el presupuesto; azul y gris, contra su ritmo normal. <strong>Haz clic en un canal para ver cómo se calculó.</strong></p></div>
                 ${M ? `<button type="button" data-pdf-ocultar="true" onclick="S.masCols=!S.masCols;renderTodo()" class="text-xs font-bold text-blue-700 hover:underline">${mas ? '− Ocultar share' : '+ Ver más columnas (share)'}</button>` : ''}</div>
-            <div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular whitespace-nowrap"><thead class="bg-slate-50 text-[10px] uppercase text-slate-500">
-                ${M ? `<tr><th></th><th class="px-3 pt-2 text-left text-[10px] font-bold text-emerald-700" colspan="3">Ventana · ${nombreVentana()} · contra presupuesto</th><th class="px-3 pt-2 text-left text-[10px] font-bold text-emerald-700 border-l border-slate-200" colspan="5">${etiquetaMes(S.mes)} · contra presupuesto</th><th class="px-3 pt-2 text-left text-[10px] font-bold text-slate-400 border-l border-slate-200" colspan="${5 + (mas ? 1 : 0)}">Diagnóstico · contra su ritmo normal</th></tr>` : ''}
+            <div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular whitespace-nowrap"><thead class="bg-slate-50 text-xs uppercase text-slate-500">
+                ${M ? `<tr><th></th><th class="px-3 pt-2 text-left text-xs font-bold text-emerald-700" colspan="3">Ventana · ${nombreVentana()} · contra presupuesto</th><th class="px-3 pt-2 text-left text-xs font-bold text-emerald-700 border-l border-slate-200" colspan="5">${etiquetaMes(S.mes)} · contra presupuesto</th><th class="px-3 pt-2 text-left text-xs font-bold text-slate-500 border-l border-slate-200" colspan="${5 + (mas ? 1 : 0)}">Diagnóstico · contra su ritmo normal</th></tr>` : ''}
                 <tr>${thO('can', 'n', 'Canal', '', 't')}${thO('can', 'v', 'Venta')}${M ? thO('can', 'mv', 'Meta en la ventana') + thO('can', 'cv', 'Cumpl. ventana') + thO('can', 'mm', 'Meta del mes', 'border-l border-slate-200') + thO('can', 'av', 'Avance del mes') + thO('can', 'ci', '% meta al cierre') + thO('can', 'br', 'Brecha de cierre') : ''}${thO('can', 'g', 'vs. benchmark', M ? 'border-l border-slate-200' : '')}${thO('can', 'gy', 'vs. año ant.')}${thO('can', 'p', 'Pedidos')}${thO('can', 'aov', 'Ticket')}${thO('can', 'dif', 'Vs. Rev. Diaria')}${mas || !M ? thO('can', 'sh', 'Share') : ''}</tr></thead>
             <tbody class="divide-y divide-slate-100">${filas}<tr class="bg-slate-50 font-extrabold"><td class="px-2 py-2">Total</td>${celda(fmtM(tv))}${totPres}<td class="px-2 py-2 text-right ${M ? 'border-l border-slate-200' : ''}">${nul}</td><td class="px-2 py-2 text-right">${nul}</td>${celda(fmtN(tp))}${celda(fmtM(razon(tv, tp)))}${celda('—')}${mas || !M ? celda('100%') : ''}</tr></tbody></table></div></div>
             ${bannerIntegridad(A)}
-            <p class="text-[11px] text-slate-500">WhatsApp y Llamadas se miden con sus propios pedidos; su conversión contra oportunidades atendidas se documenta aparte, como define el KPI de CR.</p>`;
+            <p class="text-xs text-slate-500">WhatsApp y Llamadas se miden con sus propios pedidos; su conversión contra oportunidades atendidas se documenta aparte, como define el KPI de CR.</p>`;
     }
 
     function renderCross(A) {
         const c = S.snap.cross;
         document.getElementById('panel-cross').innerHTML = `
             <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden"><div class="p-4 sm:p-5"><h3 class="text-sm font-extrabold text-slate-900">Cross-selling: parejas con más potencial para el ticket</h3>
-                <p class="text-[11px] text-slate-500 mt-0.5">Confianza: de los pedidos con el producto ancla, cuántos llevan también el complemento. Lift mayor a 1: se compran juntos más de lo esperado. Efecto: cuánto subiría el ticket si la adjunción del complemento aumenta 5 puntos.</p>
-                ${c ? `<p class="text-[11px] text-slate-400 mt-1">Calculado con ${fmtN(c.total)} pedidos del ${fechaCorta(c.desde)} al ${fechaCorta(c.hasta)}. Se recalcula con cada carga de CSV.</p>` : ''}</div>
-            <div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular"><thead class="bg-slate-50 text-[10px] uppercase text-slate-500"><tr>${thO('cross', 'na', 'Producto ancla', '', 't')}${thO('cross', 'nb', 'Complemento', '', 't')}${thO('cross', 'j', 'Pedidos juntos')}${thO('cross', 'conf', 'Confianza')}${thO('cross', 'lift', 'Lift')}${thO('cross', 'd5', 'Efecto en AOV (+5 pp)')}<th class="px-2 py-2" data-pdf-ocultar="true"></th></tr></thead>
+                <p class="text-xs text-slate-500 mt-0.5">Confianza: de los pedidos con el producto ancla, cuántos llevan también el complemento. Lift mayor a 1: se compran juntos más de lo esperado. Efecto: cuánto subiría el ticket si la adjunción del complemento aumenta 5 puntos.</p>
+                ${c ? `<p class="text-xs text-slate-500 mt-1">Calculado con ${fmtN(c.total)} pedidos del ${fechaCorta(c.desde)} al ${fechaCorta(c.hasta)}. Se recalcula con cada carga de CSV.</p>` : ''}</div>
+            <div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular"><thead class="bg-slate-50 text-xs uppercase text-slate-500"><tr>${thO('cross', 'na', 'Producto ancla', '', 't')}${thO('cross', 'nb', 'Complemento', '', 't')}${thO('cross', 'j', 'Pedidos juntos')}${thO('cross', 'conf', 'Confianza')}${thO('cross', 'lift', 'Lift')}${thO('cross', 'd5', 'Efecto en AOV (+5 pp)')}<th class="px-2 py-2" data-pdf-ocultar="true"></th></tr></thead>
             <tbody class="divide-y divide-slate-100">${ordenarLista('cross', A.cross, 'd5', { na: p => p.na, nb: p => p.nb, j: p => p.j, conf: p => p.conf, lift: p => p.lift, d5: p => p.d5 }).map(p => `<tr class="hover:bg-slate-50"><td class="px-2 py-2 font-bold text-slate-900 break-words">${esc(p.na)}</td><td class="px-2 py-2 break-words">${esc(p.nb)}</td><td class="px-2 py-2 text-right">${fmtN(p.j)}</td><td class="px-2 py-2 text-right">${fmtP(p.conf)}</td><td class="px-2 py-2 text-right">${p.lift.toFixed(1)}×</td><td class="px-2 py-2 text-right font-bold text-emerald-700">${p.d5 !== null ? '+' + fmtM(p.d5) : '—'}</td><td class="px-2 py-2" data-pdf-ocultar="true">${botonAccion('cross-selling', `${p.na} + ${p.nb}`, `Pareja con lift ${p.lift.toFixed(1)}× y ${fmtP(p.conf)} de confianza.`)}</td></tr>`).join('') || `<tr><td class="px-3 py-8 text-center text-slate-500" colspan="7">${c ? 'No hay parejas con suficiente volumen.' : 'Aún no hay análisis. Carga un CSV con pedido_id y varios productos por pedido (mínimo 14 días).'}</td></tr>`}</tbody></table></div></div>`;
     }
 
@@ -965,10 +968,10 @@
         const { lista, suficiente } = A.sinMov;
         document.getElementById('panel-sinmov').innerHTML = `
             <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden"><div class="p-4 sm:p-5"><h3 class="text-sm font-extrabold text-slate-900">Productos sin movimiento (+${S.config.sinMovDias} días) y bundling</h3>
-                <p class="text-[11px] text-slate-500 mt-0.5">Se detectan solo con el CSV de ventas: productos que sí vendían y llevan ${S.config.sinMovDias} días o más sin una venta. No incluye existencias; el Analista valida en el ERP cuáles tienen inventario antes de armar el combo.</p>
-                ${!suficiente ? `<p class="mt-2 text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">Aún no hay suficiente historial (se recomiendan al menos ${S.config.sinMovDias + 90} días): la lista puede estar incompleta.</p>` : ''}</div>
-            <div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular"><thead class="bg-slate-50 text-[10px] uppercase text-slate-500"><tr>${thO('sm', 'n', 'Producto', '', 't')}${thO('sm', 'cat', 'Categoría', '', 't')}${thO('sm', 'ultima', 'Última venta')}${thO('sm', 'dias', 'Días sin venta')}${thO('sm', 'prev', 'Vendía por trimestre')}${thO('sm', 'combo', 'Combo sugerido con', '', 't')}<th class="px-2 py-2" data-pdf-ocultar="true"></th></tr></thead>
-            <tbody class="divide-y divide-slate-100">${ordenarLista('sm', lista, 'prev', { n: x => x.n, cat: x => x.cat, ultima: x => x.ultima, dias: x => x.dias, prev: x => x.prev, combo: x => comboSugerido(x, A) }).map(x => `<tr class="hover:bg-slate-50"><td class="px-2 py-2"><strong class="text-slate-900 break-words">${esc(x.n)}</strong><span class="block text-[10px] text-slate-400">${esc(x.sku)}</span></td><td class="px-2 py-2">${esc(x.cat)}</td><td class="px-2 py-2 text-right">${fechaCorta(x.ultima)}</td><td class="px-2 py-2 text-right font-bold text-rose-700">${x.dias}</td><td class="px-2 py-2 text-right">${fmtM(x.prev)}</td><td class="px-2 py-2 break-words">${esc(comboSugerido(x, A))}</td><td class="px-2 py-2" data-pdf-ocultar="true">${botonAccion('producto sin movimiento', x.n, `${x.dias} días sin venta; combo sugerido con ${comboSugerido(x, A)}.`)}</td></tr>`).join('') || '<tr><td class="px-3 py-8 text-center text-slate-500" colspan="7">Ningún producto cumple el criterio.</td></tr>'}</tbody></table></div></div>`;
+                <p class="text-xs text-slate-500 mt-0.5">Se detectan solo con el CSV de ventas: productos que sí vendían y llevan ${S.config.sinMovDias} días o más sin una venta. No incluye existencias; el Analista valida en el ERP cuáles tienen inventario antes de armar el combo.</p>
+                ${!suficiente ? `<p class="mt-2 text-xs font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">Aún no hay suficiente historial (se recomiendan al menos ${S.config.sinMovDias + 90} días): la lista puede estar incompleta.</p>` : ''}</div>
+            <div class="overflow-x-auto"><table class="w-full text-left text-xs num-tabular"><thead class="bg-slate-50 text-xs uppercase text-slate-500"><tr>${thO('sm', 'n', 'Producto', '', 't')}${thO('sm', 'cat', 'Categoría', '', 't')}${thO('sm', 'ultima', 'Última venta')}${thO('sm', 'dias', 'Días sin venta')}${thO('sm', 'prev', 'Vendía por trimestre')}${thO('sm', 'combo', 'Combo sugerido con', '', 't')}<th class="px-2 py-2" data-pdf-ocultar="true"></th></tr></thead>
+            <tbody class="divide-y divide-slate-100">${ordenarLista('sm', lista, 'prev', { n: x => x.n, cat: x => x.cat, ultima: x => x.ultima, dias: x => x.dias, prev: x => x.prev, combo: x => comboSugerido(x, A) }).map(x => `<tr class="hover:bg-slate-50"><td class="px-2 py-2"><strong class="text-slate-900 break-words">${esc(x.n)}</strong><span class="block text-xs text-slate-500">${esc(x.sku)}</span></td><td class="px-2 py-2">${esc(x.cat)}</td><td class="px-2 py-2 text-right">${fechaCorta(x.ultima)}</td><td class="px-2 py-2 text-right font-bold text-rose-700">${x.dias}</td><td class="px-2 py-2 text-right">${fmtM(x.prev)}</td><td class="px-2 py-2 break-words">${esc(comboSugerido(x, A))}</td><td class="px-2 py-2" data-pdf-ocultar="true">${botonAccion('producto sin movimiento', x.n, `${x.dias} días sin venta; combo sugerido con ${comboSugerido(x, A)}.`)}</td></tr>`).join('') || '<tr><td class="px-3 py-8 text-center text-slate-500" colspan="7">Ningún producto cumple el criterio.</td></tr>'}</tbody></table></div></div>`;
     }
 
     function renderAcciones(A) {
@@ -977,14 +980,14 @@
         const lista = [...S.acciones].sort((a, b) => orden[a.estatus] - orden[b.estatus] || b.creada.localeCompare(a.creada)).map(a => `
             <li class="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                 <div class="min-w-0"><div class="text-sm font-extrabold text-slate-900">${esc(a.titulo)}</div>${a.detalle ? `<div class="text-xs text-slate-600 mt-0.5">${esc(a.detalle)}</div>` : ''}
-                    <div class="text-[11px] text-slate-400 mt-1">${esc(a.creada)}${a.responsable ? ' · ' + esc(a.responsable) : ''}${a.fechaCompromiso ? ' · Compromiso: ' + esc(a.fechaCompromiso) : ''}</div>${a.resultado ? `<div class="text-[11px] text-emerald-700 mt-0.5">Resultado: ${esc(a.resultado)}</div>` : ''}</div>
+                    <div class="text-xs text-slate-500 mt-1">${esc(a.creada)}${a.responsable ? ' · ' + esc(a.responsable) : ''}${a.fechaCompromiso ? ' · Compromiso: ' + esc(a.fechaCompromiso) : ''}</div>${a.resultado ? `<div class="text-xs text-emerald-700 mt-0.5">Resultado: ${esc(a.resultado)}</div>` : ''}</div>
                 <div class="flex items-center gap-2 shrink-0"><select onchange="cambiarEstatus('${a.id}', this.value)" class="rounded-lg border border-slate-300 px-2 py-1 text-xs font-bold ${color[a.estatus]}">${['Pendiente', 'En proceso', 'Completada'].map(e => `<option ${e === a.estatus ? 'selected' : ''}>${e}</option>`).join('')}</select>
                     <button type="button" onclick="editarAccion('${a.id}')" class="px-2 py-1 rounded-lg border border-slate-300 text-xs font-bold text-slate-600 hover:bg-slate-50">Editar</button>
                     <button type="button" onclick="eliminarAccion('${a.id}')" class="px-2 py-1 rounded-lg border border-slate-300 text-xs text-slate-500 hover:bg-slate-50" title="Eliminar">🗑</button></div></li>`).join('');
         document.getElementById('panel-acciones').innerHTML = `
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
                 <div class="space-y-3">${panelAlertas('Alertas activas · de mayor a menor impacto', A.alertas, 'Sin alertas activas.')}</div>
-                <div class="space-y-3"><div class="flex items-center justify-between"><h3 class="text-sm font-extrabold text-slate-900">Acciones registradas (${S.acciones.length}) <a href="Acciones.html" target="_blank" rel="noopener" class="ml-2 text-[11px] font-bold text-blue-700 hover:underline">Ver todas las acciones ↗</a></h3>
+                <div class="space-y-3"><div class="flex items-center justify-between"><h3 class="text-sm font-extrabold text-slate-900">Acciones registradas (${S.acciones.length}) <a href="Acciones.html" target="_blank" rel="noopener" class="ml-2 text-xs font-bold text-blue-700 hover:underline">Ver todas las acciones ↗</a></h3>
                     <button type="button" onclick="abrirAccion()" class="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold">+ Nueva acción</button></div>
                     <ul class="space-y-2">${lista || '<li class="p-4 text-xs text-slate-500 rounded-xl bg-slate-50 border border-slate-200">Aún no hay acciones registradas.</li>'}</ul></div></div>`;
     }
@@ -992,7 +995,7 @@
     function renderTabsYFiltros() {
         document.getElementById('sel-canal').innerHTML = FILTROS.map(x => `<option value="${x}" ${S.canal === x ? 'selected' : ''}>${ETIQ_CANAL[x]}</option>`).join('');
         const pend = S.acciones.filter(a => a.estatus !== 'Completada').length;
-        document.getElementById('tabs-vista').innerHTML = VISTAS.map(v => `<button type="button" onclick="cambiarVista('${v.id}')" class="shrink-0 px-3.5 py-2.5 text-xs font-bold transition border-b-2 ${S.vista === v.id ? 'text-blue-600 border-blue-600' : 'text-slate-500 border-transparent hover:text-slate-900'}">${v.n}${v.id === 'acciones' && pend ? ` <span class="ml-1 px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[10px]">${pend}</span>` : ''}</button>`).join('');
+        document.getElementById('tabs-vista').innerHTML = VISTAS.map(v => `<button type="button" onclick="cambiarVista('${v.id}')" class="shrink-0 px-3.5 py-2.5 text-xs font-bold transition border-b-2 ${S.vista === v.id ? 'text-blue-600 border-blue-600' : 'text-slate-500 border-transparent hover:text-slate-900'}">${v.n}${v.id === 'acciones' && pend ? ` <span class="ml-1 px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-xs">${pend}</span>` : ''}</button>`).join('');
         document.getElementById('sel-ventana').value = String(S.ventana);
         document.getElementById('cfg-umbral').value = S.config.umbral; document.getElementById('cfg-ialto').value = S.config.impactoAlto;
         document.getElementById('cfg-imedio').value = S.config.impactoMedio; document.getElementById('cfg-cabeza').value = S.config.cabeza;
@@ -1105,12 +1108,12 @@
         document.getElementById('metas-sub').textContent = `${etiquetaMes(S.mes)} · Canal: ${ETIQ_CANAL[S.canal]} · Plan del mes (Revisión Diaria): ${A.planMes > 0 ? fmtM(A.planMes) : 'sin plan cargado'}`;
         const disp = r ? { '3m': !!r.L3, 'ly': !!r.LY, 'mezcla': !!(r.L3 && r.LY) } : {};
         document.getElementById('metas-base').innerHTML = !r ? '<div class="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">Aún no hay historial mensual suficiente: la base es el benchmark de 28 días. Con 3 meses de datos podrás elegir entre los últimos 3 meses, el mismo mes del año anterior o una mezcla.</div>' : `
-            <div class="flex flex-wrap items-center gap-3"><div class="inline-flex flex-wrap gap-1 bg-slate-100 border border-slate-200 rounded-xl p-1">${['3m', 'ly', 'mezcla'].map(k => `<button type="button" ${disp[k] ? '' : 'disabled'} onclick="cambiarBaseMetas('${k}')" class="px-3 py-1.5 rounded-lg text-xs font-bold ${S.mm.modo === k ? 'bg-slate-900 text-white' : disp[k] ? 'text-slate-600 hover:bg-white' : 'text-slate-300'}">${NOMBRE_BASE[k]}</button>`).join('')}</div>
-                ${S.mm.modo === 'mezcla' ? `<label class="flex items-center gap-2 text-[11px] text-slate-500">Peso del año anterior <input type="range" min="0" max="100" step="10" value="${S.mm.peso}" oninput="cambiarPesoMetas(this.value)" class="w-40"><b id="metas-peso-txt" class="text-slate-800">${S.mm.peso}% año anterior · ${100 - S.mm.peso}% últimos 3 meses</b></label>` : ''}</div>
+            <div class="flex flex-wrap items-center gap-3"><div class="inline-flex flex-wrap gap-1 bg-slate-100 border border-slate-200 rounded-xl p-1">${['3m', 'ly', 'mezcla'].map(k => `<button type="button" ${disp[k] ? '' : 'disabled'} onclick="cambiarBaseMetas('${k}')" class="px-3 py-1.5 rounded-lg text-xs font-bold ${S.mm.modo === k ? 'bg-slate-900 text-white' : disp[k] ? 'text-slate-600 hover:bg-white' : 'text-slate-400'}">${NOMBRE_BASE[k]}</button>`).join('')}</div>
+                ${S.mm.modo === 'mezcla' ? `<label class="flex items-center gap-2 text-xs text-slate-500">Peso del año anterior <input type="range" min="0" max="100" step="10" value="${S.mm.peso}" oninput="cambiarPesoMetas(this.value)" class="w-40"><b id="metas-peso-txt" class="text-slate-800">${S.mm.peso}% año anterior · ${100 - S.mm.peso}% últimos 3 meses</b></label>` : ''}</div>
             <div class="mt-3 rounded-xl bg-blue-50 border border-blue-200 px-3 py-2 text-xs text-blue-900 leading-relaxed">${r.errores ? `<b>Recomendación:</b> ${r.recomendada === 'mezcla' ? 'Mezcla 50/50' : NOMBRE_BASE[r.recomendada]} — fue la que menos se equivocó en ${r.back.length === 1 ? 'el último mes' : `los últimos ${r.back.length} meses`} (error medio ${r.errores[r.recomendada].toFixed(1)} pp${r.recomendada !== '3m' ? ` frente a ${r.errores['3m'].toFixed(1)} pp de los últimos 3 meses` : ''}).` : '<b>Sin recomendación:</b> falta historial para comparar las bases (se necesitan los 3 meses previos y el mismo mes del año anterior). Se usa la base disponible.'}
-                ${S.mm.auto ? '<span class="ml-1 px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-extrabold">PRESELECCIONADA</span>' : `<button type="button" onclick="usarRecomendadaMetas()" class="ml-1 px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-bold">Usar la recomendada</button>`}</div>
-            ${r.errores ? `<div class="mt-3"><div class="text-[11px] font-bold text-slate-700 mb-1">¿Qué base habría acertado mejor? <span class="font-normal text-slate-500">Error = puntos de participación mal asignados (menos es mejor)</span></div>
-                <div class="overflow-x-auto border border-slate-200 rounded-xl"><table class="w-full text-xs num-tabular"><thead class="bg-slate-50 text-[10px] uppercase text-slate-500"><tr><th class="px-3 py-1.5 text-left">Mes</th><th class="px-3 py-1.5 text-right">Últimos 3 meses</th><th class="px-3 py-1.5 text-right">Mismo mes año ant.</th><th class="px-3 py-1.5 text-right">Mezcla 50/50</th></tr></thead><tbody class="divide-y divide-slate-100">
+                ${S.mm.auto ? '<span class="ml-1 px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-xs font-extrabold">PRESELECCIONADA</span>' : `<button type="button" onclick="usarRecomendadaMetas()" class="ml-1 px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold">Usar la recomendada</button>`}</div>
+            ${r.errores ? `<div class="mt-3"><div class="text-xs font-bold text-slate-700 mb-1">¿Qué base habría acertado mejor? <span class="font-normal text-slate-500">Error = puntos de participación mal asignados (menos es mejor)</span></div>
+                <div class="overflow-x-auto border border-slate-200 rounded-xl"><table class="w-full text-xs num-tabular"><thead class="bg-slate-50 text-xs uppercase text-slate-500"><tr><th class="px-3 py-1.5 text-left">Mes</th><th class="px-3 py-1.5 text-right">Últimos 3 meses</th><th class="px-3 py-1.5 text-right">Mismo mes año ant.</th><th class="px-3 py-1.5 text-right">Mezcla 50/50</th></tr></thead><tbody class="divide-y divide-slate-100">
                 ${[...r.back.map(x => [etiquetaMes(x.mes), x.e3, x.ey, x.em]), ['Error medio', r.errores['3m'], r.errores.ly, r.errores.mezcla]].map((f, i, a) => { const mn = Math.min(f[1], f[2], f[3]); const c = v => `<td class="px-3 py-1.5 text-right ${v === mn ? 'font-bold text-emerald-700' : ''}">${v.toFixed(1)} pp${v === mn ? ' ✓' : ''}</td>`; return `<tr class="${i === a.length - 1 ? 'bg-slate-50 font-extrabold' : ''}"><td class="px-3 py-1.5">${f[0]}</td>${c(f[1])}${c(f[2])}${c(f[3])}</tr>`; }).join('')}</tbody></table></div></div>` : ''}`;
         document.getElementById('metas-tbody').innerHTML = nombres.map((n, i) => `<tr><td class="px-3 py-2 font-bold text-slate-900">${esc(n)}</td><td class="px-3 py-2 text-right num-tabular">${b.l3 ? fmtP(b.l3[i]) : '—'}</td><td class="px-3 py-2 text-right num-tabular">${b.ly ? fmtP(b.ly[i]) : '—'}</td><td class="px-3 py-2 text-right num-tabular" data-b="${i}"></td>
             <td class="px-3 py-2 text-right"><input type="number" step="0.1" data-i="${i}" value="${S.mm.aj[n] || 0}" oninput="editarAjusteMeta(${i}, this.value)" class="w-20 rounded-lg border border-slate-300 px-2 py-1 text-right text-sm"></td>
@@ -1403,7 +1406,7 @@
         const p = window._pendiente; const fechas = p.registros.map(r => r.f).sort();
         document.getElementById('imp-sub').textContent = `Archivo: ${p.nombre} • Periodo: ${fechaCorta(fechas[0])} – ${fechaCorta(fechas[fechas.length - 1])} (${fechas[0].slice(0, 4)}) • ${fmtN(p.lineas)} líneas • ${fmtN(p.pedidos)} pedidos`;
         document.getElementById('imp-validos').textContent = fmtN(p.registros.length); document.getElementById('imp-adv').textContent = fmtN(p.advertencias.length); document.getElementById('imp-omit').textContent = fmtN(p.omitidas);
-        document.getElementById('imp-mapa').innerHTML = CAMPOS.map(([k, n, obl]) => `<label class="block min-w-0"><span class="text-[10px] font-bold uppercase text-slate-500">${n}${obl ? ' *' : ''}</span>
+        document.getElementById('imp-mapa').innerHTML = CAMPOS.map(([k, n, obl]) => `<label class="block min-w-0"><span class="text-xs font-bold uppercase text-slate-500">${n}${obl ? ' *' : ''}</span>
             <select onchange="remapearImport()" data-campo="${k}" class="mt-0.5 w-full rounded-lg border ${obl && !p.mapaUsado[k] ? 'border-rose-400 bg-rose-50' : 'border-slate-300 bg-white'} px-2 py-1 text-xs">
             <option value="">— ninguna —</option>${p.cabecera.map(c => `<option value="${esc(c)}" ${p.mapaUsado[k] === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></label>`).join('');
         const cats = Object.entries(p.categorias).sort((a, b) => b[1] - a[1]);
@@ -1556,7 +1559,7 @@
         p.dias.forEach(d => { const e = mapa.get(`${d.f}|${d.c}`); if (!e) nuevos.push(d); else cambios.push({ f: d.f, c: d.c, antes: e.v, despues: d.v, pa: e.p, pd: d.p }); });
         const dif = cambios.reduce((a, x) => a + x.despues - x.antes, 0), bajas = cambios.filter(x => x.antes > 0 && (x.despues - x.antes) / x.antes <= -0.2);
         const iguales = cambios.filter(x => Math.abs(x.despues - x.antes) < 1).length;
-        const chip = (t, k) => `<span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-bold ${k}">${t}</span>`;
+        const chip = (t, k) => `<span class="inline-block px-2 py-0.5 rounded-full text-xs font-bold ${k}">${t}</span>`;
         let h = `<div class="flex flex-wrap items-center gap-2"><strong class="text-slate-900">Qué cambia esta carga</strong>${chip(`${fmtN(nuevos.length)} día-canal nuevos`, 'bg-emerald-100 text-emerald-700')}${chip(`${fmtN(cambios.length)} reemplazados (${fmtN(iguales)} sin cambio)`, cambios.length - iguales ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 text-slate-600')}${bajas.length ? chip(`${fmtN(bajas.length)} con baja de 20% o más`, 'bg-rose-100 text-rose-700') : ''}</div>`;
         if (cambios.length - iguales) h += `<div>Los días que ya existían cambian en ${dif >= 0 ? '+' : '−'}${fmtM(Math.abs(dif))} de venta en total.</div>`;
         const top = cambios.filter(x => Math.abs(x.despues - x.antes) >= 1).sort((a, b) => Math.abs(b.despues - b.antes) - Math.abs(a.despues - a.antes)).slice(0, 5);
@@ -1605,7 +1608,7 @@
         const p = A.mes && A.mes.pronInfo; if (!p) return '';
         const rec = p.mejor ? ` (${NOMBRE_PRON[p.mejor]})` : '';
         const e = p.err ? `Error medio de repartir el resto del mes en los últimos ${p.n} meses: mes a la fecha ${p.err.hoy.toFixed(1)}% · ritmo reciente ${p.err.reciente.toFixed(1)}% · mixto ${p.err.mixto.toFixed(1)}% de la venta mal repartida.` : 'Aún no hay meses suficientes para recomendar un modo; se usa mes a la fecha.';
-        return `<label class="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-600" title="${esc(e)}">Pronóstico por categoría
+        return `<label class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600" title="${esc(e)}">Pronóstico por categoría
             <select onchange="cambiarPronModo(this.value)" class="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-800"><option value="auto" ${p.auto ? 'selected' : ''}>Recomendado${rec}</option>${Object.entries(NOMBRE_PRON).map(([k, n]) => `<option value="${k}" ${!p.auto && p.modo === k ? 'selected' : ''}>${n}</option>`).join('')}</select></label>`;
     }
 
@@ -1617,13 +1620,13 @@
         if (!m) {
             m = document.createElement('div'); m.id = 'modal-exportar'; m.className = 'fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 p-4';
             m.innerHTML = `<div class="w-full max-w-md rounded-3xl bg-white shadow-2xl p-5 sm:p-6 space-y-4">
-                <div class="flex items-start justify-between gap-3"><div><h3 class="text-lg font-extrabold text-slate-900">📥 Exportar datos</h3><p class="text-xs text-slate-500 mt-0.5">${EXPORT_CFG.ayuda}</p></div><button type="button" onclick="cerrarExportar()" class="text-slate-400 hover:text-slate-700 text-xl leading-none" aria-label="Cerrar">✕</button></div>
+                <div class="flex items-start justify-between gap-3"><div><h3 class="text-lg font-extrabold text-slate-900">📥 Exportar datos</h3><p class="text-xs text-slate-500 mt-0.5">${EXPORT_CFG.ayuda}</p></div><button type="button" onclick="cerrarExportar()" class="text-slate-500 hover:text-slate-700 text-xl leading-none" aria-label="Cerrar">✕</button></div>
                 <label class="block text-xs font-bold text-slate-600">Periodo
                     <select id="exp-rango" onchange="document.getElementById('exp-fechas').classList.toggle('hidden', this.value !== 'custom')" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold"><option value="todo">Todo el historial en la nube</option><option value="mes">Mes activo</option><option value="custom">Rango de fechas…</option></select></label>
                 <div id="exp-fechas" class="hidden grid grid-cols-2 gap-3"><label class="block text-xs font-bold text-slate-600">Desde<input id="exp-desde" type="date" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></label><label class="block text-xs font-bold text-slate-600">Hasta<input id="exp-hasta" type="date" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></label></div>
                 <label class="block text-xs font-bold text-slate-600">Formato
                     <select id="exp-formato" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold">${EXPORT_CFG.formatos.map(([v, t]) => `<option value="${v}">${t}</option>`).join('')}</select></label>
-                <p id="exp-info" class="text-[11px] leading-snug text-slate-600 rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 hidden"></p>
+                <p id="exp-info" class="text-xs leading-snug text-slate-600 rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 hidden"></p>
                 <p id="exp-msg" class="text-xs text-slate-500 min-h-[1rem]"></p>
                 <div class="flex justify-end gap-2"><button type="button" onclick="cerrarExportar()" class="px-4 py-2 rounded-xl border border-slate-300 text-sm font-bold text-slate-700 hover:bg-slate-50">Cancelar</button><button type="button" id="exp-btn" onclick="ejecutarExportar()" class="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold">Descargar</button></div></div>`;
             document.body.appendChild(m);
@@ -1761,7 +1764,7 @@
     };
         function nubeEstado(texto, tono) {
         const el = document.getElementById('nube-estado'); el.textContent = texto;
-        el.className = 'fixed bottom-2 left-2 z-40 pointer-events-none opacity-80 px-2.5 py-1 rounded-lg bg-white/90 border text-[11px] font-semibold shadow-sm ' + (tono === 'error' ? 'border-rose-300 text-rose-700' : tono === 'ok' ? 'border-emerald-300 text-emerald-700' : 'border-slate-200 text-slate-600');
+        el.className = 'fixed bottom-2 left-2 z-40 pointer-events-none opacity-80 px-2.5 py-1 rounded-lg bg-white/90 border text-xs font-semibold shadow-sm ' + (tono === 'error' ? 'border-rose-300 text-rose-700' : tono === 'ok' ? 'border-emerald-300 text-emerald-700' : 'border-slate-200 text-slate-600');
     }
     function guardarCacheLocal() { if (S.demo) return; try { localStorage.setItem(CACHE_KEY, JSON.stringify({ a: S.acciones, c: S.config, m: S.metas, mc: S.metasCfg, s: S.snap })); } catch (e) {} }
     function cargarCacheLocal() {

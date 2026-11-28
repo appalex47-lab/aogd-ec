@@ -22,6 +22,7 @@
     <!-- SheetJS para lectura y exportación de Excel / CSV -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="integridad.js"></script>
+    <script src="accesibilidad.js"></script>
     <style>
         body.vista-config #capture-gap-alert, body.vista-config #mtd-diagnostic-banner, body.vista-config #ventana-panel, body.vista-config #kpi-cards-container, body.vista-config #pacing-operational-card, body.vista-config #consolidated-channels-matrix { display: none !important; }
         body {
@@ -86,13 +87,13 @@
                             <!-- Selector Multi-Mes -->
                             <div class="inline-flex items-center gap-1 bg-blue-50 border border-blue-200/80 rounded-lg px-2 py-0.5">
                                 <i data-lucide="calendar" class="w-3 h-3 text-blue-600"></i>
-                                <select id="selector-mes-activo" onchange="cambiarMesActivo(this.value)" class="bg-transparent text-[11px] font-bold text-blue-800 focus:outline-none cursor-pointer" title="Seleccionar periodo mensual">
+                                <select id="selector-mes-activo" onchange="cambiarMesActivo(this.value)" class="bg-transparent text-xs font-bold text-blue-800 focus:outline-none cursor-pointer" title="Seleccionar periodo mensual">
                                 </select>
                             </div>
                             <!-- Selector Explícito de Fecha de Corte Calendario -->
                             <div class="inline-flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-lg px-2 py-0.5" title="Fecha calendario de corte para el cálculo MTD">
-                                <span class="text-[10px] font-bold uppercase text-slate-500">Corte:</span>
-                                <input type="date" id="selector-fecha-corte" onchange="cambiarFechaCorte(this.value)" class="bg-transparent text-[11px] font-bold text-slate-800 focus:outline-none cursor-pointer num-tabular">
+                                <span class="text-xs font-bold uppercase text-slate-500">Corte:</span>
+                                <input type="date" id="selector-fecha-corte" onchange="cambiarFechaCorte(this.value)" class="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer num-tabular">
                             </div>
                         </div>
                     </div>
@@ -117,17 +118,17 @@
                         <button type="button" onclick="toggleDataMenu(event)" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs sm:text-sm font-semibold transition cursor-pointer">
                             <i data-lucide="database" class="w-4 h-4 text-slate-600"></i>
                             <span>Datos / CSV</span>
-                            <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400"></i>
+                            <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-500"></i>
                         </button>
 
                         <div id="data-dropdown-menu" class="hidden absolute right-0 mt-2 w-80 rounded-2xl bg-white border border-slate-200 shadow-xl py-1.5 z-50">
                             <button type="button" id="btn-descargar-pdf" onclick="descargarPDF(); cerrarDataMenu();" data-html2canvas-ignore="true" class="w-full text-left flex items-center gap-3 px-4 py-2.5 text-xs sm:text-sm font-medium text-slate-700 hover:bg-slate-50 cursor-pointer transition">
                                 <div class="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0"><i data-lucide="file-down" class="w-4 h-4"></i></div>
-                                <div><div class="font-semibold text-slate-800" id="btn-descargar-pdf-label">Descargar PDF</div><div class="text-[11px] text-slate-400">Captura de toda la pantalla</div></div>
+                                <div><div class="font-semibold text-slate-800" id="btn-descargar-pdf-label">Descargar PDF</div><div class="text-xs text-slate-500">Captura de toda la pantalla</div></div>
                             </button>
                             <a href="Acciones.html" target="_blank" rel="noopener" class="w-full text-left flex items-center gap-3 px-4 py-2.5 text-xs sm:text-sm font-medium text-slate-700 hover:bg-slate-50 cursor-pointer transition">
                                 <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">✅</div>
-                                <div><div class="font-semibold text-slate-800">Ver todas las acciones ↗</div><div class="text-[11px] text-slate-400">Registro unificado de las tres herramientas</div></div>
+                                <div><div class="font-semibold text-slate-800">Ver todas las acciones ↗</div><div class="text-xs text-slate-500">Registro unificado de las tres herramientas</div></div>
                             </a>
                             <div class="my-1 border-t border-slate-100"></div>
                             <label for="file-upload" class="flex items-center gap-3 px-4 py-2.5 text-xs sm:text-sm font-medium text-slate-700 hover:bg-slate-50 cursor-pointer transition">
@@ -136,7 +137,7 @@
                                 </div>
                                 <div>
                                     <div class="font-semibold text-slate-800">Subir Excel / CSV (con Vista Previa)</div>
-                                    <div class="text-[11px] text-slate-400">Valida columnas, duplicados, otros meses y ceros</div>
+                                    <div class="text-xs text-slate-500">Valida columnas, duplicados, otros meses y ceros</div>
                                 </div>
                                 <input id="file-upload" type="file" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" class="hidden" onchange="procesarArchivoSubido(event); cerrarDataMenu();">
                             </label>
@@ -147,7 +148,7 @@
                                 </div>
                                 <div>
                                     <div class="font-semibold text-slate-800">Descargar Machote CSV</div>
-                                    <div class="text-[11px] text-slate-400">Plantilla lista de 4 canales</div>
+                                    <div class="text-xs text-slate-500">Plantilla lista de 4 canales</div>
                                 </div>
                             </a>
 
@@ -157,7 +158,7 @@
                                 </div>
                                 <div>
                                     <div class="font-semibold text-slate-800">Exportar Reporte Excel</div>
-                                    <div class="text-[11px] text-slate-400">Libro .xlsx con 4 pestañas + integridad</div>
+                                    <div class="text-xs text-slate-500">Libro .xlsx con 4 pestañas + integridad</div>
                                 </div>
                             </button>
 
@@ -170,7 +171,7 @@
                                 </div>
                                 <div>
                                     <div class="font-semibold text-slate-800">Guardar Respaldo (.json)</div>
-                                    <div class="text-[10px] text-slate-400">Exporta histórico, cortes y acciones (esquema v8.1)</div>
+                                    <div class="text-xs text-slate-500">Exporta histórico, cortes y acciones (esquema v8.1)</div>
                                 </div>
                             </button>
 
@@ -180,7 +181,7 @@
                                 </div>
                                 <div>
                                     <div class="font-semibold text-slate-800">Restaurar Respaldo (.json)</div>
-                                    <div class="text-[10px] text-slate-400">Valida integridad sin dañar datos actuales</div>
+                                    <div class="text-xs text-slate-500">Valida integridad sin dañar datos actuales</div>
                                 </div>
                                 <input id="json-backup-upload" type="file" accept=".json,application/json" class="hidden" onchange="importarBackupJSON(event); cerrarDataMenu();">
                             </label>
@@ -193,7 +194,7 @@
                                 </div>
                                 <div>
                                     <div class="font-semibold">Dejar Reales en Blanco</div>
-                                    <div class="text-[10px] text-rose-400">Requiere confirmación explícita</div>
+                                    <div class="text-xs text-rose-400">Requiere confirmación explícita</div>
                                 </div>
                             </button>
 
@@ -203,7 +204,7 @@
                                 </div>
                                 <div>
                                     <div class="font-semibold text-slate-800">Suite de Pruebas QA (28 Casos)</div>
-                                    <div class="text-[10px] text-slate-400">Auditoría completa de integridad y cálculos</div>
+                                    <div class="text-xs text-slate-500">Auditoría completa de integridad y cálculos</div>
                                 </div>
                             </button>
                         </div>
@@ -218,7 +219,7 @@
                 <button type="button" onclick="cambiarVista('semanal')" id="tab-vista-semanal" class="px-3.5 py-2.5 text-xs font-bold transition whitespace-nowrap cursor-pointer border-b-2 text-slate-500 border-transparent hover:text-slate-900 flex items-center gap-1.5">Semanas (L-V)</button>
                 <button type="button" onclick="cambiarVista('acciones')" id="tab-vista-acciones" class="px-3.5 py-2.5 text-xs font-bold transition whitespace-nowrap cursor-pointer border-b-2 text-slate-500 border-transparent hover:text-slate-900 flex items-center gap-1.5">
                     <span>Acciones y Seguimiento</span>
-                    <span id="badge-acciones-count" class="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-200 text-slate-700 num-tabular">0</span>
+                    <span id="badge-acciones-count" class="px-1.5 py-0.2 rounded-full text-xs bg-slate-200 text-slate-700 num-tabular">0</span>
                 </button>
                 <button type="button" onclick="cambiarVista('config')" id="tab-vista-config" class="px-3.5 py-2.5 text-xs font-bold transition whitespace-nowrap cursor-pointer border-b-2 text-slate-500 border-transparent hover:text-slate-900">⚙ Configuración</button>
             </nav>
@@ -256,7 +257,7 @@
             <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
                 <div>
                     <h2 class="text-xs font-extrabold uppercase tracking-wider text-slate-500">Desglose por Canal: Cobertura, Pacing, CR Oficial por Denominador y Diagnóstico</h2>
-                    <p class="text-[11px] text-slate-400">Nota metodológica: Cada canal conserva su propio denominador de conversión (Sesiones, Llamadas o Mensajes). Sin deduplicación inter-canal.</p>
+                    <p class="text-xs text-slate-500">Nota metodológica: Cada canal conserva su propio denominador de conversión (Sesiones, Llamadas o Mensajes). Sin deduplicación inter-canal.</p>
                 </div>
                 <span id="corte-dias-label" class="text-xs font-semibold text-slate-500 num-tabular"></span>
             </div>
@@ -330,7 +331,7 @@
                 <div class="hidden sm:block overflow-x-auto max-h-[580px]">
                     <table class="w-full text-left border-collapse">
                         <thead class="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-xs shadow-2xs">
-                            <tr class="border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500 select-none">
+                            <tr class="border-b border-slate-200 text-xs font-bold uppercase tracking-wider text-slate-500 select-none">
                                 <th onclick="ordenarTablaDiaria('fecha')" class="py-3.5 px-4 sticky left-0 z-20 bg-slate-50 border-r border-slate-200/70 cursor-pointer hover:text-slate-800 transition">
                                     <div class="flex items-center gap-1">
                                         <span>Fecha / Integridad</span>
@@ -340,25 +341,25 @@
                                 <th onclick="ordenarTablaDiaria('venta')" class="py-3.5 px-4 text-right cursor-pointer hover:text-slate-800 transition">
                                     <div class="inline-flex items-center justify-end gap-1">
                                         <span>Venta (Real vs Plan)</span>
-                                        <span id="sort-icon-venta" class="text-slate-300">↕</span>
+                                        <span id="sort-icon-venta" class="text-slate-400">↕</span>
                                     </div>
                                 </th>
                                 <th onclick="ordenarTablaDiaria('pedidos')" class="py-3.5 px-4 text-right cursor-pointer hover:text-slate-800 transition">
                                     <div class="inline-flex items-center justify-end gap-1">
                                         <span>Pedidos (Real vs Plan)</span>
-                                        <span id="sort-icon-pedidos" class="text-slate-300">↕</span>
+                                        <span id="sort-icon-pedidos" class="text-slate-400">↕</span>
                                     </div>
                                 </th>
                                 <th onclick="ordenarTablaDiaria('sesiones')" class="py-3.5 px-4 text-right cursor-pointer hover:text-slate-800 transition">
                                     <div class="inline-flex items-center justify-end gap-1">
                                         <span id="th-sesiones-label">Interacciones (Real vs Plan)</span>
-                                        <span id="sort-icon-sesiones" class="text-slate-300">↕</span>
+                                        <span id="sort-icon-sesiones" class="text-slate-400">↕</span>
                                     </div>
                                 </th>
                                 <th onclick="ordenarTablaDiaria('cr')" class="py-3.5 px-4 text-right cursor-pointer hover:text-slate-800 transition">
                                     <div class="inline-flex items-center justify-end gap-1">
                                         <span id="th-cr-label">CR (Real vs Plan)</span>
-                                        <span id="sort-icon-cr" class="text-slate-300">↕</span>
+                                        <span id="sort-icon-cr" class="text-slate-400">↕</span>
                                     </div>
                                 </th>
                                 <th class="py-3.5 px-4 min-w-[240px]">Señal y Explicación Cuantitativa</th>
@@ -401,7 +402,7 @@
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
                         <thead>
-                            <tr class="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                            <tr class="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500">
                                 <th class="py-3 px-4">Semana (L-V)</th>
                                 <th class="py-3 px-4 text-right">Venta Real vs Plan</th>
                                 <th class="py-3 px-4 text-center">Semáforo</th>
@@ -457,9 +458,9 @@
             <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
                 <div>
                     <h3 class="text-base font-extrabold">Captura Rápida Diaria</h3>
-                    <p id="modal-canal-subtitle" class="text-xs text-slate-300">Canal activo: Ecommerce</p>
+                    <p id="modal-canal-subtitle" class="text-xs text-slate-400">Canal activo: Ecommerce</p>
                 </div>
-                <button type="button" onclick="cerrarModalCaptura()" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer">
+                <button type="button" onclick="cerrarModalCaptura()" class="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 transition cursor-pointer">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
@@ -468,7 +469,7 @@
                 <div>
                     <div class="flex items-center justify-between mb-1.5">
                         <label class="block text-xs font-bold text-slate-700">Selecciona Canal (Captura Multi-Canal)</label>
-                        <span class="text-[11px] text-slate-400">✓ = Completo • ◐ = Parcial</span>
+                        <span class="text-xs text-slate-500">✓ = Completo • ◐ = Parcial</span>
                     </div>
                     <div id="modal-channel-tabs" class="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     </div>
@@ -494,7 +495,7 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                     <div class="space-y-3 bg-blue-50/50 p-3.5 rounded-xl border border-blue-100">
                         <div class="text-xs font-extrabold uppercase tracking-wider text-blue-800">Resultados Reales (0 es válido)</div>
-                        <p id="nota-fuentes-captura" class="text-[11px] leading-snug text-blue-900/80">Venta y pedidos vienen de <strong>Comercial</strong> y las sesiones de Web y App de <strong>Tráfico</strong>. Aquí solo se capturan las <strong>llamadas</strong> y los <strong>mensajes</strong>.</p>
+                        <p id="nota-fuentes-captura" class="text-xs leading-snug text-blue-900/80">Venta y pedidos vienen de <strong>Comercial</strong> y las sesiones de Web y App de <strong>Tráfico</strong>. Aquí solo se capturan las <strong>llamadas</strong> y los <strong>mensajes</strong>.</p>
                         <div>
                             <label class="block text-xs font-semibold text-slate-700 mb-1">Venta Real ($)</label>
                             <input type="number" step="0.01" min="0" id="input-venta-real" placeholder="Vacío = sin captura" oninput="actualizarPreviewCR()" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold num-tabular focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -560,9 +561,9 @@
             <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
                 <div>
                     <h3 class="text-base font-extrabold">Validación y Vista Previa de Importación</h3>
-                    <p id="import-preview-filename" class="text-xs text-slate-300">Archivo analizado</p>
+                    <p id="import-preview-filename" class="text-xs text-slate-400">Archivo analizado</p>
                 </div>
-                <button type="button" onclick="cerrarModalImportPreview()" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer">
+                <button type="button" onclick="cerrarModalImportPreview()" class="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 transition cursor-pointer">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
@@ -573,7 +574,7 @@
                 </div>
                 <div class="border border-slate-200 rounded-xl overflow-hidden max-h-56 overflow-y-auto">
                     <table class="w-full text-left border-collapse text-xs num-tabular">
-                        <thead class="bg-slate-50 border-b border-slate-200 text-[10px] font-bold uppercase text-slate-500">
+                        <thead class="bg-slate-50 border-b border-slate-200 text-xs font-bold uppercase text-slate-500">
                             <tr>
                                 <th class="py-2 px-3">Canal</th>
                                 <th class="py-2 px-3">Fecha</th>
@@ -654,9 +655,9 @@
             <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
                 <div>
                     <h3 class="text-base font-extrabold">Acción Correctiva y Seguimiento</h3>
-                    <p class="text-xs text-slate-300">Documenta hallazgos cuantitativos y compromisos operativos</p>
+                    <p class="text-xs text-slate-400">Documenta hallazgos cuantitativos y compromisos operativos</p>
                 </div>
-                <button type="button" onclick="cerrarModalAccion()" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer">
+                <button type="button" onclick="cerrarModalAccion()" class="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 transition cursor-pointer">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
@@ -724,9 +725,9 @@
             <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
                 <div>
                     <h3 class="text-base font-extrabold">Suite de Auditoría Funcional y Validación QA (Grupos A–G)</h3>
-                    <p class="text-xs text-slate-300">Pruebas deterministas ejecutadas en vivo sobre integridad omnicanal, MTD, pronóstico, What-if, I/O y persistencia</p>
+                    <p class="text-xs text-slate-400">Pruebas deterministas ejecutadas en vivo sobre integridad omnicanal, MTD, pronóstico, What-if, I/O y persistencia</p>
                 </div>
-                <button type="button" onclick="cerrarModalQA()" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer">
+                <button type="button" onclick="cerrarModalQA()" class="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 transition cursor-pointer">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
@@ -735,7 +736,7 @@
                 </div>
                 <div class="border border-slate-200 rounded-xl overflow-hidden max-h-96 overflow-y-auto">
                     <table class="w-full text-left border-collapse text-xs">
-                        <thead class="sticky top-0 bg-slate-50 border-b border-slate-200 text-[10px] font-bold uppercase text-slate-500">
+                        <thead class="sticky top-0 bg-slate-50 border-b border-slate-200 text-xs font-bold uppercase text-slate-500">
                             <tr>
                                 <th class="py-2.5 px-3">Grupo / Caso de Prueba</th>
                                 <th class="py-2.5 px-3">Esperado vs Obtenido</th>
@@ -758,12 +759,12 @@
         <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full p-5 space-y-3">
             <div class="flex items-center justify-between">
                 <h3 class="text-sm font-extrabold text-slate-900">Machote CSV Listo (Copia o Descarga)</h3>
-                <button type="button" onclick="document.getElementById('modal-csv-fallback').classList.add('hidden'); document.getElementById('modal-csv-fallback').classList.remove('flex');" class="text-slate-400 hover:text-slate-700 cursor-pointer">
+                <button type="button" onclick="document.getElementById('modal-csv-fallback').classList.add('hidden'); document.getElementById('modal-csv-fallback').classList.remove('flex');" class="text-slate-500 hover:text-slate-700 cursor-pointer">
                     <i data-lucide="x" class="w-4 h-4"></i>
                 </button>
             </div>
             <p class="text-xs text-slate-500">Si tu visor embebido bloquea descargas directas, copia este contenido y guárdalo como <code class="bg-slate-100 px-1 rounded">Machote.csv</code>:</p>
-            <textarea id="textarea-csv-fallback" rows="8" readonly class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-[11px] font-mono text-slate-700 focus:outline-none"></textarea>
+            <textarea id="textarea-csv-fallback" rows="8" readonly class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs font-mono text-slate-700 focus:outline-none"></textarea>
             <div class="flex justify-end gap-2">
                 <button type="button" onclick="copiarTextoCSVFallback()" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold cursor-pointer">
                     Copiar Contenido CSV
@@ -1708,7 +1709,7 @@
             if (ambar) {
                 return `
                     <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
-                        <span class="text-[9px] leading-none">▼</span>
+                        <span class="text-xs leading-none">▼</span>
                         ${cumplimientoPct.toFixed(1)}%
                     </span>
                 `;
@@ -1716,14 +1717,14 @@
             if (cumple) {
                 return `
                     <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                        <span class="text-[9px] leading-none">${cumplimientoPct >= 100 ? '▲' : '▼'}</span>
+                        <span class="text-xs leading-none">${cumplimientoPct >= 100 ? '▲' : '▼'}</span>
                         ${cumplimientoPct.toFixed(1)}%
                     </span>
                 `;
             } else {
                 return `
                     <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-200">
-                        <span class="text-[9px] leading-none">▼</span>
+                        <span class="text-xs leading-none">▼</span>
                         ${cumplimientoPct.toFixed(1)}%
                     </span>
                 `;
@@ -2042,11 +2043,13 @@
         function htmlResumenNarrativo(r) {
             if (!r) return '';
             return `<div class="mt-3 pt-3 border-t border-slate-200/80 space-y-2 min-w-0">
-                <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">Resumen: qué está pasando</div>
+                <div class="text-xs font-extrabold uppercase tracking-wider text-slate-500">Resumen: qué está pasando</div>
                 <div class="space-y-1">${r.titulares.map(t => `<p class="text-xs text-slate-800 leading-relaxed">${escHTML(t)}</p>`).join('')}</div>
-                ${r.canales.length ? `${r.canalesTitulo ? `<p class="text-[11px] font-bold text-slate-500">${escHTML(r.canalesTitulo)}</p>` : ''}<ul class="text-xs text-slate-700 space-y-0.5 list-disc pl-4 leading-snug">${r.canales.map(c => `<li>${escHTML(c)}</li>`).join('')}</ul>` : ''}
+                <details data-pdf-abrir="true" class="group"><summary class="cursor-pointer text-xs font-bold text-blue-700 hover:text-blue-900 select-none">Ver detalle por canal</summary><div class="mt-2 space-y-2">
+                ${r.canales.length ? `${r.canalesTitulo ? `<p class="text-xs font-bold text-slate-500">${escHTML(r.canalesTitulo)}</p>` : ''}<ul class="text-xs text-slate-700 space-y-0.5 list-disc pl-4 leading-snug">${r.canales.map(c => `<li>${escHTML(c)}</li>`).join('')}</ul>` : ''}
                 ${(r.resta || r.suma) ? `<p class="text-xs text-slate-700 leading-relaxed">${escHTML([r.resta, r.suma].filter(Boolean).join(' '))}</p>` : ''}
-                ${r.nota ? `<p class="text-[10px] text-slate-400 leading-snug">${escHTML(r.nota)}</p>` : ''}
+                ${r.nota ? `<p class="text-xs text-slate-500 leading-snug">${escHTML(r.nota)}</p>` : ''}
+                </div></details>
             </div>`;
         }
 
@@ -2066,11 +2069,11 @@
             const L = estadoCapturaCanales(), hayDatos = L.some(c => c.ultima); if (!hayDatos) { el.classList.add('hidden'); return; }
             const f = iso => iso.slice(8) + '/' + iso.slice(5, 7), ok = L.filter(c => c.pendientes.length === 0), pend = L.filter(c => c.pendientes.length > 0);
             const chip = c => c.pendientes.length === 0
-                ? `<span class="px-2 py-0.5 rounded-full border text-[11px] font-bold bg-emerald-50 border-emerald-200 text-emerald-800">✓ ${c.nombre} · al día${c.provisionales.length ? ` · ${c.provisionales.length} provisional${c.provisionales.length === 1 ? '' : 'es'}` : ''}</span>`
-                : `<span class="px-2 py-0.5 rounded-full border text-[11px] font-bold bg-amber-50 border-amber-300 text-amber-800" title="Días sin venta: ${c.pendientes.map(f).join(', ')}">⏳ ${c.nombre} · ${c.ultima ? 'llega al ' + f(c.ultima) : 'sin captura'} · faltan ${c.pendientes.length} día${c.pendientes.length === 1 ? '' : 's'}${c.provisionales.length ? ` · ${c.provisionales.length} provisional${c.provisionales.length === 1 ? '' : 'es'}` : ''}</span>`;
+                ? `<span class="px-2 py-0.5 rounded-full border text-xs font-bold bg-emerald-50 border-emerald-200 text-emerald-800">✓ ${c.nombre} · al día${c.provisionales.length ? ` · ${c.provisionales.length} provisional${c.provisionales.length === 1 ? '' : 'es'}` : ''}</span>`
+                : `<span class="px-2 py-0.5 rounded-full border text-xs font-bold bg-amber-50 border-amber-300 text-amber-800" title="Días sin venta: ${c.pendientes.map(f).join(', ')}">⏳ ${c.nombre} · ${c.ultima ? 'llega al ' + f(c.ultima) : 'sin captura'} · faltan ${c.pendientes.length} día${c.pendientes.length === 1 ? '' : 's'}${c.provisionales.length ? ` · ${c.provisionales.length} provisional${c.provisionales.length === 1 ? '' : 'es'}` : ''}</span>`;
             const resumen = pend.length ? `El consolidado usa <strong>${ok.map(c => c.nombre).join(' + ') || 'los canales con captura'}</strong>; ${pend.map(c => c.nombre).join(' y ')} se suma${pend.length === 1 ? '' : 'n'} cuando se capture${pend.length === 1 ? '' : 'n'}. Las comparaciones usan el plan de lo capturado.` : 'Los cuatro canales están capturados al corte.';
             el.classList.remove('hidden');
-            el.innerHTML = `<div class="flex flex-wrap items-center gap-x-3 gap-y-1.5"><span class="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">Captura al corte ${f(estadoApp.fechaCorte)}</span>${L.map(chip).join('')}</div><p class="mt-1 text-[11px] text-slate-500">${resumen}</p>`;
+            el.innerHTML = `<div class="flex flex-wrap items-center gap-x-3 gap-y-1.5"><span class="text-xs font-extrabold uppercase tracking-wider text-slate-500">Captura al corte ${f(estadoApp.fechaCorte)}</span>${L.map(chip).join('')}</div><p class="mt-1 text-xs text-slate-500">${resumen}</p>`;
         }
 
         function renderizarTarjetasMTD() {
@@ -2115,6 +2118,12 @@
                             Completar ${fechaAccion}
                         </button>
                     `;
+                    // Un solo bloque: las brechas se muestran como segunda fila de la tarjeta de captura
+                    const ec = document.getElementById('estado-captura');
+                    if (ec && !ec.classList.contains('hidden')) {
+                        ec.insertAdjacentHTML('beforeend', `<div class="mt-2 pt-2 border-t border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-amber-900">${gapAlertEl.innerHTML}</div>`);
+                        gapAlertEl.innerHTML = ''; gapAlertEl.classList.add('hidden');
+                    }
                 } else {
                     gapAlertEl.classList.add('hidden');
                 }
@@ -2142,17 +2151,17 @@
                 : `Canal ${CONFIG_CANALES[estadoApp.canal]?.nombre}`;
 
             const badgeCoberturaHTML = (esConsolidado && mtd.diasCapturadosCount > 0)
-                ? `<span class="px-2 py-0.5 rounded-full text-[11px] font-bold border num-tabular ${mtd.esConsolidadoParcial ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-blue-50 text-blue-800 border-blue-200'}">Cobertura canales: ${mtd.coberturaPlanCapturaPct.toFixed(1)}%</span>`
+                ? `<span class="px-2 py-0.5 rounded-full text-xs font-bold border num-tabular ${mtd.esConsolidadoParcial ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-blue-50 text-blue-800 border-blue-200'}">Cobertura canales: ${mtd.coberturaPlanCapturaPct.toFixed(1)}%</span>`
                 : '';
 
             const badgeRachaHTML = rachaInfo.rachaTipo === 'DOWN'
-                ? `<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300">${rachaInfo.textoRacha}</span>`
+                ? `<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">${rachaInfo.textoRacha}</span>`
                 : (rachaInfo.rachaTipo === 'UP'
-                    ? `<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">${rachaInfo.textoRacha}</span>`
+                    ? `<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">${rachaInfo.textoRacha}</span>`
                     : '');
 
             const badgeVel7dHTML = (rachaInfo.pct7d !== null && mtd.cumplimientoVentaMTD !== null)
-                ? `<span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700 num-tabular">Últ. 7d: <strong>${rachaInfo.pct7d.toFixed(1)}%</strong> (${rachaInfo.pct7d >= mtd.cumplimientoVentaMTD ? '▲ acelerando' : '▼ frenando'})</span>`
+                ? `<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 num-tabular">Últ. 7d: <strong>${rachaInfo.pct7d.toFixed(1)}%</strong> (${rachaInfo.pct7d >= mtd.cumplimientoVentaMTD ? '▲ acelerando' : '▼ frenando'})</span>`
                 : '';
 
             const bannerEl = document.getElementById('mtd-diagnostic-banner');
@@ -2171,7 +2180,7 @@
                         </div>
                         <p class="text-sm font-extrabold text-slate-900">${diagMTD.senal}</p>
                         <p class="text-xs text-slate-700 num-tabular">${diagMTD.explicacionCuantitativa}</p>
-                        <p class="text-[11px] text-slate-500 italic">${diagMTD.hipotesisOperativa}</p>
+                        <p class="text-xs text-slate-500 italic">${diagMTD.hipotesisOperativa}</p>
                         ${htmlResumenNarrativo(generarResumenNarrativo(mtd, rachaInfo, esConsolidado))}
                     </div>
                 </div>
@@ -2180,7 +2189,7 @@
                         <i data-lucide="copy" class="w-3.5 h-3.5 text-slate-500"></i>
                         <span>Copiar Resumen</span>
                     </button>
-                    <button type="button" onclick="abrirModalAccion()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-[11px] font-bold transition cursor-pointer">
+                    <button type="button" onclick="abrirModalAccion()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold transition cursor-pointer">
                         <i data-lucide="clipboard-check" class="w-3.5 h-3.5"></i>
                         <span>Registrar Acción</span>
                     </button>
@@ -2307,7 +2316,7 @@
                             </div>
                             <div class="flex items-center justify-between text-xs text-slate-500 mb-3 num-tabular">
                                 <span>${k.planEtiqueta || 'Plan Corte'}: <strong class="text-slate-700">${k.plan}</strong></span>
-                                <span class="${sinDatos ? 'text-slate-400' : (k.diff >= 0 ? 'text-emerald-700 font-semibold' : 'text-rose-700 font-semibold')}">
+                                <span class="${sinDatos ? 'text-slate-500' : (k.diff >= 0 ? 'text-emerald-700 font-semibold' : 'text-rose-700 font-semibold')}">
                                     ${sinDatos ? '' : k.diffFmt}
                                 </span>
                             </div>
@@ -2316,7 +2325,7 @@
                             <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
                                 <div class="h-full ${barColor} rounded-full transition-all duration-500" style="width: ${barWidth}%"></div>
                             </div>
-                            ${k.notaParcial ? `<div class="mt-2 text-[11px] font-semibold text-amber-800 num-tabular leading-snug" title="${k.notaParcial}">${k.notaParcial}</div>` : ''}${k.subFooter ? `<div class="mt-2 pt-2 border-t border-slate-100 text-[11px] text-slate-500 num-tabular leading-snug" title="${k.subFooter.replace(/<[^>]*>/g, '')}">${k.subFooter}</div>` : ''}
+                            ${k.notaParcial ? `<div class="mt-2 text-xs font-semibold text-amber-800 num-tabular leading-snug" title="${k.notaParcial}">${k.notaParcial}</div>` : ''}${k.subFooter ? `<div class="mt-2 pt-2 border-t border-slate-100 text-xs text-slate-500 num-tabular leading-snug" title="${k.subFooter.replace(/<[^>]*>/g, '')}">${k.subFooter}</div>` : ''}
                         </div>
                     </div>
                 `;
@@ -2334,7 +2343,7 @@
                        </span>`;
 
                 const badgeProvisional = (esConsolidado && mtd.esConsolidadoParcial && mtd.diasCapturadosCount > 0)
-                    ? `<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300">⚠️ Provisional: captura parcial (${mtd.coberturaPlanCapturaPct.toFixed(1)}%)</span>`
+                    ? `<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">⚠️ Provisional: captura parcial (${mtd.coberturaPlanCapturaPct.toFixed(1)}%)</span>`
                     : '';
 
                 let accionOperativaTexto = 'Información insuficiente: no hay datos reales capturados hasta la fecha de corte seleccionada.';
@@ -2384,31 +2393,31 @@
                     <!-- Descomposición Explícita en 4 Componentes del Pronóstico Base (P1) -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 py-3.5 border-b border-slate-100 num-tabular">
                         <div class="bg-slate-50 p-3 rounded-xl border border-slate-200/70">
-                            <div class="text-[10px] font-bold uppercase text-slate-500">1. Venta Real Observada</div>
+                            <div class="text-xs font-bold uppercase text-slate-500">1. Venta Real Observada</div>
                             <div class="text-sm font-extrabold text-slate-900 mt-0.5">${mtd.diasCapturadosCount > 0 ? fmtMoneda(mtd.ventaRealObservada) : '—'}</div>
-                            <div class="text-[10px] text-slate-500 mt-0.5">${mtd.diasCapturadosCount} día(s) con datos al corte</div>
+                            <div class="text-xs text-slate-500 mt-0.5">${mtd.diasCapturadosCount} día(s) con datos al corte</div>
                         </div>
                         <div class="bg-amber-50/60 p-3 rounded-xl border border-amber-200/70">
-                            <div class="text-[10px] font-bold uppercase text-amber-800">2. Est. Días Sin Captura (≤ Corte)</div>
+                            <div class="text-xs font-bold uppercase text-amber-800">2. Est. Días Sin Captura (≤ Corte)</div>
                             <div class="text-sm font-extrabold text-amber-900 mt-0.5">${mtd.estimacionDiasSinCaptura !== null ? fmtMoneda(mtd.estimacionDiasSinCaptura) : 'Información insuficiente'}</div>
-                            <div class="text-[10px] text-amber-700 mt-0.5">Plan no capturado al corte: ${fmtMoneda(mtd.planFaltanteHastaCorte)}</div>
+                            <div class="text-xs text-amber-700 mt-0.5">Plan no capturado al corte: ${fmtMoneda(mtd.planFaltanteHastaCorte)}</div>
                         </div>
                         <div class="bg-blue-50/60 p-3 rounded-xl border border-blue-200/70">
-                            <div class="text-[10px] font-bold uppercase text-blue-800">3. Proyección Días Futuros (&gt; Corte)</div>
+                            <div class="text-xs font-bold uppercase text-blue-800">3. Proyección Días Futuros (&gt; Corte)</div>
                             <div class="text-sm font-extrabold text-blue-900 mt-0.5">${mtd.proyeccionDiasFuturos !== null ? fmtMoneda(mtd.proyeccionDiasFuturos) : 'Información insuficiente'}</div>
-                            <div class="text-[10px] text-blue-700 mt-0.5">${mtd.diasRestantesCalendario} días restantes • Plan: ${fmtMoneda(mtd.planRestantePostCorte)}</div>
+                            <div class="text-xs text-blue-700 mt-0.5">${mtd.diasRestantesCalendario} días restantes • Plan: ${fmtMoneda(mtd.planRestantePostCorte)}</div>
                         </div>
                         <div class="bg-slate-900 text-white p-3 rounded-xl">
-                            <div class="text-[10px] font-bold uppercase text-slate-300">4. Pronóstico de Cierre Base (1+2+3)</div>
+                            <div class="text-xs font-bold uppercase text-slate-400">4. Pronóstico de Cierre Base (1+2+3)</div>
                             <div class="text-sm font-extrabold text-white mt-0.5">${mtd.pronosticoCierreBase !== null ? fmtMoneda(mtd.pronosticoCierreBase) : 'Información insuficiente'}</div>
-                            <div class="text-[10px] text-slate-300 mt-0.5">${mtd.pronosticoCierreBase !== null ? `Ritmo obs: ${(mtd.indiceRitmoObservado * 100).toFixed(1)}% • Meta mes: ${fmtMoneda(mtd.presupuestoTotalMes)}` : 'Requiere al menos 1 día capturado'}</div>
+                            <div class="text-xs text-slate-400 mt-0.5">${mtd.pronosticoCierreBase !== null ? `Ritmo obs: ${(mtd.indiceRitmoObservado * 100).toFixed(1)}% • Meta mes: ${fmtMoneda(mtd.presupuestoTotalMes)}` : 'Requiere al menos 1 día capturado'}</div>
                         </div>
                     </div>
 
                     <!-- Barra Visual de Pacing Mensual -->
                     <div class="pt-3.5">
                         <div class="flex flex-wrap items-center justify-between text-xs mb-1.5 gap-2 num-tabular">
-                            <span class="font-bold text-slate-700">Observado sobre Presupuesto Mes: <span class="${pacingEnVerde ? 'text-emerald-700' : 'text-rose-700'}">${mtd.pacingRealMesPct.toFixed(1)}%</span> <span class="text-slate-400 font-normal">(${fmtMoneda(mtd.ventaRealObservada)} de ${fmtMoneda(mtd.presupuestoTotalMes)})</span></span>
+                            <span class="font-bold text-slate-700">Observado sobre Presupuesto Mes: <span class="${pacingEnVerde ? 'text-emerald-700' : 'text-rose-700'}">${mtd.pacingRealMesPct.toFixed(1)}%</span> <span class="text-slate-500 font-normal">(${fmtMoneda(mtd.ventaRealObservada)} de ${fmtMoneda(mtd.presupuestoTotalMes)})</span></span>
                             <span class="font-semibold text-slate-500">Plan acumulado al corte (${estadoApp.fechaCorte}): <strong class="text-slate-800">${mtd.pacingEsperadoMesPct.toFixed(1)}%</strong> (${fmtMoneda(mtd.planVentaMTD)})</span>
                         </div>
                         <div class="relative w-full h-3 bg-slate-100 rounded-full overflow-visible">
@@ -2423,7 +2432,7 @@
                             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                                 <div>
                                     <h4 class="text-xs font-extrabold uppercase tracking-wider text-blue-800">Simulador Comercial What-If (Sobre Plan Pendiente: ${fmtMoneda(basePendienteSimulacion)})</h4>
-                                    <p class="text-[11px] text-slate-500">Metodología multiplicativa sin doble conteo: Venta = Tráfico × CR × Ticket. Los escenarios hipotéticos no modifican los datos reales ni el pronóstico base.</p>
+                                    <p class="text-xs text-slate-500">Metodología multiplicativa sin doble conteo: Venta = Tráfico × CR × Ticket. Los escenarios hipotéticos no modifican los datos reales ni el pronóstico base.</p>
                                 </div>
                                 <div class="flex flex-wrap items-center gap-1.5">
                                     ${[
@@ -2432,7 +2441,7 @@
                                         { id: 'optimista', label: 'Optimista' },
                                         { id: 'personalizado', label: 'Personalizado' }
                                     ].map(sc => `
-                                        <button type="button" onclick="seleccionarEscenarioSimulador('${sc.id}')" class="px-2.5 py-1 rounded-lg text-[11px] font-bold border transition cursor-pointer ${estadoApp.simEscenario === sc.id ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}">
+                                        <button type="button" onclick="seleccionarEscenarioSimulador('${sc.id}')" class="px-2.5 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${estadoApp.simEscenario === sc.id ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}">
                                             ${sc.label}
                                         </button>
                                     `).join('')}
@@ -2442,19 +2451,19 @@
                             <!-- Tabla Comparativa de Escenarios Predefinidos vs Pronóstico Base -->
                             <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs num-tabular">
                                 <div class="bg-white p-2.5 rounded-xl border border-slate-200/80">
-                                    <div class="text-[10px] font-bold uppercase text-slate-400">Pronóstico Base (Ritmo Observado)</div>
+                                    <div class="text-xs font-bold uppercase text-slate-500">Pronóstico Base (Ritmo Observado)</div>
                                     <div class="font-extrabold text-slate-900 text-sm">${mtd.pronosticoCierreBase !== null ? fmtMoneda(mtd.pronosticoCierreBase) : 'Información insuficiente'}</div>
-                                    <div class="text-[10px] text-slate-500">Cumplimiento: ${mtd.cumplimientoPronosticoBase !== null ? mtd.cumplimientoPronosticoBase.toFixed(1) + '%' : '—'}</div>
+                                    <div class="text-xs text-slate-500">Cumplimiento: ${mtd.cumplimientoPronosticoBase !== null ? mtd.cumplimientoPronosticoBase.toFixed(1) + '%' : '—'}</div>
                                 </div>
                                 <div class="bg-white p-2.5 rounded-xl border border-slate-200/80">
-                                    <div class="text-[10px] font-bold uppercase text-slate-400">Escenario Conservador (+3% Tráf, +2% CR, +2% Tkt)</div>
+                                    <div class="text-xs font-bold uppercase text-slate-500">Escenario Conservador (+3% Tráf, +2% CR, +2% Tkt)</div>
                                     <div class="font-extrabold text-slate-900 text-sm">${fmtMoneda(mtd.ventaRealObservada + simConservador.ventaPendienteSimulada)}</div>
-                                    <div class="text-[10px] text-emerald-700 font-semibold">+${fmtMoneda(simConservador.deltaVenta)} vs plan restante</div>
+                                    <div class="text-xs text-emerald-700 font-semibold">+${fmtMoneda(simConservador.deltaVenta)} vs plan restante</div>
                                 </div>
                                 <div class="bg-white p-2.5 rounded-xl border border-slate-200/80">
-                                    <div class="text-[10px] font-bold uppercase text-slate-400">Escenario Optimista (+10% Tráf, +6% CR, +5% Tkt)</div>
+                                    <div class="text-xs font-bold uppercase text-slate-500">Escenario Optimista (+10% Tráf, +6% CR, +5% Tkt)</div>
                                     <div class="font-extrabold text-slate-900 text-sm">${fmtMoneda(mtd.ventaRealObservada + simOptimista.ventaPendienteSimulada)}</div>
-                                    <div class="text-[10px] text-emerald-700 font-semibold">+${fmtMoneda(simOptimista.deltaVenta)} vs plan restante</div>
+                                    <div class="text-xs text-emerald-700 font-semibold">+${fmtMoneda(simOptimista.deltaVenta)} vs plan restante</div>
                                 </div>
                             </div>
 
@@ -2466,7 +2475,7 @@
                                         <span class="text-blue-700">${estadoApp.simTraficoPct >= 0 ? '+' : ''}${estadoApp.simTraficoPct}%</span>
                                     </div>
                                     <input type="range" min="-20" max="40" step="1" value="${estadoApp.simTraficoPct}" oninput="actualizarSliderSimulador('simTraficoPct', this.value)" class="w-full cursor-pointer">
-                                    <div class="flex justify-between text-[10px] text-slate-400 mt-0.5"><span>-20%</span><span>0%</span><span>+40%</span></div>
+                                    <div class="flex justify-between text-xs text-slate-500 mt-0.5"><span>-20%</span><span>0%</span><span>+40%</span></div>
                                 </div>
 
                                 <div class="bg-white p-3 rounded-xl border border-slate-200/80">
@@ -2475,7 +2484,7 @@
                                         <span class="text-blue-700">${estadoApp.simCRPct >= 0 ? '+' : ''}${estadoApp.simCRPct}%</span>
                                     </div>
                                     <input type="range" min="-25" max="40" step="1" value="${estadoApp.simCRPct}" oninput="actualizarSliderSimulador('simCRPct', this.value)" class="w-full cursor-pointer">
-                                    <div class="flex justify-between text-[10px] text-slate-400 mt-0.5"><span>-25%</span><span>0%</span><span>+40%</span></div>
+                                    <div class="flex justify-between text-xs text-slate-500 mt-0.5"><span>-25%</span><span>0%</span><span>+40%</span></div>
                                 </div>
 
                                 <div class="bg-white p-3 rounded-xl border border-slate-200/80">
@@ -2484,7 +2493,7 @@
                                         <span class="text-blue-700">${estadoApp.simTicketPct >= 0 ? '+' : ''}${estadoApp.simTicketPct}%</span>
                                     </div>
                                     <input type="range" min="-15" max="30" step="1" value="${estadoApp.simTicketPct}" oninput="actualizarSliderSimulador('simTicketPct', this.value)" class="w-full cursor-pointer">
-                                    <div class="flex justify-between text-[10px] text-slate-400 mt-0.5"><span>-15%</span><span>0%</span><span>+30%</span></div>
+                                    <div class="flex justify-between text-xs text-slate-500 mt-0.5"><span>-15%</span><span>0%</span><span>+30%</span></div>
                                 </div>
                             </div>
 
@@ -2492,7 +2501,7 @@
                             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-white px-4 py-3 rounded-xl border border-blue-200 num-tabular">
                                 <div class="text-xs text-slate-600 space-y-0.5">
                                     <div>Factor compuesto: <strong>${simActual.factorCompuesto.toFixed(3)}x</strong> • Impacto vs plan restante: <strong class="${simActual.deltaVenta >= 0 ? 'text-emerald-700' : 'text-rose-700'}">${simActual.deltaVenta >= 0 ? '+' : ''}${fmtMoneda(simActual.deltaVenta)}</strong></div>
-                                    ${mtd.pronosticoCierreBase !== null ? `<div class="text-[11px] text-slate-500">Diferencia vs Pronóstico Base: <strong class="${diffContraPronosticoBase >= 0 ? 'text-emerald-700' : 'text-rose-700'}">${diffContraPronosticoBase >= 0 ? '+' : ''}${fmtMoneda(diffContraPronosticoBase)}</strong></div>` : ''}
+                                    ${mtd.pronosticoCierreBase !== null ? `<div class="text-xs text-slate-500">Diferencia vs Pronóstico Base: <strong class="${diffContraPronosticoBase >= 0 ? 'text-emerald-700' : 'text-rose-700'}">${diffContraPronosticoBase >= 0 ? '+' : ''}${fmtMoneda(diffContraPronosticoBase)}</strong></div>` : ''}
                                 </div>
                                 <div class="flex items-center gap-2 text-xs sm:text-sm">
                                     <span class="text-slate-600 font-semibold">Cierre Simulado:</span>
@@ -2535,9 +2544,9 @@
                     }, cfg.etiquetaTrafico, false);
 
                     const rachaBadgeC = rachaC.rachaTipo === 'DOWN'
-                        ? `<div class="text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md leading-snug">${rachaC.textoRacha}</div>`
+                        ? `<div class="text-xs font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md leading-snug">${rachaC.textoRacha}</div>`
                         : (rachaC.rachaTipo === 'UP'
-                            ? `<div class="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md leading-snug">${rachaC.textoRacha}</div>`
+                            ? `<div class="text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md leading-snug">${rachaC.textoRacha}</div>`
                             : '');
 
                     return `
@@ -2550,17 +2559,17 @@
                                         </div>
                                         <div>
                                             <div class="text-xs font-extrabold text-slate-900">${cfg.nombre}</div>
-                                            <div class="text-[10px] text-slate-400 num-tabular">${mix.toFixed(1)}% mix • ${mCanal.diasCapturadosCount}/${mCanal.diasTranscurridosCalendario}d cap.</div>
+                                            <div class="text-xs text-slate-500 num-tabular">${mix.toFixed(1)}% mix • ${mCanal.diasCapturadosCount}/${mCanal.diasTranscurridosCalendario}d cap.</div>
                                         </div>
                                     </div>
                                     ${obtenerSemaforoHTML(cumpC, mCanal.diasCapturadosCount === 0)}
                                 </div>
                                 <div class="flex items-baseline justify-between mb-1 num-tabular">
                                     <span class="text-base font-extrabold text-slate-900">${mCanal.diasCapturadosCount > 0 ? fmtMoneda(mCanal.ventaRealObservada) : '—'}</span>
-                                    <span class="text-[11px] text-slate-500" ${parcC ? 'title="Plan de los días capturados; faltan días por capturar"' : ''}>Plan ${parcC ? 'capt. ' : ''}${fmtMoneda(planMostrarC)}</span>
+                                    <span class="text-xs text-slate-500" ${parcC ? 'title="Plan de los días capturados; faltan días por capturar"' : ''}>Plan ${parcC ? 'capt. ' : ''}${fmtMoneda(planMostrarC)}</span>
                                 </div>
-                                <div class="text-[11px] text-slate-600 mb-2 num-tabular">
-                                    CR (${cfg.etiquetaTrafico}): <strong>${mCanal.diasCapturadosCount > 0 ? fmtCR(crCanalReal) : '—'}</strong> <span class="text-slate-400">(Plan ${fmtCR(crCanalPlan)})</span>
+                                <div class="text-xs text-slate-600 mb-2 num-tabular">
+                                    CR (${cfg.etiquetaTrafico}): <strong>${mCanal.diasCapturadosCount > 0 ? fmtCR(crCanalReal) : '—'}</strong> <span class="text-slate-500">(Plan ${fmtCR(crCanalPlan)})</span>
                                 </div>
 
                                 <!-- Mini Barra de Pacing del Canal con Marca Esperada al Corte -->
@@ -2572,10 +2581,10 @@
 
                             <div class="space-y-1.5">
                                 ${rachaBadgeC}
-                                <div class="text-[11px] font-medium px-2 py-1 rounded-lg border leading-snug ${diagC.badgeClass}" title="${diagC.explicacionCuantitativa}">
+                                <div class="text-xs font-medium px-2 py-1 rounded-lg border leading-snug ${diagC.badgeClass}" title="${diagC.explicacionCuantitativa}">
                                     ${diagC.tituloCorto}
                                 </div>
-                                <div class="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-100 num-tabular">
+                                <div class="flex items-center justify-between text-xs text-slate-500 pt-1 border-t border-slate-100 num-tabular">
                                     <span>Recup. req. (${mCanal.diasRestantesCalendario}d):</span>
                                     <strong class="text-slate-800">${mCanal.diasRestantesCalendario > 0 ? fmtMoneda(mCanal.cuotaDiariaRequerida) + '/día' : 'Cerrado'}</strong>
                                 </div>
@@ -2815,8 +2824,8 @@
             if (esSinCaptura) {
                 return `
                     <div class="flex flex-col items-end">
-                        <span class="text-slate-400 font-semibold">${etiquetaVacia}</span>
-                        <span class="text-[11px] text-slate-400">Plan ${planFmt}</span>
+                        <span class="text-slate-500 font-semibold">${etiquetaVacia}</span>
+                        <span class="text-xs text-slate-500">Plan ${planFmt}</span>
                     </div>
                 `;
             }
@@ -2832,12 +2841,12 @@
                 <div class="flex flex-col items-end gap-0.5">
                     <div class="flex items-center gap-1.5">
                         <span class="font-bold text-slate-900 text-sm">${realFmt}</span>
-                        <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold border ${badgeClass}">
+                        <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-xs font-bold border ${badgeClass}">
                             <span class="text-[8px]">${arrow}</span>
                             ${pct.toFixed(0)}%
                         </span>
                     </div>
-                    <span class="text-[11px] text-slate-400">Plan ${planFmt}</span>
+                    <span class="text-xs text-slate-500">Plan ${planFmt}</span>
                 </div>
             `;
         }
@@ -2936,7 +2945,7 @@
                     return `
                         <button type="button" onclick="filtrarPorDiagnostico('${ch.id}')" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border font-semibold whitespace-nowrap transition cursor-pointer ${cls}">
                             <span>${ch.label}</span>
-                            <span class="px-1.5 py-0.2 rounded-full text-[10px] ${active ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'} num-tabular">${ch.count}</span>
+                            <span class="px-1.5 py-0.2 rounded-full text-xs ${active ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'} num-tabular">${ch.count}</span>
                         </button>
                     `;
                 }).join('');
@@ -2985,7 +2994,7 @@
                     iconEl.className = 'text-blue-600 font-bold';
                 } else {
                     iconEl.textContent = '↕';
-                    iconEl.className = 'text-slate-300';
+                    iconEl.className = 'text-slate-400';
                 }
             });
 
@@ -3019,16 +3028,16 @@
                 if (r.esParcial) {
                     const faltantesNombres = (r.integridad?.canalesFaltantes || []).map(c => CONFIG_CANALES[c]?.nombre || c).join(', ');
                     tagIntegridad = esConsolidado
-                        ? `<span class="inline-block mt-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-900" title="Faltan: ${faltantesNombres}">◐ Parcial ${r.integridad.capturadosCount}/4 (${r.integridad.coberturaCanalesPct.toFixed(0)}%)</span>`
-                        : `<span class="inline-block mt-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-900">◐ Campos incompletos</span>`;
+                        ? `<span class="inline-block mt-0.5 px-1.5 py-0.2 rounded text-xs font-bold bg-amber-100 text-amber-900" title="Faltan: ${faltantesNombres}">◐ Parcial ${r.integridad.capturadosCount}/4 (${r.integridad.coberturaCanalesPct.toFixed(0)}%)</span>`
+                        : `<span class="inline-block mt-0.5 px-1.5 py-0.2 rounded text-xs font-bold bg-amber-100 text-amber-900">◐ Campos incompletos</span>`;
                 } else if (r.esBrechaCorte) {
-                    tagIntegridad = `<span class="inline-block mt-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-800">⚠️ Sin captura (0/4)</span>`;
+                    tagIntegridad = `<span class="inline-block mt-0.5 px-1.5 py-0.2 rounded text-xs font-bold bg-amber-100 text-amber-800">⚠️ Sin captura (0/4)</span>`;
                 } else if (r.esFuturo) {
-                    tagIntegridad = `<span class="inline-block mt-0.5 px-1.5 py-0.2 rounded text-[9px] font-medium bg-slate-100 text-slate-500">Día futuro (&gt; corte)</span>`;
+                    tagIntegridad = `<span class="inline-block mt-0.5 px-1.5 py-0.2 rounded text-xs font-medium bg-slate-100 text-slate-500">Día futuro (&gt; corte)</span>`;
                 } else if (r.fecha === fechaMejor) {
-                    tagIntegridad = `<span class="inline-block mt-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-800">★ Mejor día</span>`;
+                    tagIntegridad = `<span class="inline-block mt-0.5 px-1.5 py-0.2 rounded text-xs font-bold bg-amber-100 text-amber-800">★ Mejor día</span>`;
                 } else if (r.fecha === fechaPeor) {
-                    tagIntegridad = `<span class="inline-block mt-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold bg-rose-100 text-rose-800">! Mayor brecha</span>`;
+                    tagIntegridad = `<span class="inline-block mt-0.5 px-1.5 py-0.2 rounded text-xs font-bold bg-rose-100 text-rose-800">! Mayor brecha</span>`;
                 }
 
                 const etiquetaVacia = r.esBrechaCorte ? 'Sin captura' : 'Futuro';
@@ -3042,10 +3051,10 @@
                             <div class="flex items-center justify-between gap-2">
                                 <div>
                                     <div class="font-bold text-slate-900">${r.fecha}</div>
-                                    <div class="text-[11px] text-slate-500">${r.diaNombre || obtenerNombreDia(r.fecha)}</div>
+                                    <div class="text-xs text-slate-500">${r.diaNombre || obtenerNombreDia(r.fecha)}</div>
                                     ${tagIntegridad}
                                 </div>
-                                <span class="px-2 py-0.5 rounded-md text-[10px] font-bold ${badgeTipoColor}">${r.tipoDia}</span>
+                                <span class="px-2 py-0.5 rounded-md text-xs font-bold ${badgeTipoColor}">${r.tipoDia}</span>
                             </div>
                         </td>
                         <td class="py-3 px-4 text-right whitespace-nowrap">
@@ -3061,13 +3070,13 @@
                             ${celda4}
                         </td>
                         <td class="py-3 px-4">
-                            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-semibold leading-tight ${r.diag.badgeClass}" title="${r.diag.hipotesisOperativa}">
+                            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold leading-tight ${r.diag.badgeClass}" title="${r.diag.hipotesisOperativa}">
                                 <span>${r.esBrechaCorte ? 'Sin captura (≤ fecha de corte)' : (r.esFuturo ? 'Posterior a fecha de corte' : r.diag.tituloCorto)}</span>
                             </div>
                         </td>
                         <td class="py-3 px-3 text-center whitespace-nowrap">
                             <div class="inline-flex items-center gap-1">
-                                <button type="button" onclick="event.stopPropagation(); abrirModalCaptura('${r.fecha}')" class="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-100/70 transition" title="Capturar o editar día">
+                                <button type="button" onclick="event.stopPropagation(); abrirModalCaptura('${r.fecha}')" class="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-100/70 transition" title="Capturar o editar día">
                                     <i data-lucide="edit-2" class="w-4 h-4"></i>
                                 </button>
                                 ${!r.esSinCaptura && r.pctVenta < 100 ? `
@@ -3099,32 +3108,32 @@
                                     <span class="text-xs text-slate-500">${r.diaNombre} • ${r.tipoDia}</span>
                                 </div>
                                 ${r.esParcial
-                                    ? `<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300">◐ Parcial ${r.integridad.capturadosCount}/${r.integridad.totalCanales}</span>`
+                                    ? `<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">◐ Parcial ${r.integridad.capturadosCount}/${r.integridad.totalCanales}</span>`
                                     : obtenerSemaforoHTML(r.pctVenta, r.esSinCaptura, r.esBrechaCorte ? 'Sin captura' : 'Futuro')}
                             </div>
                             <div class="grid grid-cols-2 gap-2.5 bg-slate-50/80 rounded-xl p-3 border border-slate-100 mb-2.5 num-tabular">
                                 <div>
-                                    <div class="text-[10px] uppercase font-bold text-slate-400">Venta</div>
+                                    <div class="text-xs uppercase font-bold text-slate-500">Venta</div>
                                     <div class="text-xs font-extrabold text-slate-900">${r.esSinCaptura ? '—' : fmtMoneda(r.ventaReal)}</div>
-                                    <div class="text-[10px] text-slate-400">Plan ${fmtMoneda(r.ventaPlan)}</div>
+                                    <div class="text-xs text-slate-500">Plan ${fmtMoneda(r.ventaPlan)}</div>
                                 </div>
                                 <div>
-                                    <div class="text-[10px] uppercase font-bold text-slate-400">Pedidos</div>
+                                    <div class="text-xs uppercase font-bold text-slate-500">Pedidos</div>
                                     <div class="text-xs font-extrabold text-slate-900">${r.esSinCaptura ? '—' : fmtNumero(r.pedidosReal)}</div>
-                                    <div class="text-[10px] text-slate-400">Plan ${fmtNumero(r.pedidosPlan)}</div>
+                                    <div class="text-xs text-slate-500">Plan ${fmtNumero(r.pedidosPlan)}</div>
                                 </div>
                                 <div>
-                                    <div class="text-[10px] uppercase font-bold text-slate-400 capitalize">${etiquetaTrafico}</div>
+                                    <div class="text-xs uppercase font-bold text-slate-500 capitalize">${etiquetaTrafico}</div>
                                     <div class="text-xs font-extrabold text-slate-900">${r.esSinCaptura ? '—' : fmtNumero(r.sesionesReal)}</div>
-                                    <div class="text-[10px] text-slate-400">Plan ${fmtNumero(r.sesionesPlan)}</div>
+                                    <div class="text-xs text-slate-500">Plan ${fmtNumero(r.sesionesPlan)}</div>
                                 </div>
                                 <div>
-                                    <div class="text-[10px] uppercase font-bold text-slate-400">${esConsolidado ? 'Ticket Prom.' : 'CR Canal'}</div>
+                                    <div class="text-xs uppercase font-bold text-slate-500">${esConsolidado ? 'Ticket Prom.' : 'CR Canal'}</div>
                                     <div class="text-xs font-extrabold text-slate-900">${r.esSinCaptura ? '—' : (esConsolidado ? fmtMoneda(r.ticketReal) : fmtCR(r.crReal))}</div>
-                                    <div class="text-[10px] text-slate-400">Plan ${esConsolidado ? fmtMoneda(r.ticketPlan) : fmtCR(r.crPlan)}</div>
+                                    <div class="text-xs text-slate-500">Plan ${esConsolidado ? fmtMoneda(r.ticketPlan) : fmtCR(r.crPlan)}</div>
                                 </div>
                             </div>
-                            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-semibold ${r.diag.badgeClass}">
+                            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold ${r.diag.badgeClass}">
                                 <span>${r.esBrechaCorte ? 'Sin captura (≤ corte)' : (r.esFuturo ? 'Posterior al corte' : r.diag.tituloCorto)}</span>
                             </div>
                         </div>
@@ -3172,22 +3181,22 @@
                         </div>
                         <div class="grid grid-cols-2 gap-3 text-xs num-tabular">
                             <div class="bg-white p-3 rounded-xl border border-slate-100">
-                                <div class="text-slate-400 font-bold uppercase text-[10px]">Venta Acum. / Prom.</div>
+                                <div class="text-slate-500 font-bold uppercase text-xs">Venta Acum. / Prom.</div>
                                 <div class="font-extrabold text-slate-900 text-sm mt-0.5">${n > 0 ? fmtMoneda(vReal) : '—'}</div>
                                 <div class="text-slate-500 mt-0.5">Prom: ${n > 0 ? fmtMoneda(vReal / n) : '—'}/día</div>
                             </div>
                             <div class="bg-white p-3 rounded-xl border border-slate-100">
-                                <div class="text-slate-400 font-bold uppercase text-[10px]">Pedidos Acum. / Prom.</div>
+                                <div class="text-slate-500 font-bold uppercase text-xs">Pedidos Acum. / Prom.</div>
                                 <div class="font-extrabold text-slate-900 text-sm mt-0.5">${n > 0 ? fmtNumero(pReal) : '—'}</div>
                                 <div class="text-slate-500 mt-0.5">Prom: ${n > 0 ? fmtNumero(pReal / n) : '—'}/día</div>
                             </div>
                             <div class="bg-white p-3 rounded-xl border border-slate-100">
-                                <div class="text-slate-400 font-bold uppercase text-[10px]">${etiquetaTrafico}</div>
+                                <div class="text-slate-500 font-bold uppercase text-xs">${etiquetaTrafico}</div>
                                 <div class="font-extrabold text-slate-900 text-sm mt-0.5">${n > 0 ? fmtNumero(sReal) : '—'}</div>
                                 <div class="text-slate-500 mt-0.5">Plan: ${n > 0 ? fmtNumero(sPlan) : '—'}</div>
                             </div>
                             <div class="bg-white p-3 rounded-xl border border-slate-100">
-                                <div class="text-slate-400 font-bold uppercase text-[10px]">${esConsolidado ? 'Ticket Promedio' : 'Conversión (CR)'}</div>
+                                <div class="text-slate-500 font-bold uppercase text-xs">${esConsolidado ? 'Ticket Promedio' : 'Conversión (CR)'}</div>
                                 <div class="font-extrabold text-slate-900 text-sm mt-0.5">${n > 0 ? (esConsolidado ? fmtMoneda(tktR) : fmtCR(crR)) : '—'}</div>
                                 <div class="text-slate-500 mt-0.5">Plan: ${n > 0 ? (esConsolidado ? fmtMoneda(tktP) : fmtCR(crP)) : '—'}</div>
                             </div>
@@ -3250,7 +3259,7 @@
                 const sinDatos = sem.diasRealesCount === 0;
                 const pctVenta = (!sinDatos && sem.ventaPlan > 0) ? (sem.ventaReal / sem.ventaPlan) * 100 : null;
                 const semAnt = idx > 0 ? semanas[idx - 1] : null;
-                let wowHTML = '<span class="text-slate-400">—</span>';
+                let wowHTML = '<span class="text-slate-500">—</span>';
                 if (!sinDatos && semAnt && semAnt.diasRealesCount > 0 && semAnt.ventaReal > 0) {
                     const promActual = sem.ventaReal / sem.diasRealesCount;
                     const promAnt = semAnt.ventaReal / semAnt.diasRealesCount;
@@ -3278,11 +3287,11 @@
                     <tr class="hover:bg-slate-50/80">
                         <td class="py-3.5 px-4 font-bold text-slate-900">
                             <div>Semana ${idx + 1} (${fechaInicio} al ${fechaFin})</div>
-                            <div class="text-[11px] font-normal text-slate-400">${sem.diasRealesCount} de ${sem.dias.length} días L-V capturados</div>
+                            <div class="text-xs font-normal text-slate-500">${sem.diasRealesCount} de ${sem.dias.length} días L-V capturados</div>
                         </td>
                         <td class="py-3.5 px-4 text-right">
                             <div class="font-bold text-slate-900">${sinDatos ? '—' : fmtMoneda(sem.ventaReal)}</div>
-                            <div class="text-[11px] text-slate-400">Plan ${sinDatos ? '—' : fmtMoneda(sem.ventaPlan)}</div>
+                            <div class="text-xs text-slate-500">Plan ${sinDatos ? '—' : fmtMoneda(sem.ventaPlan)}</div>
                         </td>
                         <td class="py-3.5 px-4 text-center">${obtenerSemaforoHTML(pctVenta, sinDatos)}</td>
                         <td class="py-3.5 px-4 text-right">${wowHTML}</td>
@@ -3290,7 +3299,7 @@
                         <td class="py-3.5 px-4 text-right font-semibold">${sinDatos ? '—' : fmtNumero(sem.sesionesReal)}</td>
                         <td class="py-3.5 px-4 text-right font-semibold">${metrica4}</td>
                         <td class="py-3.5 px-4">
-                            <span class="inline-flex px-2.5 py-1 rounded-lg border text-[11px] font-semibold ${diagSem.badgeClass}">${diagSem.tituloCorto}</span>
+                            <span class="inline-flex px-2.5 py-1 rounded-lg border text-xs font-semibold ${diagSem.badgeClass}">${diagSem.tituloCorto}</span>
                         </td>
                     </tr>
                 `;
@@ -3342,8 +3351,8 @@
             const abiertas = estadoApp.acciones.filter(a => a.estatus !== 'Completada').length;
             badge.textContent = abiertas;
             badge.className = abiertas > 0
-                ? 'px-1.5 py-0.2 rounded-full text-[10px] bg-blue-600 text-white font-bold num-tabular'
-                : 'px-1.5 py-0.2 rounded-full text-[10px] bg-slate-200 text-slate-700 num-tabular';
+                ? 'px-1.5 py-0.2 rounded-full text-xs bg-blue-600 text-white font-bold num-tabular'
+                : 'px-1.5 py-0.2 rounded-full text-xs bg-slate-200 text-slate-700 num-tabular';
         }
 
         function abrirModalAccion(fechaRef = null, hallazgoPrellenado = '') {
@@ -3440,19 +3449,19 @@
 
             summaryBar.innerHTML = `
                 <div class="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
-                    <div class="text-[10px] font-bold uppercase text-slate-400">Total Acciones</div>
+                    <div class="text-xs font-bold uppercase text-slate-500">Total Acciones</div>
                     <div class="text-lg font-extrabold text-slate-900">${total}</div>
                 </div>
                 <div class="bg-amber-50/70 p-3 rounded-xl border border-amber-200/80">
-                    <div class="text-[10px] font-bold uppercase text-amber-700">Pendientes</div>
+                    <div class="text-xs font-bold uppercase text-amber-700">Pendientes</div>
                     <div class="text-lg font-extrabold text-amber-900">${pendientes}</div>
                 </div>
                 <div class="bg-blue-50/70 p-3 rounded-xl border border-blue-200/80">
-                    <div class="text-[10px] font-bold uppercase text-blue-700">En Curso</div>
+                    <div class="text-xs font-bold uppercase text-blue-700">En Curso</div>
                     <div class="text-lg font-extrabold text-blue-900">${enCurso}</div>
                 </div>
                 <div class="bg-emerald-50/70 p-3 rounded-xl border border-emerald-200/80">
-                    <div class="text-[10px] font-bold uppercase text-emerald-700">Completadas</div>
+                    <div class="text-xs font-bold uppercase text-emerald-700">Completadas</div>
                     <div class="text-lg font-extrabold text-emerald-900">${completadas}</div>
                 </div>
             `;
@@ -3479,8 +3488,8 @@
                     <div class="rounded-2xl border border-slate-200 p-4 bg-slate-50/40 flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                         <div class="space-y-1.5">
                             <div class="flex flex-wrap items-center gap-2">
-                                <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${estatusBadge}">${acc.estatus}</span>
-                                <span class="px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-900 text-white">${nombreCanal}</span>
+                                <span class="px-2.5 py-0.5 rounded-full text-xs font-bold border ${estatusBadge}">${acc.estatus}</span>
+                                <span class="px-2 py-0.5 rounded-md text-xs font-bold bg-slate-900 text-white">${nombreCanal}</span>
                                 <span class="text-xs text-slate-500 num-tabular">Ref: <strong>${acc.fechaRef}</strong> • Compromiso: <strong>${acc.fechaCompromiso}</strong></span>
                             </div>
                             <p class="text-xs font-bold text-rose-800">Hallazgo: ${acc.hallazgo}</p>
@@ -3551,9 +3560,9 @@
 
                 let estadoIcon = `<span class="w-1.5 h-1.5 rounded-full ${activo ? 'bg-blue-300' : 'bg-slate-300'}"></span>`;
                 if (ev.estado === 'COMPLETA') {
-                    estadoIcon = `<span class="text-[11px] ${activo ? 'text-blue-100' : 'text-emerald-600'}">✓</span>`;
+                    estadoIcon = `<span class="text-xs ${activo ? 'text-blue-100' : 'text-emerald-600'}">✓</span>`;
                 } else if (ev.estado === 'INCOMPLETA') {
-                    estadoIcon = `<span class="text-[11px] ${activo ? 'text-amber-200' : 'text-amber-600'}">◐</span>`;
+                    estadoIcon = `<span class="text-xs ${activo ? 'text-amber-200' : 'text-amber-600'}">◐</span>`;
                 }
 
                 return `
@@ -4060,15 +4069,15 @@
             document.getElementById('import-preview-filename').textContent = `Archivo: ${imp.nombreArchivo} • Periodos detectados: ${imp.mesesDetectados.join(', ')}`;
             document.getElementById('import-preview-stats').innerHTML = `
                 <div class="bg-emerald-50 p-2.5 rounded-xl border border-emerald-200">
-                    <div class="text-[10px] font-bold uppercase text-emerald-700">Registros Válidos</div>
+                    <div class="text-xs font-bold uppercase text-emerald-700">Registros Válidos</div>
                     <div class="text-base font-extrabold text-emerald-900">${imp.registrosValidos.length}</div>
                 </div>
                 <div class="bg-amber-50 p-2.5 rounded-xl border border-amber-200">
-                    <div class="text-[10px] font-bold uppercase text-amber-700">Advertencias</div>
+                    <div class="text-xs font-bold uppercase text-amber-700">Advertencias</div>
                     <div class="text-base font-extrabold text-amber-900">${imp.advertencias.length}</div>
                 </div>
                 <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-                    <div class="text-[10px] font-bold uppercase text-slate-500">Filas Omitidas</div>
+                    <div class="text-xs font-bold uppercase text-slate-500">Filas Omitidas</div>
                     <div class="text-base font-extrabold text-slate-800">${imp.filasIgnoradas}</div>
                 </div>
             `;
@@ -4091,7 +4100,7 @@
                     <td class="py-1.5 px-3 text-right">${esNumeroValidoNoNegativo(r.pedidosReal) ? fmtNumero(r.pedidosReal) : '—'}</td>
                     <td class="py-1.5 px-3 text-right">${esNumeroValidoNoNegativo(r.sesionesReal) ? fmtNumero(r.sesionesReal) : '—'}</td>
                 </tr>
-            `).join('') + (imp.registrosValidos.length > 12 ? `<tr><td colspan="6" class="py-2 px-3 text-center text-slate-400">... y ${imp.registrosValidos.length - 12} registros adicionales listos para importar</td></tr>` : '');
+            `).join('') + (imp.registrosValidos.length > 12 ? `<tr><td colspan="6" class="py-2 px-3 text-center text-slate-500">... y ${imp.registrosValidos.length - 12} registros adicionales listos para importar</td></tr>` : '');
 
             const modal = document.getElementById('modal-import-preview');
             modal.classList.remove('hidden');
@@ -4660,6 +4669,7 @@
                 const cssFuentes = await obtenerCSSFuentesPDF();
                 if (document.fonts && document.fonts.ready) await document.fonts.ready;
                 document.body.classList.add('pdf-modo');
+                document.querySelectorAll('details[data-pdf-abrir]').forEach(d => { d._abiertoAntes = d.open; d.open = true; });
                 await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
                 const el = document.body;
@@ -4678,6 +4688,7 @@
                 mostrarNotificacion('❌ No se pudo generar el PDF.');
             } finally {
                 document.body.classList.remove('pdf-modo');
+                document.querySelectorAll('details[data-pdf-abrir]').forEach(d => { d.open = !!d._abiertoAntes; });
                 filasOcultas.forEach(tr => { tr.style.display = ''; });
                 btn.disabled = false;
                 label.textContent = 'Descargar PDF';
@@ -4699,7 +4710,7 @@
             document.getElementById('qa-results-tbody').innerHTML = resultados.map(r => `
                 <tr>
                     <td class="py-2 px-3">
-                        <div class="text-[10px] font-bold uppercase text-slate-400">${r.grupo}</div>
+                        <div class="text-xs font-bold uppercase text-slate-500">${r.grupo}</div>
                         <div class="font-semibold text-slate-900">${r.nombre}</div>
                     </td>
                     <td class="py-2 px-3 text-slate-600 num-tabular">
@@ -4707,7 +4718,7 @@
                         <div>Obtenido: <span class="text-blue-700 font-semibold">${r.obtenido}</span></div>
                     </td>
                     <td class="py-2 px-3 text-center">
-                        <span class="px-2 py-0.5 rounded-full text-[11px] font-bold ${r.ok ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
+                        <span class="px-2 py-0.5 rounded-full text-xs font-bold ${r.ok ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
                             ${r.ok ? 'PASS' : 'FAIL'}
                         </span>
                     </td>
@@ -4900,28 +4911,28 @@
             const cur = agregarVentanaRD(claves, ini, corte), prev = agregarVentanaRD(claves, pIni, pFin);
             const f = iso => { const [, m, d] = iso.split('-'); return `${d}/${m}`; };
             const nombre = (VENTANAS_RD.find(v => v[0] === estadoApp.ventana) || [])[1];
-            const chip = c => c === null ? '<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-500">Sin plan</span>' : `<span class="px-2 py-0.5 rounded-full text-[11px] font-extrabold ${c >= 100 ? 'bg-emerald-100 text-emerald-700' : c >= 90 ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'}">${c.toFixed(1)}%</span>`;
+            const chip = c => c === null ? '<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-500">Sin plan</span>' : `<span class="px-2 py-0.5 rounded-full text-xs font-extrabold ${c >= 100 ? 'bg-emerald-100 text-emerald-700' : c >= 90 ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'}">${c.toFixed(1)}%</span>`;
             const pct = (a, b) => b > 0 ? a / b * 100 : null, dlt = (a, b) => (b > 0 && a !== null) ? (a / b - 1) * 100 : null;
-            const dChip = d => d === null ? '<span class="text-slate-400">—</span>' : `<span class="font-bold ${d >= 0 ? 'text-emerald-700' : 'text-rose-700'}">${d >= 0 ? '▲' : '▼'} ${Math.abs(d).toFixed(1)}%</span>`;
+            const dChip = d => d === null ? '<span class="text-slate-500">—</span>' : `<span class="font-bold ${d >= 0 ? 'text-emerald-700' : 'text-rose-700'}">${d >= 0 ? '▲' : '▼'} ${Math.abs(d).toFixed(1)}%</span>`;
             const cumplV = pct(cur.venta, cur.planV), cumplP = pct(cur.pedidos, cur.planP);
             const ticket = cur.pedidos > 0 ? cur.venta / cur.pedidos : null, ticketPlan = cur.planP > 0 ? cur.planV / cur.planP : null;
             const cr = !esCons && cur.ses > 0 ? cur.pedidos / cur.ses * 100 : null, crPlan = !esCons && cur.planS > 0 ? cur.planP / cur.planS * 100 : null;
             const porDia = a => a.cap > 0 ? a.venta / a.cap : null, vsPrev = dlt(porDia(cur), porDia(prev));
-            const mini = (t, v, sub) => `<div class="min-w-0"><div class="text-[10px] font-bold uppercase tracking-wide text-slate-500">${t}</div><div class="mt-0.5 text-lg font-extrabold text-slate-900 num-tabular">${v}</div><div class="text-[11px] text-slate-500">${sub}</div></div>`;
+            const mini = (t, v, sub) => `<div class="min-w-0"><div class="text-xs font-bold uppercase tracking-wide text-slate-500">${t}</div><div class="mt-0.5 text-lg font-extrabold text-slate-900 num-tabular">${v}</div><div class="text-xs text-slate-500">${sub}</div></div>`;
             const cob = cur.dias ? cur.cap / cur.dias * 100 : 0;
             const filasCanal = esCons ? Object.keys(CONFIG_CANALES).map(k => { const c = agregarVentanaRD([k], ini, corte), p = agregarVentanaRD([k], pIni, pFin);
                 return `<tr class="border-t border-slate-200"><td class="py-1.5 pr-3 font-semibold text-slate-700">${CONFIG_CANALES[k].nombre}</td><td class="text-right pr-3 num-tabular">${fmtMoneda(c.venta)}</td><td class="text-right pr-3 num-tabular text-slate-500">${fmtMoneda(c.planV)}</td><td class="text-right pr-3">${chip(pct(c.venta, c.planV))}</td><td class="text-right pr-3">${dChip(dlt(c.cap ? c.venta / c.cap : null, p.cap ? p.venta / p.cap : null))}</td><td class="text-right text-slate-500 num-tabular">${c.cap}/${c.dias}</td></tr>`; }).join('') : '';
             el.classList.remove('hidden');
             el.innerHTML = `<div class="flex flex-wrap items-baseline justify-between gap-2"><h2 class="text-sm font-extrabold text-slate-900">${nombre} · ${f(ini)} – ${f(corte)} <span class="font-normal text-slate-500">· ${esCons ? 'Consolidado' : CONFIG_CANALES[estadoApp.canal].nombre}</span></h2>
-                <span class="text-[11px] text-slate-500">Meta = plan de esos días de los canales ya capturados · el pronóstico y el pacing del mes siguen más abajo</span></div>
+                <span class="text-xs text-slate-500">Meta = plan de esos días de los canales ya capturados · el pronóstico y el pacing del mes siguen más abajo</span></div>
                 <div class="mt-3 grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-3">
                     ${mini('Venta de la ventana', fmtMoneda(cur.venta), `Meta ${fmtMoneda(cur.planV)} · ${chip(cumplV)}`)}
                     ${mini('Pedidos', fmtNumero(cur.pedidos), `Plan ${fmtNumero(cur.planP)} · ${chip(cumplP)}`)}
                     ${mini('Ticket promedio', ticket !== null ? fmtMoneda(ticket) : '—', ticketPlan !== null ? `Plan ${fmtMoneda(ticketPlan)} · ${chip(pct(ticket, ticketPlan))}` : 'Sin plan')}
                     ${mini(esCons ? 'Venta por día vs. ventana anterior' : 'CR de la ventana', esCons ? dChip(vsPrev) : (cr !== null ? cr.toFixed(2) + '%' : '—'), esCons ? `${f(pIni)} – ${f(pFin)}` : `Plan ${crPlan !== null ? crPlan.toFixed(2) + '%' : '—'} · vs. ventana anterior ${dChip(vsPrev)}`)}
                 </div>
-                ${cob < 100 ? `<div class="mt-2 text-[11px] text-amber-800">Captura de la ventana: ${cur.cap} de ${cur.dias} día-canal (${cob.toFixed(0)}%). La meta solo cuenta los días capturados.</div>` : ''}
-                ${esCons ? `<div class="mt-3 overflow-x-auto"><table class="w-full text-xs"><thead><tr class="text-left text-[10px] uppercase tracking-wide text-slate-500"><th class="pb-1 pr-3">Canal</th><th class="pb-1 pr-3 text-right">Venta</th><th class="pb-1 pr-3 text-right">Meta</th><th class="pb-1 pr-3 text-right">Cumpl.</th><th class="pb-1 pr-3 text-right">Vs. ventana ant.</th><th class="pb-1 text-right">Días</th></tr></thead><tbody>${filasCanal}</tbody></table></div>` : ''}`;
+                ${cob < 100 ? `<div class="mt-2 text-xs text-amber-800">Captura de la ventana: ${cur.cap} de ${cur.dias} día-canal (${cob.toFixed(0)}%). La meta solo cuenta los días capturados.</div>` : ''}
+                ${esCons ? `<div class="mt-3 overflow-x-auto"><table class="w-full text-xs"><thead><tr class="text-left text-xs uppercase tracking-wide text-slate-500"><th class="pb-1 pr-3">Canal</th><th class="pb-1 pr-3 text-right">Venta</th><th class="pb-1 pr-3 text-right">Meta</th><th class="pb-1 pr-3 text-right">Cumpl.</th><th class="pb-1 pr-3 text-right">Vs. ventana ant.</th><th class="pb-1 text-right">Días</th></tr></thead><tbody>${filasCanal}</tbody></table></div>` : ''}`;
         }
 
         function renderizarTodo() {
@@ -4969,7 +4980,7 @@
             <button id="nube-boton" type="submit" class="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold transition">Entrar</button>
         </form>
     </div>
-    <div id="nube-estado" class="fixed bottom-2 left-2 z-40 pointer-events-none opacity-80 hidden px-2.5 py-1 rounded-lg bg-white/90 border border-slate-200 text-[11px] font-semibold text-slate-600 shadow-sm"></div>
+    <div id="nube-estado" class="fixed bottom-2 left-2 z-40 pointer-events-none opacity-80 hidden px-2.5 py-1 rounded-lg bg-white/90 border border-slate-200 text-xs font-semibold text-slate-600 shadow-sm"></div>
 
     <script>
         const NUBE = {
@@ -4996,7 +5007,7 @@
             const el = document.getElementById('nube-estado');
             if (!el) return;
             el.textContent = texto;
-            el.className = 'fixed bottom-2 left-2 z-40 pointer-events-none opacity-80 px-2.5 py-1 rounded-lg bg-white/90 border text-[11px] font-semibold shadow-sm '
+            el.className = 'fixed bottom-2 left-2 z-40 pointer-events-none opacity-80 px-2.5 py-1 rounded-lg bg-white/90 border text-xs font-semibold shadow-sm '
                 + (tono === 'error' ? 'border-rose-300 text-rose-700' : tono === 'ok' ? 'border-emerald-300 text-emerald-700' : 'border-slate-200 text-slate-600');
         }
 
