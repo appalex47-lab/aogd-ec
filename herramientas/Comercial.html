@@ -48,12 +48,14 @@
                     <div class="inline-flex items-center gap-1 bg-blue-50 border border-blue-200/80 rounded-lg px-2 py-0.5">
                         <select id="sel-mes" onchange="cambiarMes(this.value)" class="bg-transparent text-xs font-bold text-blue-800 focus:outline-none cursor-pointer" title="Mes"></select>
                     </div>
+                </div>
+                <div class="sm:hidden w-full flex items-center justify-between gap-2" data-pdf-ocultar="true"><span id="hdr-resumen" class="text-xs text-slate-500 min-w-0"></span><button type="button" id="btn-filtros" onclick="alternarFiltros()" aria-expanded="false" aria-controls="hdr-filtros" class="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-xs font-bold text-slate-700">⚙ Filtros <span id="btn-filtros-flecha" aria-hidden="true">▾</span></button></div>
+                <div class="flex flex-wrap items-center gap-2 max-sm:w-full" data-pdf-ocultar="true">
+                    <div id="hdr-filtros" class="flex flex-wrap items-center gap-2 max-sm:hidden max-sm:w-full">
                     <div class="inline-flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-lg px-2 py-0.5" title="Fecha de corte del análisis">
                         <span class="text-xs font-bold uppercase text-slate-500">Corte:</span>
                         <input type="date" id="sel-corte" onchange="cambiarCorte(this.value)" class="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer num-tabular">
                     </div>
-                </div>
-                <div class="flex flex-wrap items-center gap-2" data-pdf-ocultar="true">
                     <label class="inline-flex items-center gap-1.5 text-xs font-bold uppercase text-slate-500">Canal <select id="sel-canal" onchange="cambiarCanal(this.value)" class="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold normal-case text-slate-800 cursor-pointer"></select></label>
                     <label class="inline-flex items-center gap-1.5 text-xs font-bold uppercase text-slate-500">Ventana <select id="sel-ventana" onchange="cambiarVentana(this.value)" class="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold normal-case text-slate-800 cursor-pointer">
                         <option value="1">Día de corte</option><option value="7" selected>Últimos 7 días</option><option value="14">Últimos 14 días</option><option value="mtd">Mes a la fecha</option></select></label>
@@ -84,10 +86,12 @@
                                 <input id="cfg-mdem" type="number" min="1" max="50" step="1" value="5" onchange="guardarConfig()" class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1 text-sm"></div>
                         </div>
                     </details>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2" id="hdr-acciones">
                     <button type="button" id="chip-datos" onclick="cambiarVista('config')" title="Estado de los datos: abre Configuración e integridad" class="hidden inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold whitespace-nowrap transition"></button>
                     <a id="chip-acciones" href="Acciones.html" target="_blank" rel="noopener" title="Acciones abiertas y vencidas de las herramientas. Abre el registro unificado" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 whitespace-nowrap transition hover:bg-slate-50"><span aria-hidden="true">✅</span><span id="chip-acciones-txt">Acciones</span></a>
                     <label for="file-upload" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition cursor-pointer">
-                        <span aria-hidden="true">⬆️</span><span>Cargar CSV</span>
+                        <span aria-hidden="true">⬆️</span><span class="max-sm:sr-only">Cargar CSV</span>
                         <input id="file-upload" type="file" accept=".csv,.xlsx,.xls" class="hidden" onchange="procesarArchivo(event)">
                     </label>
                     <details class="relative">
@@ -101,6 +105,8 @@
                             <button type="button"  onclick="abrirBorrar(); this.closest('details').removeAttribute('open')" class="w-full text-left flex items-center gap-2 px-4 py-2 text-xs font-semibold text-rose-700 hover:bg-slate-50 cursor-pointer">🗑 Borrar datos</button>
                         </div>
                     </details>
+                </div>
+                </div>
                 </div>
             </div>
             <nav class="flex items-center gap-0.5 overflow-x-auto no-scrollbar -mb-px" id="tabs-vista" data-pdf-ocultar="true"></nav>
@@ -1163,7 +1169,23 @@
                     <ul class="space-y-2">${lista || '<li class="p-4 text-xs text-slate-500 rounded-xl bg-slate-50 border border-slate-200">Aún no hay acciones registradas.</li>'}</ul></div></div>`;
     }
 
-    function renderTabsYFiltros() {
+
+    // Encabezado móvil: los filtros (corte, canal, ventana, alertas) se pliegan detrás de "Filtros" y se resumen en una línea
+    function alternarFiltros() {
+        const p = document.getElementById('hdr-filtros'), b = document.getElementById('btn-filtros'); if (!p || !b) return;
+        const abierto = p.classList.toggle('max-sm:hidden') === false; b.setAttribute('aria-expanded', String(abierto));
+        const f = document.getElementById('btn-filtros-flecha'); if (f) f.textContent = abierto ? '▴' : '▾';
+    }
+    function resumenFiltros() {
+        const el = document.getElementById('hdr-resumen'); if (!el) return;
+        const q = id => { const x = document.getElementById(id); return x ? x : null; };
+        const corte = q('sel-corte') && q('sel-corte').value ? q('sel-corte').value.split('-').reverse().slice(0, 2).join('/') : '—';
+        const t = id => { const x = q(id); return x && x.selectedOptions && x.selectedOptions[0] ? x.selectedOptions[0].textContent.trim() : ''; };
+        el.textContent = ['Corte ' + corte, t('sel-canal'), t('sel-ventana')].filter(Boolean).join(' · ');
+    }
+    document.addEventListener('change', e => { if (e.target && /^sel-(corte|canal|ventana)$/.test(e.target.id)) setTimeout(resumenFiltros, 0); });
+        function renderTabsYFiltros() {
+        setTimeout(resumenFiltros, 0);
         document.getElementById('sel-canal').innerHTML = FILTROS.map(x => `<option value="${x}" ${S.canal === x ? 'selected' : ''}>${ETIQ_CANAL[x]}</option>`).join('');
         const pend = S.acciones.filter(a => a.estatus !== 'Completada').length;
         document.getElementById('tabs-vista').innerHTML = VISTAS.map(v => `<button type="button" onclick="cambiarVista('${v.id}')" class="shrink-0 px-3.5 py-2.5 text-xs font-bold transition border-b-2 ${S.vista === v.id ? 'text-blue-600 border-blue-600' : 'text-slate-500 border-transparent hover:text-slate-900'}">${v.n}${v.id === 'acciones' && pend ? ` <span class="ml-1 px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-xs">${pend}</span>` : ''}</button>`).join('');
@@ -1942,7 +1964,7 @@
     };
         function nubeEstado(texto, tono) {
         const el = document.getElementById('nube-estado'); el.textContent = texto;
-        el.className = 'fixed bottom-2 left-2 z-40 pointer-events-none opacity-80 px-2.5 py-1 rounded-lg bg-white/90 border text-xs font-semibold shadow-sm ' + (tono === 'error' ? 'border-rose-300 text-rose-700' : tono === 'ok' ? 'border-emerald-300 text-emerald-700' : 'border-slate-200 text-slate-600');
+        el.className = 'fixed bottom-2 left-2 z-40 pointer-events-none opacity-80 px-2.5 py-1 rounded-lg bg-white/90 border text-xs font-semibold shadow-sm ' + (tono === 'error' ? 'border-rose-300 text-rose-700' : tono === 'ok' ? 'border-emerald-300 text-emerald-700 max-sm:hidden' : 'border-slate-200 text-slate-600');
     }
     function guardarCacheLocal() { if (S.demo) return; try { localStorage.setItem(CACHE_KEY, JSON.stringify({ a: S.acciones, c: S.config, m: S.metas, mc: S.metasCfg, s: S.snap })); } catch (e) {} }
     function cargarCacheLocal() {
