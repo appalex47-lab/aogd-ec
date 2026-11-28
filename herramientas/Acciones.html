@@ -62,6 +62,11 @@
                 <div><label class="text-xs font-bold text-slate-600">Estatus</label><select id="ed-estatus" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"><option>Pendiente</option><option>En curso</option><option>Completada</option></select></div>
             </div>
             <div><label class="text-xs font-bold text-slate-600">Resultado observado (qué cambió después de la acción)</label><textarea id="ed-resultado" rows="3" maxlength="400" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></textarea></div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div><label class="text-xs font-bold text-slate-600">Impacto estimado ($)</label><input id="ed-impacto" type="number" min="0" step="1" inputmode="numeric" placeholder="Opcional" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></div>
+                <div><label class="text-xs font-bold text-slate-600">Impacto logrado ($)</label><input id="ed-logrado" type="number" step="1" inputmode="numeric" placeholder="Al completar" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></div>
+                <div><label class="text-xs font-bold text-slate-600">Métrica esperada</label><input id="ed-metrica" maxlength="120" placeholder="Ej. CR de Android" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></div>
+            </div>
             <p id="ed-error" class="text-xs font-semibold text-rose-600"></p>
             <div class="flex justify-end gap-2.5"><button type="button" onclick="cerrarEditar()" class="px-4 py-2 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-700">Cancelar</button>
                 <button type="submit" id="ed-guardar" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold">Guardar</button></div>
@@ -98,6 +103,7 @@
     const S = { raw: { rd: null, tc: null, co: null, de: null }, version: { rd: 0, tc: 0, co: 0, de: 0 }, acciones: [], filtros: { periodo: 'todo', origen: 'todos', estatus: 'todos', resp: 'todos', vencidas: false, texto: '' }, cargado: false, editando: null };
     const NUBE = { url: 'https://vwbhwiivynuzzxsosjgd.supabase.co', key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3Ymh3aWl2eW51enp4c29zamdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTU1MzMwNjgsImV4cCI6MjExMTEwOTA2OH0.a-CP2pogi2x3zHmp0l6ErDiACTUPOLQv4OsnC-B_QbM', client: null, activo: false };
     const esc = t => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const fmtM = v => (v === null || v === undefined || isNaN(v)) ? '—' : (v < 0 ? '−' : '') + '$' + new Intl.NumberFormat('es-MX', { maximumFractionDigits: 0 }).format(Math.abs(Math.round(v)));
     const fmtP = (v, d = 0) => (v === null || isNaN(v)) ? '—' : `${v.toFixed(d)}%`;
 
         function toast(msg) {
@@ -125,7 +131,7 @@
         const rd = origen === 'rd';
         return { origen, id: a.id, titulo: (rd ? a.accion : a.titulo) || '(sin título)', contexto: (rd ? a.hallazgo : a.detalle) || '', responsable: a.responsable || '',
             estatus: normEstatus(a.estatus), fechaCompromiso: a.fechaCompromiso || '', resultado: a.resultado || '', creada: (rd ? a.fechaRef : a.creada) || '',
-            extra: rd ? (a.canal ? `Canal: ${a.canal}` : '') : '' };
+            extra: rd ? (a.canal ? `Canal: ${a.canal}` : '') : '', impacto: Number.isFinite(Number(a.impacto)) && a.impacto !== null && a.impacto !== '' ? Number(a.impacto) : null, logrado: Number.isFinite(Number(a.logrado)) && a.logrado !== null && a.logrado !== '' ? Number(a.logrado) : null, metrica: a.metrica || '', vista: a.vista || '', fechaCompletada: a.fechaCompletada || '' };
     }
     function reconstruir() {
         S.acciones = [];
@@ -150,6 +156,10 @@
         const m = { total: lista.length, pend: 0, curso: 0, comp: 0, venc: 0, sinResp: 0, sinFecha: 0, conResultado: 0 };
         lista.forEach(a => { if (a.estatus === 'Pendiente') m.pend++; else if (a.estatus === 'En curso') m.curso++; else m.comp++;
             if (vencida(a)) m.venc++; if (a.estatus !== 'Completada') { if (!a.responsable) m.sinResp++; if (!a.fechaCompromiso) m.sinFecha++; } if (a.estatus === 'Completada' && a.resultado) m.conResultado++; });
+        // Valor: impacto estimado de lo abierto, y lo logrado frente a lo estimado en las completadas; "a tiempo" cuando hay fecha de cierre registrada
+        m.enJuego = 0; m.estComp = 0; m.logComp = 0; m.conLogrado = 0; m.conCierre = 0; m.aTiempo = 0;
+        lista.forEach(a => { if (a.estatus !== 'Completada') { if (a.impacto) m.enJuego += a.impacto; } else { if (a.impacto) m.estComp += a.impacto; if (a.logrado !== null) { m.logComp += a.logrado; m.conLogrado++; }
+            if (a.fechaCompletada && a.fechaCompromiso) { m.conCierre++; if (a.fechaCompletada <= a.fechaCompromiso) m.aTiempo++; } } });
         m.debian = m.comp + m.venc; m.cumpl = m.debian ? m.comp / m.debian * 100 : null; /* de lo que ya debía estar hecho (completadas + vencidas), cuánto se completó */ m.medido = m.comp ? m.conResultado / m.comp * 100 : null; return m;
     }
     function porResponsable(lista) {
@@ -177,9 +187,11 @@
             <input type="search" placeholder="Buscar…" value="${esc(S.filtros.texto)}" oninput="setF.texto(this.value)" class="rounded-lg border border-slate-300 px-2.5 py-1 text-xs w-36">`;
         const tarjetas = [
             tarjeta('Propuestas', m.total, `${m.pend} pendientes · ${m.curso} en curso · ${m.comp} completadas`),
-            tarjeta('Cumplimiento de lo comprometido', fmtP(m.cumpl), m.debian ? `${m.comp} completadas de ${m.debian} que ya debían estar listas (completadas + vencidas). Las abiertas que aún no vencen no cuentan.` : 'Aún no hay acciones completadas ni vencidas.', m.cumpl === null ? '' : m.cumpl >= 70 ? 'verde' : m.cumpl >= 40 ? 'ambar' : 'rojo'),
+            tarjeta('Cumplimiento de lo comprometido', fmtP(m.cumpl), m.debian ? `${m.comp} completadas de ${m.debian} que ya debían estar listas (completadas + vencidas).${m.conCierre ? ` De las ${m.conCierre} con fecha de cierre registrada, ${m.aTiempo} se cerraron a tiempo.` : ''}` : 'Aún no hay acciones completadas ni vencidas.', m.cumpl === null ? '' : m.cumpl >= 70 ? 'verde' : m.cumpl >= 40 ? 'ambar' : 'rojo'),
             tarjeta('Vencidas', m.venc, 'Abiertas con fecha compromiso ya pasada', m.venc ? 'rojo' : 'verde'),
             tarjeta('Abiertas sin responsable', String(m.sinResp), `${m.sinFecha} más sin fecha compromiso: sin dueño o sin fecha no hay seguimiento`, m.sinResp + m.sinFecha ? 'ambar' : 'verde'),
+            tarjeta('Valor en juego', fmtM(m.enJuego), m.enJuego ? 'Impacto estimado de las acciones abiertas con monto' : 'Aún no hay acciones abiertas con impacto estimado'),
+            tarjeta('Valor logrado', m.conLogrado ? fmtM(m.logComp) : '—', m.conLogrado ? `${m.conLogrado} completadas con impacto logrado${m.estComp ? ` · estimaban ${fmtM(m.estComp)}` : ''}` : 'Captura el impacto logrado al completar una acción'),
             tarjeta('Con impacto medido', fmtP(m.medido), `${m.conResultado} de ${m.comp} completadas traen resultado observado`, m.medido === null ? '' : m.medido >= 60 ? 'verde' : 'ambar')
         ].join('');
         const rr = porResponsable(base);
@@ -196,16 +208,17 @@
                     <div class="text-sm font-extrabold text-slate-900 break-words">${esc(a.titulo)}</div>
                     ${a.contexto ? `<div class="text-xs text-slate-600 break-words">${esc(a.contexto)}</div>` : ''}
                     <div class="text-xs text-slate-500">${a.responsable ? `Responsable: <strong class="text-slate-700">${esc(a.responsable)}</strong>` : '<strong class="text-amber-700">Sin responsable</strong>'} · ${a.fechaCompromiso ? `Compromiso: <strong class="${v ? 'text-rose-700' : 'text-slate-700'}">${esc(a.fechaCompromiso)}</strong>` : '<strong class="text-amber-700">Sin fecha compromiso</strong>'}${a.creada ? ` · Registrada: ${esc(a.creada)}` : ''}</div>
+                    ${(a.impacto !== null || a.logrado !== null || a.metrica) ? `<div class="text-xs text-slate-600">${a.impacto !== null ? `Impacto estimado: <strong>${fmtM(a.impacto)}</strong>` : ''}${a.logrado !== null ? `${a.impacto !== null ? ' · ' : ''}Logrado: <strong class="${a.logrado >= (a.impacto || 0) ? 'text-emerald-700' : 'text-amber-700'}">${fmtM(a.logrado)}</strong>` : ''}${a.metrica ? `${a.impacto !== null || a.logrado !== null ? ' · ' : ''}Métrica: ${esc(a.metrica)}` : ''}</div>` : ''}
                     ${a.resultado ? `<div class="text-xs text-emerald-700">Resultado: ${esc(a.resultado)}</div>` : (a.estatus === 'Completada' ? '<div class="text-xs text-amber-700">Completada sin resultado observado.</div>' : '')}
                 </div>
                 <div class="flex items-center gap-2 shrink-0" data-pdf-ocultar="true"><button type="button" onclick="abrirEditar('${a.origen}', '${esc(a.id)}')" class="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold">Actualizar</button>
-                    <a href="${o.href}" target="_blank" rel="noopener" class="px-2.5 py-1.5 rounded-xl border border-slate-300 bg-white text-xs font-bold text-slate-600 hover:bg-slate-50" title="Abrir ${o.n}">↗</a></div></li>`; };;
+                    <a href="${o.href}${a.vista ? '#vista=' + encodeURIComponent(a.vista) : ''}" target="_blank" rel="noopener" class="px-2.5 py-1.5 rounded-xl border border-slate-300 bg-white text-xs font-bold text-slate-600 hover:bg-slate-50" title="Abrir ${o.n}${a.vista ? ' en la pestaña donde se registró' : ''}" aria-label="Abrir ${o.n}">↗</a></div></li>`; };;
         // La lista se agrupa por urgencia: vencidas, vencen en 7 días, después o sin fecha, y completadas
         const sem = addDias(hoy(), 7), abiertas = ordenadas.filter(a => a.estatus !== 'Completada');
         const grupos = [['Vencidas', abiertas.filter(vencida), 'text-rose-700'], ['Vencen esta semana', abiertas.filter(a => !vencida(a) && a.fechaCompromiso && a.fechaCompromiso <= sem), 'text-amber-700'],
             ['Después o sin fecha', abiertas.filter(a => !vencida(a) && !(a.fechaCompromiso && a.fechaCompromiso <= sem)), 'text-slate-600'], ['Completadas', ordenadas.filter(a => a.estatus === 'Completada'), 'text-emerald-700']];
         const items = grupos.filter(g => g[1].length).map(([t, l, c]) => `<div class="mt-4 first:mt-0"><h4 class="text-xs font-extrabold uppercase tracking-wide ${c} mb-1.5">${t} (${l.length})</h4><ul class="space-y-2">${l.map(itemHtml).join('')}</ul></div>`).join('');
-        cont.innerHTML = `<div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 max-md:[&>*:last-child:nth-child(odd)]:col-span-2">${tarjetas}</div>${tabla}
+        cont.innerHTML = `<div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 max-md:[&>*:last-child:nth-child(odd)]:col-span-2">${tarjetas}</div>${tabla}
             <div><h3 class="text-sm font-extrabold text-slate-900 mb-2">Acciones <span class="text-slate-500 font-semibold">(${lista.length})</span></h3>${items || '<p class="p-6 text-xs text-slate-500 rounded-2xl bg-slate-50 border border-slate-200">No hay acciones con estos filtros. Las acciones se registran desde cada herramienta, junto a la alerta o el hallazgo que las origina.</p>'}</div>`;
         if (typeof resumenFiltros === 'function') resumenFiltros();
     }
@@ -229,13 +242,13 @@
     function abrirEditar(origen, id) {
         const a = S.acciones.find(x => x.origen === origen && x.id === id); if (!a) return; S.editando = { origen, id };
         document.getElementById('ed-origen').textContent = ORIGENES[origen].n; document.getElementById('ed-titulo').textContent = a.titulo; document.getElementById('ed-contexto').textContent = a.contexto;
-        document.getElementById('ed-resp').value = a.responsable; document.getElementById('ed-fecha').value = a.fechaCompromiso; document.getElementById('ed-estatus').value = a.estatus; document.getElementById('ed-resultado').value = a.resultado;
+        document.getElementById('ed-resp').value = a.responsable; document.getElementById('ed-fecha').value = a.fechaCompromiso; document.getElementById('ed-estatus').value = a.estatus; document.getElementById('ed-resultado').value = a.resultado; document.getElementById('ed-impacto').value = a.impacto ?? ''; document.getElementById('ed-logrado').value = a.logrado ?? ''; document.getElementById('ed-metrica').value = a.metrica;
         document.getElementById('ed-error').textContent = ''; const m = document.getElementById('modal-editar'); m.classList.remove('hidden'); m.classList.add('flex');
     }
     // Cambio de estatus con un toque. Al completar se abre la edición para capturar el resultado observado.
     async function cambiarEstatusRapido(origen, id, nuevo) {
         if (nuevo === 'Completada') { abrirEditar(origen, id); document.getElementById('ed-estatus').value = 'Completada'; setTimeout(() => document.getElementById('ed-resultado').focus(), 50); return; }
-        try { await cambiarEnOrigen(origen, id, a => { a.estatus = origen === 'rd' ? nuevo : (nuevo === 'En curso' ? 'En proceso' : nuevo); }); reconstruir(); render(); toast('✅ Estatus actualizado a "' + nuevo + '".'); }
+        try { await cambiarEnOrigen(origen, id, a => { a.estatus = origen === 'rd' ? nuevo : (nuevo === 'En curso' ? 'En proceso' : nuevo); a.fechaCompletada = null; }); reconstruir(); render(); toast('✅ Estatus actualizado a "' + nuevo + '".'); }
         catch (err) { console.error(err); toast(err.message === 'conflicto' ? 'Otra persona guardó cambios antes que tú. Se recargó la versión más reciente; repite el cambio.' : 'No se pudo cambiar el estatus.'); reconstruir(); render(); }
     }
     function cerrarEditar() { const m = document.getElementById('modal-editar'); m.classList.add('hidden'); m.classList.remove('flex'); S.editando = null; }
@@ -246,7 +259,10 @@
         try {
             await cambiarEnOrigen(origen, id, a => {
                 a.responsable = document.getElementById('ed-resp').value.trim(); a.fechaCompromiso = document.getElementById('ed-fecha').value; a.resultado = resultado;
+                const num = id => { const v = document.getElementById(id).value.trim(); return v !== '' && !isNaN(Number(v)) ? Number(v) : null; };
+                a.impacto = num('ed-impacto'); a.logrado = num('ed-logrado'); a.metrica = document.getElementById('ed-metrica').value.trim();
                 a.estatus = origen === 'rd' ? estatus : (estatus === 'En curso' ? 'En proceso' : estatus);
+                a.fechaCompletada = estatus === 'Completada' ? (a.fechaCompletada || hoyISO()) : null;
             });
             cerrarEditar(); reconstruir(); render(); toast('✅ Acción actualizada en ' + ORIGENES[origen].n + '.');
         } catch (err) { console.error(err); document.getElementById('ed-error').textContent = err.message === 'conflicto' ? 'Otra persona guardó cambios antes que tú. Se recargó la versión más reciente; repite tu cambio.' : 'No se pudo guardar. Revisa tu conexión.'; }
@@ -261,8 +277,8 @@
         S.raw[origen] = copia; S.version[origen] = data[0].version;
     }
     function descargarCSV() {
-        const f = [['Herramienta', 'Estatus', 'Acción', 'Hallazgo o detalle', 'Responsable', 'Fecha compromiso', 'Registrada', 'Resultado observado', 'Vencida']];
-        filtradas(false).forEach(a => f.push([ORIGENES[a.origen].n, a.estatus, a.titulo, a.contexto, a.responsable, a.fechaCompromiso, a.creada, a.resultado, vencida(a) ? 'Sí' : 'No']));
+        const f = [['Herramienta', 'Estatus', 'Acción', 'Hallazgo o detalle', 'Responsable', 'Fecha compromiso', 'Registrada', 'Resultado observado', 'Vencida', 'Impacto estimado', 'Impacto logrado', 'Métrica esperada', 'Fecha de cierre']];
+        filtradas(false).forEach(a => f.push([ORIGENES[a.origen].n, a.estatus, a.titulo, a.contexto, a.responsable, a.fechaCompromiso, a.creada, a.resultado, vencida(a) ? 'Sí' : 'No', a.impacto ?? '', a.logrado ?? '', a.metrica, a.fechaCompletada]));
         const csv = '﻿' + f.map(r => r.map(c => /[",\n]/.test(String(c)) ? `"${String(c).replace(/"/g, '""')}"` : c).join(',')).join('\r\n');
         const el = document.createElement('a'); el.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); el.download = `Acciones_${hoyISO()}.csv`; document.body.appendChild(el); el.click(); el.remove();
     }

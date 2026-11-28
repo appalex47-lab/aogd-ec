@@ -179,6 +179,10 @@
                     <input id="acc-fecha" type="date" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></div>
                 <div class="col-span-2"><label class="text-xs font-bold text-slate-600">Resultado observado (cuando se complete)</label>
                     <textarea id="acc-resultado" rows="2" maxlength="400" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></textarea></div>
+                <div class="grid grid-cols-2 gap-3">
+                    <label class="block text-xs font-bold text-slate-600">Impacto estimado ($)<input id="acc-impacto" type="number" min="0" step="1" inputmode="numeric" placeholder="Opcional" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></label>
+                    <label class="block text-xs font-bold text-slate-600">Métrica esperada<input id="acc-metrica" maxlength="120" placeholder="Ej. CR de Android" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></label>
+                </div>
             </div>
             <div class="flex justify-end gap-2.5 pt-1">
                 <button type="button" onclick="cerrarAccion()" class="px-4 py-2 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-700">Cancelar</button>
@@ -651,7 +655,7 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
             <div class="kpi-sub mt-1 text-xs text-slate-500 break-words max-md:line-clamp-2">${sub}</div>${extra}</div>`;
     }
     function botonAccion(tipo, titulo, detalle) {
-        return `<button type="button" data-pdf-ocultar="true" onclick="abrirAccion(${esc(JSON.stringify(JSON.stringify({ titulo: `Revisar ${tipo.toLowerCase()}: ${titulo}`, detalle })))})" class="px-2.5 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700">+ Acción</button>`;
+        return `<button type="button" data-pdf-ocultar="true" onclick="abrirAccion(${esc(JSON.stringify(JSON.stringify({ titulo: `Revisar ${tipo.toLowerCase()}: ${titulo}`, detalle, metrica: 'CR sesión → pedido' })))})" class="px-2.5 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700">+ Acción</button>`;
     }
     function itemAlerta(a) {
         const sv = SEVERIDAD[a.nivel || a.sev] || SEVERIDAD.alerta;
@@ -1115,7 +1119,7 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
     function abrirAccion(prefill) {
         const p = prefill ? JSON.parse(prefill) : {};
         document.getElementById('acc-titulo').value = p.titulo || '';
-        document.getElementById('acc-detalle').value = p.detalle || '';
+        document.getElementById('acc-detalle').value = p.detalle || ''; document.getElementById('acc-impacto').value = p.impacto !== undefined && p.impacto !== null ? Math.round(p.impacto) : ''; document.getElementById('acc-metrica').value = p.metrica || '';
         document.getElementById('acc-resp').value = ''; document.getElementById('acc-estatus').value = 'Pendiente';
         document.getElementById('acc-id').value = ''; document.getElementById('acc-fecha').value = ''; document.getElementById('acc-resultado').value = '';
         document.getElementById('acc-modal-titulo').textContent = 'Registrar acción';
@@ -1126,7 +1130,7 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
         const a = S.acciones.find(x => x.id === id); if (!a) return;
         document.getElementById('acc-id').value = a.id; document.getElementById('acc-titulo').value = a.titulo || ''; document.getElementById('acc-detalle').value = a.detalle || '';
         document.getElementById('acc-resp').value = a.responsable || ''; document.getElementById('acc-estatus').value = a.estatus || 'Pendiente';
-        document.getElementById('acc-fecha').value = a.fechaCompromiso || ''; document.getElementById('acc-resultado').value = a.resultado || '';
+        document.getElementById('acc-fecha').value = a.fechaCompromiso || ''; document.getElementById('acc-resultado').value = a.resultado || ''; document.getElementById('acc-impacto').value = a.impacto !== undefined && a.impacto !== null ? a.impacto : ''; document.getElementById('acc-metrica').value = a.metrica || '';
         document.getElementById('acc-modal-titulo').textContent = 'Actualizar acción';
         const m = document.getElementById('modal-accion'); m.classList.remove('hidden'); m.classList.add('flex');
     }
@@ -1136,12 +1140,12 @@ const canalCoincide = (c) => S.canal === 'Total' || (S.canal === 'App' ? esApp(c
         const datos = { titulo: document.getElementById('acc-titulo').value.trim(), detalle: document.getElementById('acc-detalle').value.trim(),
             responsable: document.getElementById('acc-resp').value.trim(), estatus: document.getElementById('acc-estatus').value,
             fechaCompromiso: document.getElementById('acc-fecha').value, resultado: document.getElementById('acc-resultado').value.trim() };
-        const id = document.getElementById('acc-id').value, existente = id ? S.acciones.find(x => x.id === id) : null;
+        const id = document.getElementById('acc-id').value, existente = id ? S.acciones.find(x => x.id === id) : null; accExtra(datos, existente);
         if (existente) Object.assign(existente, datos);
         else S.acciones.unshift({ id: 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), creada: hoyISO(), ...datos });
         cerrarAccion(); persistirEstado(); renderTodo(); toast(existente ? '✅ Acción actualizada.' : '✅ Acción registrada.');
     }
-    function cambiarEstatus(id, est) { const a = S.acciones.find(x => x.id === id); if (a) { a.estatus = est; persistirEstado(); renderTodo(); } }
+    function cambiarEstatus(id, est) { const a = S.acciones.find(x => x.id === id); if (a) { a.estatus = est; accFecha(a); persistirEstado(); renderTodo(); } }
     function eliminarAccion(id) { if (!confirm('¿Eliminar esta acción?')) return; S.acciones = S.acciones.filter(a => a.id !== id); persistirEstado(); renderTodo(); }
     function guardarConfig() {
         const u = Number(document.getElementById('cfg-umbral').value), m = Number(document.getElementById('cfg-minses').value);

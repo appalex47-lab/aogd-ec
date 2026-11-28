@@ -99,6 +99,10 @@
                 <label class="block text-xs font-bold text-slate-600">Estatus<select id="acc-estatus" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm bg-white"><option>Pendiente</option><option>En proceso</option><option>Completada</option></select></label>
                 <label class="block text-xs font-bold text-slate-600">Fecha compromiso<input type="date" id="acc-fecha" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></label>
                 <label class="block text-xs font-bold text-slate-600">Resultado<input id="acc-resultado" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></label>
+                <div class="grid grid-cols-2 gap-3">
+                    <label class="block text-xs font-bold text-slate-600">Impacto estimado ($)<input id="acc-impacto" type="number" min="0" step="1" inputmode="numeric" placeholder="Opcional" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></label>
+                    <label class="block text-xs font-bold text-slate-600">Métrica esperada<input id="acc-metrica" maxlength="120" placeholder="Ej. CR de Android" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"></label>
+                </div>
             </div>
             <div class="flex justify-end gap-2 pt-1"><button type="button" onclick="cerrarAccion()" class="px-4 py-2 rounded-xl border border-slate-300 text-sm font-semibold text-slate-700">Cancelar</button><button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold">Guardar</button></div>
         </form>
@@ -180,9 +184,22 @@ const cfg = () => S.config;
 // que tú fijas y el ruido normal del canal (así WhatsApp y Llamadas, más volátiles, no disparan alertas por azar).
 // =====================================================================
 const val = (c, f) => S.ses[`${c}|${f}`];
+// Eventos comerciales (Buen Fin, Hot Sale, campañas): sus días no se usan como referencia del "esperado"; se toman semanas anteriores sin evento.
+const eventosCfg = () => Array.isArray(S.config.eventos) ? S.config.eventos : [];
+const eventoEn = f => eventosCfg().find(e => e.desde && f >= e.desde && f <= (e.hasta || e.desde)) || null;
 function baseDia(c, f) {
-    const v = [7, 14, 21, 28].map(d => val(c, addDias(f, -d))).filter(x => x !== undefined);
+    const v = []; for (let k = 1; k <= 8 && v.length < 4; k++) { const g = addDias(f, -7 * k); if (eventoEn(g)) continue; const x = val(c, g); if (x !== undefined) v.push(x); }
     return v.length >= cfg().minBase ? media(v) : null;
+}
+// Eventos que tocan una ventana (para avisar en las alertas) y cuántos días de referencia se dejaron fuera
+function eventosDeVentana(corte, n) {
+    const nombres = new Set(); listaDias(corte, n).forEach(f => { const e = eventoEn(f); if (e) nombres.add(e.nombre); });
+    let ref = 0; listaDias(corte, n).forEach(f => [7, 14, 21, 28].forEach(d => { if (eventoEn(addDias(f, -d))) ref++; }));
+    return { nombres: [...nombres], refExcluidos: ref };
+}
+function avisoEventos() {
+    const e = eventosDeVentana(S.corte, S.ventana); if (!e.nombres.length && !e.refExcluidos) return '';
+    return `<p class="mt-1 text-xs text-violet-800 bg-violet-50 border border-violet-200 rounded-lg px-2 py-1">${e.nombres.length ? `Este periodo incluye ${esc(e.nombres.join(', '))}: la demanda de esos días puede ser atípica. ` : ''}${e.refExcluidos ? 'Los días de eventos anteriores no se usaron como referencia del esperado.' : ''}</p>`;
 }
 function listaDias(corte, n) { const l = []; for (let i = n - 1; i >= 0; i--) l.push(addDias(corte, -i)); return l; }
 function analizarCanal(c, corte, n) {
@@ -284,10 +301,10 @@ function tarjetaCanal(x, A) {
         <div class="mt-2 flex items-center justify-between text-xs text-slate-500"><span>Umbral ${x.vig !== null ? x.vig.toFixed(0) + '%' : '—'}${x.varPlan !== null ? ` · vs. plan ${fmtP(x.varPlan, 0)}` : ''}</span><span class="font-bold ${x.impacto !== null && x.impacto < 0 ? 'text-rose-700' : 'text-slate-700'}">${x.impacto !== null ? fmtM(x.impacto) : ''}</span></div><div class="mt-1 text-xs font-bold ${enGraf ? 'text-blue-700' : 'text-slate-500'}">${enGraf ? '● En la gráfica' : 'Ver gráfica ›'}</div></button>`;
 }
 function tarjetaAlerta(x, i) {
-    const t = textoAlerta(x), pl = JSON.stringify({ titulo: t.titulo + ': ' + t.sugerencia.split('.')[0], detalle: t.detalle + ' ' + t.sugerencia });
+    const t = textoAlerta(x), pl = JSON.stringify({ titulo: t.titulo + ': ' + t.sugerencia.split('.')[0], detalle: t.detalle + ' ' + t.sugerencia, impacto: x.impacto !== null && x.impacto !== undefined ? Math.abs(x.impacto) : null, metrica: `${x.uni} de ${x.canal}` });
     return `<div class="rounded-2xl border p-4 ${x.nivel === 'actuar' ? 'border-rose-300 bg-rose-50/50' : 'border-amber-300 bg-amber-50/50'}">
         <div class="flex flex-wrap items-center gap-2">${chipNivel(x.nivel)}<h4 class="text-sm font-extrabold text-slate-900">${esc(t.titulo)}</h4><span class="text-xs text-slate-500">${nombreVentana()} · ${fechaCorta(addDias(S.corte, -(S.ventana - 1)))} – ${fechaCorta(S.corte)}</span></div>
-        <p class="mt-1.5 text-xs text-slate-700">${esc(t.detalle)}</p><p class="mt-1 text-xs text-slate-600"><strong>Qué hacer:</strong> ${esc(t.sugerencia)}</p>
+        <p class="mt-1.5 text-xs text-slate-700">${esc(t.detalle)}</p>${avisoEventos()}<p class="mt-1 text-xs text-slate-600"><strong>Qué hacer:</strong> ${esc(t.sugerencia)}</p>
         <div class="mt-2"><button type="button" onclick="abrirAccion(${esc(JSON.stringify(pl))})" class="px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-xs font-bold text-slate-700 hover:border-blue-500 hover:text-blue-700">Registrar acción</button></div></div>`;
 }
 function renderResumen(A) {
@@ -482,7 +499,7 @@ function textoAbasto(o) {
 }
 function selNeg(i) { S.negSel = i; renderNegados(); }
 function copiarTexto(i) { const o = S._negLista[i]; if (!o) return; const t = textoAbasto(o); (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('📋 Texto copiado.')).catch(() => { const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); toast('📋 Texto copiado.'); } catch (e) {} ta.remove(); }); }
-function accionAbasto(i) { const o = S._negLista[i]; if (!o) return; abrirAccion(JSON.stringify({ titulo: `Reforzar ${o.n || o.sku}: ${fmtN(o.aCubrir)} piezas por semana`, detalle: textoAbasto(o) })); }
+function accionAbasto(i) { const o = S._negLista[i]; if (!o) return; abrirAccion(JSON.stringify({ titulo: `Reforzar ${o.n || o.sku}: ${fmtN(o.aCubrir)} piezas por semana`, detalle: textoAbasto(o), impacto: (o.mo || []).slice(-4).reduce((x, y) => x + y, 0) / 4, metrica: 'Piezas negadas por semana' })); }
 function renderNegados() {
     const el = document.getElementById('panel-negados'); if (!S.neg.length) { el.innerHTML = vacioFase2('negados'); return; }
     const L = serieNegados(); S._negLista = L; if (!L.length) { el.innerHTML = '<div class="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">No hay negados en las últimas 12 semanas.</div>'; return; }
@@ -607,17 +624,17 @@ function renderAcciones(A) {
         <div class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden"><div class="px-4 pt-4"><h3 class="text-sm font-extrabold text-slate-900">Acciones de Demanda</h3></div><div class="overflow-x-auto"><table class="w-full text-left text-xs mt-2"><thead class="bg-slate-50 text-xs uppercase text-slate-500"><tr><th class="px-3 py-2">Acción</th><th class="px-2 py-2">Responsable</th><th class="px-2 py-2">Compromiso</th><th class="px-2 py-2">Estatus</th><th class="px-2 py-2"></th></tr></thead><tbody>${filas.length ? filas.map(a => `<tr class="border-t border-slate-100 ${a.venc ? 'bg-rose-50/50' : ''}"><td class="px-3 py-2 font-semibold text-slate-800 whitespace-normal min-w-[12rem]">${esc(a.titulo)}<div class="text-xs font-normal text-slate-500">${esc(a.detalle || '')}</div>${a.resultado ? `<div class="text-xs text-emerald-700">Resultado: ${esc(a.resultado)}</div>` : ''}</td><td class="px-2 py-2">${esc(a.responsable || '—')}</td><td class="px-2 py-2 whitespace-nowrap ${a.venc ? 'text-rose-700 font-bold' : ''}">${a.fechaCompromiso ? fechaCorta(a.fechaCompromiso) : '—'}${a.venc ? ' · vencida' : ''}</td>
         <td class="px-2 py-2"><select onchange="cambiarEstatus('${a.id}', this.value)" class="rounded-lg border border-slate-300 bg-white px-1.5 py-1 text-xs">${['Pendiente', 'En proceso', 'Completada'].map(e => `<option ${a.estatus === e ? 'selected' : ''}>${e}</option>`).join('')}</select></td><td class="px-2 py-2 whitespace-nowrap"><button type="button" onclick="editarAccion('${a.id}')" class="text-xs font-bold text-blue-700 hover:underline">Editar</button> <button type="button" onclick="eliminarAccion('${a.id}')" class="text-xs font-bold text-rose-700 hover:underline">Eliminar</button></td></tr>`).join('') : '<tr><td colspan="5" class="px-3 py-4 text-slate-500">Todavía no hay acciones registradas.</td></tr>'}</tbody></table></div></div>`;
 }
-function abrirAccion(prefill) { const p = prefill ? JSON.parse(prefill) : {}; ['acc-id', 'acc-resp', 'acc-fecha', 'acc-resultado'].forEach(i => document.getElementById(i).value = ''); document.getElementById('acc-titulo').value = p.titulo || ''; document.getElementById('acc-detalle').value = p.detalle || ''; document.getElementById('acc-estatus').value = 'Pendiente'; document.getElementById('acc-modal-titulo').textContent = 'Registrar acción'; const m = document.getElementById('modal-accion'); m.classList.remove('hidden'); m.classList.add('flex'); document.getElementById('acc-titulo').focus(); }
-function editarAccion(id) { const a = S.acciones.find(x => x.id === id); if (!a) return; document.getElementById('acc-id').value = a.id; document.getElementById('acc-titulo').value = a.titulo || ''; document.getElementById('acc-detalle').value = a.detalle || ''; document.getElementById('acc-resp').value = a.responsable || ''; document.getElementById('acc-estatus').value = a.estatus || 'Pendiente'; document.getElementById('acc-fecha').value = a.fechaCompromiso || ''; document.getElementById('acc-resultado').value = a.resultado || ''; document.getElementById('acc-modal-titulo').textContent = 'Actualizar acción'; const m = document.getElementById('modal-accion'); m.classList.remove('hidden'); m.classList.add('flex'); }
+function abrirAccion(prefill) { const p = prefill ? JSON.parse(prefill) : {}; ['acc-id', 'acc-resp', 'acc-fecha', 'acc-resultado'].forEach(i => document.getElementById(i).value = ''); document.getElementById('acc-titulo').value = p.titulo || ''; document.getElementById('acc-detalle').value = p.detalle || ''; document.getElementById('acc-impacto').value = p.impacto !== undefined && p.impacto !== null ? Math.round(p.impacto) : ''; document.getElementById('acc-metrica').value = p.metrica || ''; document.getElementById('acc-estatus').value = 'Pendiente'; document.getElementById('acc-modal-titulo').textContent = 'Registrar acción'; const m = document.getElementById('modal-accion'); m.classList.remove('hidden'); m.classList.add('flex'); document.getElementById('acc-titulo').focus(); }
+function editarAccion(id) { const a = S.acciones.find(x => x.id === id); if (!a) return; document.getElementById('acc-id').value = a.id; document.getElementById('acc-titulo').value = a.titulo || ''; document.getElementById('acc-detalle').value = a.detalle || ''; document.getElementById('acc-resp').value = a.responsable || ''; document.getElementById('acc-estatus').value = a.estatus || 'Pendiente'; document.getElementById('acc-fecha').value = a.fechaCompromiso || ''; document.getElementById('acc-resultado').value = a.resultado || ''; document.getElementById('acc-impacto').value = a.impacto !== undefined && a.impacto !== null ? a.impacto : ''; document.getElementById('acc-metrica').value = a.metrica || ''; document.getElementById('acc-modal-titulo').textContent = 'Actualizar acción'; const m = document.getElementById('modal-accion'); m.classList.remove('hidden'); m.classList.add('flex'); }
 function cerrarAccion() { const m = document.getElementById('modal-accion'); m.classList.add('hidden'); m.classList.remove('flex'); }
 function guardarAccion(e) {
     e.preventDefault(); const g = id => document.getElementById(id).value.trim();
     const datos = { titulo: g('acc-titulo'), detalle: g('acc-detalle'), responsable: g('acc-resp'), estatus: document.getElementById('acc-estatus').value, fechaCompromiso: g('acc-fecha'), resultado: g('acc-resultado') };
-    const id = g('acc-id'), ex = id ? S.acciones.find(x => x.id === id) : null;
+    const id = g('acc-id'), ex = id ? S.acciones.find(x => x.id === id) : null; accExtra(datos, ex);
     if (ex) Object.assign(ex, datos); else S.acciones.unshift({ id: 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), creada: hoyISO(), ...datos });
     cerrarAccion(); persistirEstado(); renderTodo(); toast(ex ? '✅ Acción actualizada.' : '✅ Acción registrada.');
 }
-function cambiarEstatus(id, est) { const a = S.acciones.find(x => x.id === id); if (a) { a.estatus = est; persistirEstado(); renderTodo(); } }
+function cambiarEstatus(id, est) { const a = S.acciones.find(x => x.id === id); if (a) { a.estatus = est; accFecha(a); persistirEstado(); renderTodo(); } }
 function eliminarAccion(id) { if (!confirm('¿Eliminar esta acción?')) return; S.acciones = S.acciones.filter(a => a.id !== id); persistirEstado(); renderTodo(); }
 
 // ---- utilidades de descarga ----
@@ -782,7 +799,23 @@ const IG_HOOKS = {
     descargarCSV(n, f) { bajarCSV(n, f); }, recalcular() { cargarDatos(true); }
 };
 function igRepintar() { IG.modelo = construirIntegridad(); Integridad.pintarChip(document.getElementById('chip-datos'), IG.modelo, IG_HOOKS); if (S.vista === 'config') pintarConfig(); }
-function pintarConfig() { const el = document.getElementById('panel-config'); if (!IG.modelo) IG.modelo = construirIntegridad(); Integridad.montar(el, IG.modelo, IG_HOOKS); }
+function htmlEventos() {
+    const L = [...eventosCfg()].sort((a, b) => (a.desde || '').localeCompare(b.desde || ''));
+    return `<div class="rounded-2xl bg-white border border-slate-200 p-4 space-y-3"><h3 class="text-sm font-extrabold text-slate-900">Eventos comerciales</h3>
+        <p class="text-xs text-slate-600 leading-relaxed">Los días de un evento (Buen Fin, Hot Sale, una campaña fuerte) no se usan como referencia del "esperado" de los días siguientes: el sistema toma semanas anteriores sin evento. Las alertas cuyo periodo toca un evento lo avisan para que la variación se lea con cuidado. Los cambios aplican a todas las ventanas al instante.</p>
+        <form onsubmit="agregarEvento(event)" class="flex flex-wrap items-end gap-2 text-xs">
+            <label class="flex flex-col gap-0.5 font-bold text-slate-600">Evento<input id="ev-nombre" required maxlength="60" placeholder="Buen Fin" class="rounded-lg border border-slate-300 px-2 py-1.5 text-sm font-normal w-44"></label>
+            <label class="flex flex-col gap-0.5 font-bold text-slate-600">Desde<input id="ev-desde" type="date" required class="rounded-lg border border-slate-300 px-2 py-1.5 text-sm font-normal"></label>
+            <label class="flex flex-col gap-0.5 font-bold text-slate-600">Hasta<input id="ev-hasta" type="date" required class="rounded-lg border border-slate-300 px-2 py-1.5 text-sm font-normal"></label>
+            <button type="submit" class="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold">Agregar</button></form>
+        <ul class="divide-y divide-slate-100">${L.length ? L.map(e => `<li class="py-2 flex items-center justify-between gap-3 text-sm"><span><strong class="text-slate-900">${esc(e.nombre)}</strong> <span class="text-xs text-slate-500">${fechaCorta(e.desde)} – ${fechaCorta(e.hasta || e.desde)} · ${(e.desde || '').slice(0, 4)}</span></span><button type="button" onclick="quitarEvento('${esc(e.id)}')" aria-label="Quitar ${esc(e.nombre)}" class="px-2 py-1 rounded-lg border border-slate-300 text-xs font-bold text-slate-600 hover:border-rose-400 hover:text-rose-700">Quitar</button></li>`).join('') : '<li class="py-3 text-xs text-slate-500">Aún no hay eventos. Agrega las fechas de Buen Fin, Hot Sale o campañas para que no distorsionen el esperado.</li>'}</ul></div>`;
+}
+function agregarEvento(e) {
+    e.preventDefault(); const n = document.getElementById('ev-nombre').value.trim(), d = document.getElementById('ev-desde').value, h = document.getElementById('ev-hasta').value; if (!n || !d || !h || h < d) { toast('Revisa las fechas: "Hasta" no puede ser anterior a "Desde".'); return; }
+    S.config.eventos = [...eventosCfg(), { id: 'e' + Date.now().toString(36), nombre: n, desde: d, hasta: h }]; persistirEstado(); renderTodo(); toast('✅ Evento agregado.');
+}
+function quitarEvento(id) { S.config.eventos = eventosCfg().filter(e => e.id !== id); persistirEstado(); renderTodo(); }
+function pintarConfig() { const el = document.getElementById('panel-config'); if (!IG.modelo) IG.modelo = construirIntegridad(); IG.modelo.extras = [{ titulo: 'Eventos', html: htmlEventos }]; Integridad.montar(el, IG.modelo, IG_HOOKS); }
 
 // =====================================================================
 // 6. RENDER GENERAL, EVENTOS Y DEMO
