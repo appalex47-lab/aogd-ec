@@ -74,6 +74,14 @@
                                 <input id="cfg-crec" type="number" min="1" max="50" step="1" value="5" onchange="guardarConfig()" class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1 text-sm"></div>
                             <div><label class="text-xs font-bold text-slate-600">Días sin venta para “sin movimiento”</label>
                                 <input id="cfg-sinmov" type="number" min="30" max="365" step="10" value="90" onchange="guardarConfig()" class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1 text-sm"></div>
+                            <div><label class="text-xs font-bold text-slate-600">Mezcla por canal: cambio mínimo en Web y App (pp)</label>
+                                <input id="cfg-mpiso" type="number" min="0.5" max="10" step="0.5" value="1.5" onchange="guardarConfig()" class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1 text-sm"><p class="text-xs text-slate-500 mt-1">Cuánto debe cambiar el peso de una categoría dentro de un canal; además debe salirse de su variación normal.</p></div>
+                            <div><label class="text-xs font-bold text-slate-600">Mezcla por canal: cambio mínimo en WhatsApp y Llamadas (pp)</label>
+                                <input id="cfg-mpisom" type="number" min="1" max="20" step="0.5" value="3" onchange="guardarConfig()" class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1 text-sm"></div>
+                            <div><label class="text-xs font-bold text-slate-600">Mezcla por canal: pedidos mínimos en 4 semanas</label>
+                                <input id="cfg-mped" type="number" min="10" max="1000" step="10" value="60" onchange="guardarConfig()" class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1 text-sm"><p class="text-xs text-slate-500 mt-1">Debajo de este volumen se muestra la celda pero no se genera alerta. WhatsApp y Llamadas piden la mitad.</p></div>
+                            <div><label class="text-xs font-bold text-slate-600">Mezcla por canal: crecimiento que cuenta como demanda nueva (%)</label>
+                                <input id="cfg-mdem" type="number" min="1" max="50" step="1" value="5" onchange="guardarConfig()" class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1 text-sm"></div>
                         </div>
                     </details>
                     <button type="button" id="chip-datos" onclick="cambiarVista('config')" title="Estado de los datos: abre Configuración e integridad" class="hidden inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold whitespace-nowrap transition"></button>
@@ -289,7 +297,7 @@
 
     const S = {
         backtest: {}, registros: [], dias: [], acciones: [], metas: {}, snap: { cross: null, recompra: null }, planDia: {}, planOk: false,
-        config: { umbral: 5, impactoAlto: 1, impactoMedio: 0.3, cabeza: 50, crec: 5, sinMovDias: 90 },
+        config: { umbral: 5, impactoAlto: 1, impactoMedio: 0.3, cabeza: 50, crec: 5, sinMovDias: 90, mezPiso: 1.5, mezPisoManual: 3, mezMinPed: 60, mezDemanda: 5 },
         shareBase: {}, shareMes: {}, shareMesCargado: {}, metasCfg: {}, mm: null, sinMov: null, yoy: {}, realRev: {}, planPed: {}, mes: null, corte: null, canal: 'Total', ventana: 7, vista: 'resumen',
         demo: false, rangoMin: null, rangoMax: null, chart: null, filtroTipo: 'todos', verTodosProd: false, masCols: false, detMeta: {}, orden: {}
     };
@@ -638,6 +646,7 @@
                 titular: `Hay menos pedidos que en su ritmo normal y eso resta ${fmtM(Math.abs(cp.v))} a la venta.`,
                 lineas: ['La caída viene del volumen de pedidos, no del ticket.'].concat(A.Y ? [`Contra el año anterior los pedidos van ${txtDelta(deltaRel(A.T.p, A.Y.p))}.`] : []), revisar: 'Tráfico y conversión: fuentes, campañas y funnel (herramienta Tráfico y Conversión).', detalle: 'Pedidos a la baja.' });
         }
+        alertasMezcla().forEach(a => out.push(a));
         const sm = A.sinMov.lista;
         if (sm.length) out.push({ nivel: 'media', imp: 0.5, tipo: 'Catálogo', titulo: 'Productos sin movimiento',
             titular: `${sm.length} producto(s) que sí vendían llevan ${S.config.sinMovDias} días o más sin una venta.`,
@@ -948,8 +957,164 @@
                 <tr>${thO('can', 'n', 'Canal', '', 't')}${thO('can', 'v', 'Venta')}${M ? thO('can', 'mv', 'Meta en la ventana') + thO('can', 'cv', 'Cumpl. ventana') + thO('can', 'mm', 'Meta del mes', 'border-l border-slate-200') + thO('can', 'av', 'Avance del mes') + thO('can', 'ci', '% meta al cierre') + thO('can', 'br', 'Brecha de cierre') : ''}${thO('can', 'g', 'vs. benchmark', M ? 'border-l border-slate-200' : '')}${thO('can', 'gy', 'vs. año ant.')}${thO('can', 'p', 'Pedidos')}${thO('can', 'aov', 'Ticket')}${thO('can', 'dif', 'Vs. Rev. Diaria')}${mas || !M ? thO('can', 'sh', 'Share') : ''}</tr></thead>
             <tbody class="divide-y divide-slate-100">${filas}<tr class="bg-slate-50 font-extrabold"><td class="px-2 py-2">Total</td>${celda(fmtM(tv))}${totPres}<td class="px-2 py-2 text-right ${M ? 'border-l border-slate-200' : ''}">${nul}</td><td class="px-2 py-2 text-right">${nul}</td>${celda(fmtN(tp))}${celda(fmtM(razon(tv, tp)))}${celda('—')}${mas || !M ? celda('100%') : ''}</tr></tbody></table></div></div>
             ${bannerIntegridad(A)}
-            <p class="text-xs text-slate-500">WhatsApp y Llamadas se miden con sus propios pedidos; su conversión contra oportunidades atendidas se documenta aparte, como define el KPI de CR.</p>`;
+            <p class="text-xs text-slate-500">WhatsApp y Llamadas se miden con sus propios pedidos; su conversión contra oportunidades atendidas se documenta aparte, como define el KPI de CR.</p>
+            ${renderMezcla()}`;
     }
+
+
+    // =====================================================================
+    // CAMBIO DE MEZCLA POR CANAL: ¿en qué canal empieza a moverse más cada categoría?
+    // Se mide el peso de la categoría dentro de la venta de cada canal (no la venta bruta), por semanas hacia atrás desde el corte.
+    // =====================================================================
+    const MZ_CANALES = ['Web', 'App', 'Llamadas', 'WhatsApp'], MZ_SEM = 8;
+    let MZ_CACHE = null;
+    const mezDet = { k: null, datos: null };   // pedidos distintos, clientes y nuevos por categoría y canal (solo con nube)
+    function mezclaCanales() {
+        const k = [S.corte, S.registros.length, S.config.mezPiso, S.config.mezPisoManual, S.config.mezMinPed, S.config.mezDemanda].join('|');
+        if (MZ_CACHE && MZ_CACHE.k === k) return MZ_CACHE.r;
+        const r = calcularMezcla(); MZ_CACHE = { k, r }; return r;
+    }
+    function calcularMezcla() {
+        const sin = motivo => ({ ok: false, motivo, celdas: [], cats: [], alertas: [] });
+        if (!S.corte || !S.registros.length) return sin('Sin datos.');
+        const ini = addDias(S.corte, -(MZ_SEM * 7 - 1));
+        const dias = new Set(S.registros.filter(r => r.f >= ini && r.f <= S.corte).map(r => r.f)).size;
+        if (dias < 49) return sin(`Se necesitan 8 semanas de ventas hasta el corte (hay ${dias} días con datos en ese rango).`);
+        const semDe = f => Math.floor((Date.parse(S.corte + 'T00:00:00Z') - Date.parse(f + 'T00:00:00Z')) / 86400000 / 7);
+        const mk = () => new Array(MZ_SEM).fill(0);
+        const tc = new Map(), tcc = new Map(), pc = new Map();   // total por canal / categoría-canal / pedidos categoría-canal
+        S.registros.forEach(r => { if (r.f < ini || r.f > S.corte || !MZ_CANALES.includes(r.c)) return; const w = semDe(r.f); if (w < 0 || w >= MZ_SEM) return;
+            (tc.get(r.c) || tc.set(r.c, mk()).get(r.c))[w] += r.v;
+            const kk = r.cat + '|' + r.c; (tcc.get(kk) || tcc.set(kk, mk()).get(kk))[w] += r.v; (pc.get(kk) || pc.set(kk, mk()).get(kk))[w] += (r.p || 0); });
+        const cats = [...new Set([...tcc.keys()].map(x => x.split('|')[0]))];
+        const sumA = a => a.slice(0, 4).reduce((x, y) => x + y, 0), sumB = a => a.slice(4).reduce((x, y) => x + y, 0);
+        const celdas = [], porCat = new Map();
+        cats.forEach(cat => MZ_CANALES.forEach(c => {
+            const v = tcc.get(cat + '|' + c) || mk(), t = tc.get(c) || mk(), ped = pc.get(cat + '|' + c) || mk();
+            const peso = v.map((x, i) => t[i] > 0 ? x / t[i] * 100 : null);   // peso semanal: índice 0 = semana más reciente
+            const pA = sumA(t) > 0 ? sumA(v) / sumA(t) * 100 : null, pB = sumB(t) > 0 ? sumB(v) / sumB(t) * 100 : null;
+            if (pA === null || pB === null) return;
+            const d = pA - pB, manual = c === 'Llamadas' || c === 'WhatsApp';
+            const base = peso.slice(4).filter(x => x !== null), media = base.reduce((x, y) => x + y, 0) / (base.length || 1);
+            const sd = Math.sqrt(base.reduce((x, y) => x + (y - media) ** 2, 0) / Math.max(1, base.length - 1));
+            const umbral = Math.max(manual ? S.config.mezPisoManual : S.config.mezPiso, 1.5 * sd);
+            const ult3 = peso.slice(0, 3);
+            const tendencia = d > 0 ? ult3.every(x => x !== null && x > pB) : d < 0 ? ult3.every(x => x !== null && x < pB) : false;
+            const minPed = manual ? S.config.mezMinPed / 2 : S.config.mezMinPed, pedA = sumA(ped);
+            const cel = { cat, c, pA, pB, d, umbral, sd, tendencia, pedA, minPed, poco: pedA < minPed, peso: peso.slice().reverse(), vA: sumA(v), vB: sumB(v), tA: sumA(t),
+                rel: Math.abs(d) >= umbral && tendencia, mueve: (pA - pB) / 100 * sumA(t) };
+            celdas.push(cel); (porCat.get(cat) || porCat.set(cat, []).get(cat)).push(cel);
+        }));
+        // Total de la categoría (todos los canales) y clasificación: migración o demanda nueva
+        const catsRes = [...porCat.entries()].map(([cat, cs]) => { const vA = cs.reduce((x, y) => x + y.vA, 0), vB = cs.reduce((x, y) => x + y.vB, 0); return { cat, vA, vB, g: vB > 0 ? (vA - vB) / vB * 100 : null }; });
+        const gCat = new Map(catsRes.map(x => [x.cat, x]));
+        const alertas = [];
+        celdas.filter(x => x.rel && x.d > 0 && !x.poco).forEach(x => {
+            const tot = gCat.get(x.cat), otros = celdas.filter(o => o.cat === x.cat && o.c !== x.c);
+            const pierde = otros.filter(o => o.d <= -(o.umbral) * 0.6).sort((a, b) => a.d - b.d);
+            const crece = tot.g !== null && tot.g >= S.config.mezDemanda;
+            const tipo = pierde.length && !crece ? 'migracion' : crece && !pierde.length ? 'demanda' : 'mezcla';
+            alertas.push({ ...x, tot, pierde, tipoMz: tipo, mueve: Math.max(0, x.mueve) });
+        });
+        alertas.sort((a, b) => b.mueve - a.mueve);
+        return { ok: true, celdas, cats: catsRes.sort((a, b) => b.vA - a.vA), alertas, ini };
+    }
+    async function cargarMezclaDet() {
+        const k = `${S.corte}|${S.registros.length}|${S.demo ? 'demo' : 'nube'}`;
+        if (mezDet.k === k) return; mezDet.k = k; mezDet.datos = null;
+        if (S.demo || !NUBE.activo) return;
+        try { const r = await NUBE.client.rpc('comercial_mezcla_detalle', { p_fin: S.corte, p_dias: 28 }); if (r.error) throw r.error;
+            mezDet.datos = new Map(r.data.map(x => [x.categoria + '|' + x.canal, { ped: Number(x.pedidos), cli: Number(x.clientes), nue: Number(x.ped_nuevos), rec: Number(x.ped_recurrentes) }]));
+        } catch (e) { console.error(e); mezDet.datos = null; }
+        if (S.vista === 'canales' || S.vista === 'resumen' || S.vista === 'acciones') renderTodo();
+    }
+    function textoAlertaMezcla(a) {
+        const nom = a.c, otros = a.pierde.map(o => `${o.c} bajó ${Math.abs(o.d).toFixed(1)} pp`).join(' y ');
+        const det = mezDet.datos && mezDet.datos.get(a.cat + '|' + a.c);
+        const lineas = [`Pasó de ${fmtP(a.pB)} a ${fmtP(a.pA)} de la venta de ${nom} (${a.d >= 0 ? '+' : ''}${a.d.toFixed(1)} pp), y se mantiene arriba de su normal las últimas 3 semanas.`];
+        if (a.tipoMz === 'migracion') lineas.push(`${otros ? otros.charAt(0).toUpperCase() + otros.slice(1) + '. ' : ''}El total de la categoría ${Math.abs(a.tot.g || 0) < 1 ? 'casi no cambió' : 'cambió'} (${txtDelta(a.tot.g)}): parece migración entre canales, no demanda nueva.`);
+        else if (a.tipoMz === 'demanda') lineas.push(`El total de la categoría subió ${txtDelta(a.tot.g)} y los demás canales no perdieron peso: el crecimiento es incremental.`);
+        else lineas.push(otros ? `${otros.charAt(0).toUpperCase() + otros.slice(1)}. El total de la categoría ${txtDelta(a.tot.g) ? 'cambió ' + txtDelta(a.tot.g) : 'se mantuvo'}: la categoría crece y además se está moviendo hacia ${nom}.` : `El total de la categoría cambió ${txtDelta(a.tot.g)}; el peso se movió sin una causa clara en otro canal.`);
+        lineas.push(`Movió ≈ ${fmtM(a.mueve)} de venta hacia ${nom} en las últimas 4 semanas.`);
+        if (det) lineas.push(`${fmtN(det.ped)} pedidos de ${fmtN(det.cli)} clientes distintos; ${det.ped ? Math.round(det.nue / det.ped * 100) : 0}% de los pedidos son de clientes nuevos.`);
+        else lineas.push(`${fmtN(a.pedA)} pedidos con productos de la categoría en las últimas 4 semanas.`);
+        return lineas;
+    }
+    function alertasMezcla() {
+        const m = mezclaCanales(); if (!m.ok) return [];
+        const total = m.celdas.reduce((s, x) => x.cat === m.celdas[0].cat ? s + x.tA : s, 0) || 1;
+        return m.alertas.map(a => { const imp = a.mueve / total * 100, ttl = { migracion: 'Migración', demanda: 'Demanda nueva', mezcla: 'Cambio de mezcla' }[a.tipoMz];
+            return { nivel: nivelPorImpacto(imp), imp, tipo: 'Mezcla por canal', titulo: `${a.cat} · ${a.c}`, etiquetaMz: ttl,
+                titular: a.tipoMz === 'demanda' ? `${a.cat} crece sobre todo en ${a.c}.` : `${a.cat} empieza a moverse más en ${a.c}.`,
+                lineas: textoAlertaMezcla(a),
+                revisar: a.tipoMz === 'demanda' ? 'Si viene de una campaña o de búsqueda, asegurar existencia y la ficha de producto de los más vendidos.'
+                    : (a.c === 'App' ? 'Ubicación en el home de la app, notificaciones push, promociones exclusivas y existencia. Si fue intencional, conviene reforzarlo; si no, entender qué lo provocó.'
+                    : a.c === 'Web' ? 'Campañas y fuentes de tráfico que llevan a esa categoría, ficha de producto y existencia. Si fue intencional, conviene reforzarlo.'
+                    : 'Qué está ofreciendo el equipo en ese canal (promociones o recomendaciones) y si hay existencia suficiente.'),
+                detalle: `${a.cat} gana ${a.d.toFixed(1)} pp en ${a.c} (${a.tipoMz}).` }; });
+    }
+    function spark(serie, color, w = 90, h = 22) {
+        const v = serie.filter(x => x !== null); if (v.length < 2) return ''; const mn = Math.min(...v), mx = Math.max(...v), r = (mx - mn) || 1, n = serie.length;
+        const p = serie.map((x, i) => x === null ? null : `${(i / (n - 1) * (w - 4) + 2).toFixed(1)},${(h - 3 - (x - mn) / r * (h - 6)).toFixed(1)}`).filter(Boolean).join(' ');
+        return `<svg width="${w}" height="${h}" class="mx-auto" aria-hidden="true"><polyline points="${p}" fill="none" stroke="${color}" stroke-width="1.8"/></svg>`;
+    }
+    function graficoMezcla(m, cat, canal) {
+        const col = { Web: '#64748b', App: '#2563eb', Llamadas: '#f59e0b', WhatsApp: '#10b981' }, W = 700, H = 190;
+        const por = MZ_CANALES.map(c => m.celdas.find(x => x.cat === cat && x.c === c)).filter(Boolean), sel = por.find(x => x.c === canal);
+        if (!sel) return ''; const all = por.flatMap(x => x.peso.filter(v => v !== null)), mn = Math.floor(Math.min(...all) - 1), mx = Math.ceil(Math.max(...all) + 1), paso = Math.max(1, Math.round((mx - mn) / 4));
+        const x = i => 40 + i * (W - 60) / (MZ_SEM - 1), y = v => H - 24 - (v - mn) / (mx - mn) * (H - 40); let g = '';
+        for (let t = mn; t <= mx; t += paso) g += `<line x1="40" x2="${W - 20}" y1="${y(t)}" y2="${y(t)}" stroke="#e2e8f0"/><text x="4" y="${y(t) + 4}" font-size="10" fill="#64748b">${t}%</text>`;
+        g += `<rect x="${x(0)}" y="${y(sel.pB + sel.umbral)}" width="${x(MZ_SEM - 1) - x(0)}" height="${Math.max(1, y(sel.pB - sel.umbral) - y(sel.pB + sel.umbral))}" fill="#e2e8f0" opacity=".6"/>`;
+        por.forEach(c => { const pts = c.peso.map((v, i) => v === null ? null : `${x(i).toFixed(1)},${y(v).toFixed(1)}`).filter(Boolean).join(' '); const es = c.c === canal;
+            g += `<polyline fill="none" stroke="${col[c.c]}" stroke-width="${es ? 3 : 1.5}" opacity="${es ? 1 : .45}" points="${pts}"/>`; });
+        for (let i = 0; i < MZ_SEM; i++) g += `<text x="${x(i)}" y="${H - 6}" font-size="10" text-anchor="middle" fill="#64748b">${i === MZ_SEM - 1 ? 'Última' : 'S-' + (MZ_SEM - 1 - i)}</text>`;
+        return `<svg viewBox="0 0 ${W} ${H}" class="w-full max-w-3xl h-auto" role="img" aria-label="Peso semanal de ${esc(cat)} por canal">${g}</svg>
+            <div class="flex flex-wrap gap-3 text-xs text-slate-500">${por.map(c => `<span><i class="inline-block w-3 h-3 rounded align-middle mr-1" style="background:${col[c.c]}"></i>${c.c}</span>`).join('')}<span>Zona gris = variación normal de la categoría en ${esc(canal)} (±${sel.umbral.toFixed(1)} pp)</span></div>`;
+    }
+    function renderMezcla() {
+        const m = mezclaCanales(); cargarMezclaDet();
+        const cab = `<div><h3 class="text-sm font-extrabold text-slate-900">¿Dónde empieza a moverse más cada categoría?</h3>
+            <p class="text-xs text-slate-500 mt-0.5">Cada celda muestra qué parte de la venta <strong>del canal</strong> representa la categoría y cuánto cambió contra su normal (puntos porcentuales). Se mide el peso dentro del canal para no confundir “la categoría creció” con “el canal creció”. Últimas 4 semanas contra las 4 anteriores, con todos los canales sin importar el filtro de canal.</p></div>`;
+        if (!m.ok) return `<div class="rounded-2xl bg-white border border-slate-200 shadow-sm p-4 sm:p-5 space-y-2">${cab}<p class="text-xs text-slate-600 rounded-xl bg-slate-50 border border-slate-200 px-3 py-2">${esc(m.motivo)}</p></div>`;
+        const alertas = alertasMezcla();
+        const selAuto = S.mezSel || (alertas.length ? alertas[0].titulo.replace(' · ', '|') : null);
+        const relev = !S.mezTodo, sel = selAuto && selAuto.split('|'), catSel = sel ? sel[0] : null, canSel = sel ? sel[1] : null;
+        const bg = d => d >= 1.5 ? '#a7f3d0' : d <= -1.5 ? '#fecaca' : '#f1f5f9';
+        const cats = m.cats.map(x => x.cat);
+        const filas = cats.map(cat => `<tr><td class="pr-2 py-1 text-xs font-bold text-slate-900 whitespace-nowrap">${esc(cat)}</td>${MZ_CANALES.map(c => {
+            const x = m.celdas.find(z => z.cat === cat && z.c === c); if (!x) return '<td></td>';
+            const sig = x.rel || (Math.abs(x.d) >= x.umbral && !x.poco), op = relev && !(Math.abs(x.d) >= x.umbral) ? 'opacity-40' : '', act = catSel === cat && canSel === c;
+            return `<td class="p-0.5"><button type="button" onclick="seleccionarMezcla('${esc(cat).replace(/'/g, '&#39;')}','${c}')" aria-pressed="${act}" class="w-full min-w-[104px] rounded-lg px-1.5 py-1.5 text-center border-2 ${act ? 'border-slate-900' : 'border-transparent hover:border-blue-500'} ${op}" style="background:${Math.abs(x.d) >= x.umbral ? bg(x.d) : '#f1f5f9'};${x.poco ? 'border-style:dashed;border-color:#94a3b8' : ''}">
+                <span class="block text-sm font-extrabold text-slate-900">${x.pA.toFixed(1)}%</span><span class="block text-xs ${x.d > 0 ? 'text-emerald-700' : x.d < 0 ? 'text-rose-700' : 'text-slate-500'}">${x.d > 0 ? '+' : x.d < 0 ? '−' : ''}${Math.abs(x.d).toFixed(1)} pp${x.poco ? ' · poco vol.' : ''}</span>
+                ${spark(x.peso, sig && !x.poco ? (x.d > 0 ? '#047857' : '#b91c1c') : '#64748b')}</button></td>`; }).join('')}</tr>`).join('');
+        const poco = m.celdas.filter(x => x.rel && x.d > 0 && x.poco).sort((a, b) => b.d - a.d).slice(0, 3);
+        const itemMz = a => `<li class="flex flex-col sm:flex-row sm:items-start justify-between gap-3 p-3 rounded-xl border ${a.etiquetaMz === 'Demanda nueva' ? 'border-emerald-200 bg-emerald-50/60' : 'border-amber-200 bg-amber-50/60'}">
+            <div class="min-w-0 flex-1"><div class="text-xs"><span class="inline-block mr-1.5 px-1.5 py-0.5 rounded-md text-xs font-extrabold uppercase ${a.etiquetaMz === 'Demanda nueva' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">${a.etiquetaMz}</span><span class="text-xs uppercase text-slate-500 mr-1.5">CATEGORÍA</span><strong class="text-slate-900">${esc(a.titular)}</strong></div>
+                <ul class="mt-1 text-xs text-slate-600 space-y-0.5 list-disc pl-4">${a.lineas.map(l => `<li>${esc(l)}</li>`).join('')}</ul><div class="mt-1.5 text-xs text-slate-500"><strong class="text-slate-700">Qué revisar:</strong> ${esc(a.revisar)}</div></div>
+            <div class="shrink-0">${botonAccion(a.tipo, a.titulo, a.detalle)}</div></li>`;
+        const lowItems = poco.map(x => `<li class="p-3 rounded-xl border border-slate-200 bg-slate-50 text-xs"><span class="inline-block mr-1.5 px-1.5 py-0.5 rounded-md text-xs font-extrabold uppercase bg-slate-200 text-slate-700">Poco volumen</span><strong class="text-slate-900">${esc(x.cat)} sube ${x.d.toFixed(1)} pp en ${x.c}.</strong> Solo ${fmtN(x.pedA)} pedidos en 4 semanas (mínimo ${fmtN(x.minPed)}): puede ser casualidad; se deja visible sin generar alerta.</li>`).join('');
+        let det = '';
+        if (catSel) { const x = m.celdas.find(z => z.cat === catSel && z.c === canSel), tot = m.cats.find(z => z.cat === catSel), d2 = mezDet.datos && mezDet.datos.get(catSel + '|' + canSel);
+            if (x) det = `<div class="rounded-2xl bg-white border border-slate-200 shadow-sm p-4 sm:p-5 space-y-3"><h3 class="text-sm font-extrabold text-slate-900">Detalle: ${esc(catSel)} en ${esc(canSel)}</h3>
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                ${[['Peso en ' + canSel, fmtP(x.pA), `antes ${fmtP(x.pB)} · ${x.d >= 0 ? '+' : '−'}${Math.abs(x.d).toFixed(1)} pp`], ['Venta en ' + canSel, fmtM(x.vA), `antes ${fmtM(x.vB)}${x.vB > 0 ? ' · ' + txtDelta(deltaRel(x.vA, x.vB)) : ''}`],
+                  ['Pedidos' + (d2 ? ' · clientes' : ''), d2 ? `${fmtN(d2.ped)} · ${fmtN(d2.cli)}` : fmtN(x.pedA), d2 ? `${d2.ped ? Math.round(d2.nue / d2.ped * 100) : 0}% de clientes nuevos · mínimo ${fmtN(x.minPed)} pedidos` : `mínimo ${fmtN(x.minPed)} pedidos (aprox.)`],
+                  ['Total de la categoría', fmtM(tot.vA), `${txtDelta(tot.g)} vs 4 semanas previas`]].map(([l, v, sb]) => `<div class="rounded-xl border border-slate-200 p-3"><div class="text-xs font-bold uppercase text-slate-500">${l}</div><div class="text-lg font-extrabold text-slate-900 num-tabular">${v}</div><div class="text-xs text-slate-500">${sb}</div></div>`).join('')}</div>
+                ${graficoMezcla(m, catSel, canSel)}</div>`; }
+        return `<div class="rounded-2xl bg-white border border-slate-200 shadow-sm p-4 sm:p-5 space-y-3">${cab}
+            <div class="flex flex-wrap items-center gap-2 text-xs"><span class="text-slate-500">Mostrar:</span>
+                <button type="button" onclick="S.mezTodo=false;renderTodo()" aria-pressed="${relev}" class="px-2.5 py-1 rounded-full border font-bold ${relev ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-300'}">Solo cambios relevantes</button>
+                <button type="button" onclick="S.mezTodo=true;renderTodo()" aria-pressed="${!relev}" class="px-2.5 py-1 rounded-full border font-bold ${!relev ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-300'}">Todo</button>
+                <span class="ml-auto text-slate-500">Nivel: Categoría (producto, más adelante)</span></div>
+            <div class="overflow-x-auto"><table class="border-separate" style="border-spacing:2px"><thead><tr><th></th>${MZ_CANALES.map(c => `<th class="px-2 py-1 text-xs uppercase text-slate-500 text-center">${c}</th>`).join('')}</tr></thead><tbody>${filas}</tbody></table></div>
+            <p class="text-xs text-slate-500"><span class="inline-block w-3 h-3 rounded align-middle" style="background:#a7f3d0"></span> gana peso en el canal · <span class="inline-block w-3 h-3 rounded align-middle" style="background:#fecaca"></span> pierde peso · borde punteado = poco volumen · mini-gráfica = peso semanal de 8 semanas.</p>
+            <div><h3 class="text-sm font-extrabold text-slate-900">Alertas de cambio de mezcla <span class="font-semibold text-slate-500">(${alertas.length})</span></h3>
+            <p class="text-xs text-slate-500">Ordenadas por la venta que cambió de canal. Solo aparecen cuando el cambio lleva 3 semanas en la misma dirección y se sale de la variación normal de la categoría.</p>
+            <ul class="mt-2 space-y-2">${alertas.length ? alertas.map(itemMz).join('') : '<li class="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-slate-600">Sin cambios relevantes de mezcla entre canales.</li>'}${lowItems}</ul></div></div>${det}
+            <div class="rounded-2xl bg-white border border-slate-200 p-4 text-xs text-slate-600 space-y-1"><strong class="text-slate-800">Cómo leerlo.</strong>
+                <p>“Empieza” significa tendencia: 3 semanas seguidas arriba (o abajo) de su peso normal y un cambio mayor al mínimo (${S.config.mezPiso} pp en Web y App, ${S.config.mezPisoManual} pp en WhatsApp y Llamadas) y a 1.5 veces la variación semanal de la categoría. Hace falta un volumen mínimo de ${S.config.mezMinPed} pedidos (la mitad en WhatsApp y Llamadas). Migración = el total de la categoría casi no crece y otro canal pierde peso; demanda nueva = el total crece al menos ${S.config.mezDemanda}% sin que otro canal pierda peso. La alerta no conoce promociones por canal ni errores de asignación de canal en el archivo de ventas: la causa es una hipótesis a revisar.</p></div>`;
+    }
+    function seleccionarMezcla(cat, canal) { S.mezSel = `${cat}|${canal}`; renderTodo(); }
 
     function renderCross(A) {
         const c = S.snap.cross;
@@ -1001,6 +1166,7 @@
         document.getElementById('cfg-umbral').value = S.config.umbral; document.getElementById('cfg-ialto').value = S.config.impactoAlto;
         document.getElementById('cfg-imedio').value = S.config.impactoMedio; document.getElementById('cfg-cabeza').value = S.config.cabeza;
         document.getElementById('cfg-crec').value = S.config.crec; document.getElementById('cfg-sinmov').value = S.config.sinMovDias;
+        document.getElementById('cfg-mpiso').value = S.config.mezPiso; document.getElementById('cfg-mpisom').value = S.config.mezPisoManual; document.getElementById('cfg-mped').value = S.config.mezMinPed; document.getElementById('cfg-mdem').value = S.config.mezDemanda;
     }
     function mesesDisponibles() {
         const set = new Set(S.dias.map(r => r.f.slice(0, 7)));
@@ -1087,6 +1253,10 @@
         if (n('cfg-cabeza') >= 10 && n('cfg-cabeza') <= 90) S.config.cabeza = n('cfg-cabeza');
         if (n('cfg-crec') >= 1 && n('cfg-crec') <= 50) S.config.crec = n('cfg-crec');
         if (n('cfg-sinmov') >= 30 && n('cfg-sinmov') <= 365) S.config.sinMovDias = n('cfg-sinmov');
+        if (n('cfg-mpiso') >= 0.5 && n('cfg-mpiso') <= 10) S.config.mezPiso = n('cfg-mpiso');
+        if (n('cfg-mpisom') >= 1 && n('cfg-mpisom') <= 20) S.config.mezPisoManual = n('cfg-mpisom');
+        if (n('cfg-mped') >= 10 && n('cfg-mped') <= 1000) S.config.mezMinPed = n('cfg-mped');
+        if (n('cfg-mdem') >= 1 && n('cfg-mdem') <= 50) S.config.mezDemanda = n('cfg-mdem');
         persistirEstado(); renderTodo();
     }
     const NOMBRE_BASE = { '3m': 'Últimos 3 meses', 'ly': 'Mismo mes del año anterior', 'mezcla': 'Mezcla' };
@@ -1727,7 +1897,9 @@
                 let U = 0, V = 0, sumaP = 0; const filas = [];
                 for (const [sku, n, cat, precio, base, tend] of P) {
                     if (parados[sku] !== undefined) { if (i < parados[sku]) continue; if (i > parados[sku] + 90) continue; }
-                    const reciente = i < 7 ? tend : 1; const u = Math.round(base * sh * fds * reciente * (i >= 364 ? 0.9 : 1) * (0.8 + rnd() * 0.4));
+                    const reciente = (i < 7 ? tend : 1) * (() => {   // en la demo, Dermocosmética migra de Web a App y Vitaminas crece en Web (las últimas 3 semanas)
+                        const t = i < 21 ? (21 - i) / 21 : 0; if (cat === 'Dermocosmética') return c === 'App' ? 1 + 1.1 * t : c === 'Web' ? 1 - 0.18 * t : 1; if (cat === 'Vitaminas y suplementos' && c === 'Web') return 1 + 0.55 * t; return 1; })();
+                    const u = Math.round(base * sh * fds * reciente * (i >= 364 ? 0.9 : 1) * (0.8 + rnd() * 0.4));
                     const uu = (parados[sku] !== undefined) ? Math.max(1, Math.round(6 * sh * 3)) : u; if (uu <= 0) continue;
                     const v = Math.round(uu * precio * (0.97 + rnd() * 0.06)); filas.push({ f, c, sku, n, cat, u: uu, v, p: Math.max(1, Math.round(uu * 0.85)) }); U += uu; V += v; sumaP += Math.max(1, Math.round(uu * 0.85));
                 }
