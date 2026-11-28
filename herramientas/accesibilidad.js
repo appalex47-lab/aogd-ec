@@ -56,6 +56,18 @@
         });
     }
     window.addEventListener('resize', () => { ajustarTabs(); ajustarTablas(); });
+    // Campos extra de las acciones (impacto estimado, métrica esperada) y marcas de seguimiento (vista de origen y fecha de cierre)
+    const hoyLocal = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+    window.accFecha = a => { if (a.estatus === 'Completada') a.fechaCompletada = a.fechaCompletada || hoyLocal(); else delete a.fechaCompletada; };
+    window.accExtra = (datos, existente) => {
+        const gi = id => { const e = document.getElementById(id); return e ? e.value.trim() : ''; }, imp = gi('acc-impacto');
+        datos.impacto = imp !== '' && !isNaN(Number(imp)) ? Number(imp) : null; datos.metrica = gi('acc-metrica');
+        datos.fechaCompletada = datos.estatus === 'Completada' ? ((existente && existente.fechaCompletada) || hoyLocal()) : null;
+        if (!existente && typeof S !== 'undefined' && S.vista) datos.vista = S.vista;
+    };
+    // Enlace profundo desde Acciones: #vista=<id> abre la herramienta en esa pestaña
+    (function () { const m = location.hash.match(/vista=([a-z0-9_-]+)/i); if (!m) return;
+        window.addEventListener('load', () => setTimeout(() => { try { if (typeof cambiarVista === 'function' && (document.getElementById('panel-' + m[1]) || document.getElementById('view-' + m[1]))) cambiarVista(m[1]); } catch (e) {} }, 900)); })();
     let pend = false;
     function programar() { if (pend) return; pend = true; setTimeout(() => { pend = false; marcar(document.body); ajustarTabs(); ajustarTablas(); }, 120); }
     function iniciar() { marcar(document.body); ajustarTabs(); ajustarTablas(); new MutationObserver(programar).observe(document.body, { childList: true, subtree: true }); }

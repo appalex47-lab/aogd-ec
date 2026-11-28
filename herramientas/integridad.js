@@ -10,7 +10,8 @@ window.Integridad = (function () {
     const E = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     const ICONO = { ok: ['✓', 'bg-emerald-100 text-emerald-700'], warn: ['!', 'bg-amber-100 text-amber-700'], bad: ['✕', 'bg-rose-100 text-rose-700'], info: ['i', 'bg-blue-100 text-blue-700'] };
     const CHIP = { ok: 'bg-emerald-100 text-emerald-700', warn: 'bg-amber-100 text-amber-700', bad: 'bg-rose-100 text-rose-700', info: 'bg-blue-100 text-blue-700' };
-    const SUBS = ['Cobertura', 'Verificaciones', 'Conciliación', 'Ajustes', 'Respaldo'];
+    const SUBS_BASE = ['Cobertura', 'Verificaciones', 'Conciliación', 'Ajustes'];
+    const subsDe = () => [...SUBS_BASE, ...((M && M.extras) || []).map(x => x.titulo), 'Respaldo'];
     const RESP_KEY = 'aogd_ultimo_respaldo';
     const RESP_TABLAS = [['tablero_estado', ['id']], ['trafico_estado', ['id']], ['trafico_registros', ['fecha', 'canal', 'fuente', 'dispositivo', 'campana']], ['comercial_estado', ['id']], ['comercial_dia', ['fecha', 'canal']], ['demanda_estado', ['id']], ['demanda_negados', ['fecha', 'sku', 'sucursal']]];
     const ultimoResp = () => { try { return localStorage.getItem(RESP_KEY); } catch (e) { return null; } };
@@ -121,8 +122,8 @@ window.Integridad = (function () {
     }
     function pintar() {
         if (!el || !M) return; reg = [];
-        const tabs = SUBS.map(s => `<button type="button" onclick="Integridad.ir('${s}')" class="shrink-0 px-1 py-2 text-xs font-bold border-b-[3px] ${s === sub ? 'text-slate-900 border-blue-600' : 'text-slate-500 border-transparent hover:text-slate-800'}">${s}</button>`).join('');
-        const cuerpo = sub === 'Cobertura' ? cobertura() : sub === 'Verificaciones' ? verificaciones() : sub === 'Conciliación' ? conciliacion() : sub === 'Respaldo' ? respaldo() : ajustes();
+        const tabs = subsDe().map(s => `<button type="button" onclick="Integridad.ir('${s}')" class="shrink-0 px-1 py-2 text-xs font-bold border-b-[3px] ${s === sub ? 'text-slate-900 border-blue-600' : 'text-slate-500 border-transparent hover:text-slate-800'}">${s}</button>`).join('');
+        const cuerpo = sub === 'Cobertura' ? cobertura() : sub === 'Verificaciones' ? verificaciones() : sub === 'Conciliación' ? conciliacion() : sub === 'Respaldo' ? respaldo() : (((M.extras || []).find(x => x.titulo === sub) || {}).html ? M.extras.find(x => x.titulo === sub).html() : ajustes());
         el.innerHTML = `<div class="flex items-center gap-4 border-b border-slate-200 mb-3 overflow-x-auto"><span class="text-xs text-slate-400 shrink-0">⚙ Configuración e integridad ›</span>${tabs}<span class="flex-1"></span><button type="button" onclick="Integridad.recalcular()" class="${BTN} shrink-0">↻ Revisar ahora</button></div>${cuerpo}`;
     }
     return {
