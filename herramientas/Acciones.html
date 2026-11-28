@@ -247,7 +247,7 @@
     // =====================================================================
         function nubeEstado(texto, tono) {
         const el = document.getElementById('nube-estado'); el.textContent = texto;
-        el.className = 'fixed bottom-2 left-2 z-40 pointer-events-none opacity-80 px-2.5 py-1 rounded-lg bg-white/90 border text-[11px] font-semibold shadow-sm ' + (tono === 'error' ? 'border-rose-300 text-rose-700' : tono === 'ok' ? 'border-emerald-300 text-emerald-700' : 'border-slate-200 text-slate-600');
+        el.className = 'fixed bottom-2 left-2 z-40 pointer-events-none opacity-80 px-2.5 py-1 rounded-lg bg-white/90 border text-[11px] font-semibold shadow-sm ' + (tono === 'error' ? 'border-rose-300 text-rose-700' : tono === 'ok' ? 'border-emerald-300 text-emerald-700 max-sm:hidden' : 'border-slate-200 text-slate-600');
     }
     async function cargarOrigen(o) {
         const { data, error } = await NUBE.client.from(ORIGENES[o].tabla).select('acciones,version').eq('id', 'principal').maybeSingle(); if (error) throw error;

@@ -5009,7 +5009,7 @@
             if (!el) return;
             el.textContent = texto;
             el.className = 'fixed bottom-2 left-2 z-40 pointer-events-none opacity-80 px-2.5 py-1 rounded-lg bg-white/90 border text-xs font-semibold shadow-sm '
-                + (tono === 'error' ? 'border-rose-300 text-rose-700' : tono === 'ok' ? 'border-emerald-300 text-emerald-700' : 'border-slate-200 text-slate-600');
+                + (tono === 'error' ? 'border-rose-300 text-rose-700' : tono === 'ok' ? 'border-emerald-300 text-emerald-700 max-sm:hidden' : 'border-slate-200 text-slate-600');
         }
 
         function nubeMostrarOverlay(mostrar, error) {
